@@ -1,5 +1,5 @@
-import { Chess, Square, PieceSymbol, Color } from 'chess.js';
-import { MoveClassification } from '@/types/chess';
+import { Chess, Square, PieceSymbol, Color, Move } from 'chess.js';
+import { MoveClassification, KeyMoment, PieceColor } from '@/types/chess';
 
 // Piece values in centipawns
 const PIECE_VALUES: Record<PieceSymbol, number> = {
@@ -20,7 +20,7 @@ const PAWN_PST = [
    0,  0,  0, 20, 20,  0,  0,  0,
    5, -5,-10,  0,  0,-10, -5,  5,
    5, 10, 10,-20,-20, 10, 10,  5,
-   0,  0,  0,  0,  0,  0,  0,  0
+   0,  0,  0,  0,  0,  0,  0,  0,
 ];
 
 const KNIGHT_PST = [
@@ -53,7 +53,7 @@ const ROOK_PST = [
    -5,  0,  0,  0,  0,  0,  0, -5,
    -5,  0,  0,  0,  0,  0,  0, -5,
    -5,  0,  0,  0,  0,  0,  0, -5,
-    0,  0,  0,  5,  5,  0,  0,  0
+    0,  0,  0,  5,  5,  0,  0,  0,
 ];
 
 const QUEEN_PST = [
@@ -64,7 +64,7 @@ const QUEEN_PST = [
     0,  0,  5,  5,  5,  5,  0, -5,
   -10,  5,  5,  5,  5,  5,  0,-10,
   -10,  0,  5,  0,  0,  0,  0,-10,
-  -20,-10,-10, -5, -5,-10,-10,-20
+  -20,-10,-10, -5, -5,-10,-10,-20,
 ];
 
 const KING_MIDGAME_PST = [
@@ -75,12 +75,21 @@ const KING_MIDGAME_PST = [
   -20,-30,-30,-40,-40,-30,-30,-20,
   -10,-20,-20,-20,-20,-20,-20,-10,
    20, 20,  0,  0,  0,  0, 20, 20,
-   20, 30, 10,  0,  0, 10, 30, 20
+   20, 30, 10,  0,  0, 10, 30, 20,
 ];
+
+// Recognized Book Opening Move sequences (standard theoretical starts)
+const COMMON_BOOK_MOVES: Set<string> = new Set([
+  'e4', 'd4', 'c4', 'Nf3', 'g3', 'f4', 'b3', 'Nc3',
+  'e5', 'c5', 'e6', 'c6', 'd5', 'Nf6', 'g6', 'd6',
+  'd4', 'exd5', 'Qxd5', 'Nc3', 'Qd8', 'Qd6', 'Qd7', 'Qa5',
+  'Nf3', 'Nc6', 'Bb5', 'Bc4', 'd3', 'd4', 'c3', 'a6', 'Nf6', 'd6', 'Be7',
+  'cxd4', 'Nxd4', 'e6', 'a6', 'Nc6', 'g6', 'Bg7', 'O-O',
+]);
 
 export interface EngineEvalResult {
   score: number; // in centipawns from White's perspective (+100 = White +1 pawn)
-  formattedScore: string; // e.g. "+1.4", "-0.8", "M2"
+  formattedScore: string;
   bestMoveSan: string;
   bestMoveUci: string;
   depth: number;
@@ -88,7 +97,7 @@ export interface EngineEvalResult {
 
 export class ChessEvaluator {
   /**
-   * Evaluates the board static position from White's perspective in centipawns
+   * Static evaluation of board position from White's perspective in centipawns
    */
   public static evaluatePosition(chess: Chess): number {
     if (chess.isCheckmate()) {
@@ -107,7 +116,7 @@ export class ChessEvaluator {
         if (!piece) continue;
 
         const squareIndex = piece.color === 'w' ? row * 8 + col : (7 - row) * 8 + col;
-        let pieceVal = PIECE_VALUES[piece.type];
+        const pieceVal = PIECE_VALUES[piece.type];
         let pstVal = 0;
 
         switch (piece.type) {
@@ -132,7 +141,7 @@ export class ChessEvaluator {
   }
 
   /**
-   * Performs an Alpha-Beta search to find the best move and score for current turn
+   * Alpha-beta minimax search to find the optimal move and evaluation score
    */
   public static getBestMove(chess: Chess, depth: number = 3): EngineEvalResult {
     const isMaximizing = chess.turn() === 'w';
@@ -152,7 +161,7 @@ export class ChessEvaluator {
       };
     }
 
-    // Sort moves to optimize alpha-beta pruning (captures first)
+    // Sort moves to accelerate alpha-beta pruning (captures first)
     moves.sort((a, b) => {
       const aScore = a.captured ? PIECE_VALUES[a.captured] * 10 - PIECE_VALUES[a.piece] : 0;
       const bScore = b.captured ? PIECE_VALUES[b.captured] * 10 - PIECE_VALUES[b.piece] : 0;
@@ -220,15 +229,25 @@ export class ChessEvaluator {
   }
 
   public static formatScore(score: number): string {
-    if (Math.abs(score) > 20000) {
+    if (Math.abs(score) >= 20000) {
       return score > 0 ? '+M' : '-M';
     }
-    const pawns = (score / 100).toFixed(1);
+    const pawns = (score / 100).toFixed(2);
     return score > 0 ? `+${pawns}` : `${pawns}`;
   }
 
   /**
-   * Evaluates move quality and returns Chess.com move classification & Coach comment
+   * Classifies a chess move using Chess.com criteria:
+   * - Brilliant (!!): Tactical sacrifices that maintain winning position
+   * - Great (!): Only winning move or crucial save
+   * - Best (★): Engine top choice
+   * - Excellent (✓): Negligible loss
+   * - Good (✓): Playable continuation
+   * - Book (📖): Standard opening book
+   * - Inaccuracy (?!): 0.5 - 1.2 pawn loss
+   * - Mistake (?): 1.2 - 2.5 pawn loss
+   * - Blunder (??): > 2.5 pawn loss
+   * - Miss (✕): Missed winning tactic or checkmate
    */
   public static classifyMove(
     moveSan: string,
@@ -237,71 +256,133 @@ export class ChessEvaluator {
     evalAfter: number,
     turn: Color,
     isCapture: boolean,
-    isCheck: boolean
+    isCheck: boolean,
+    plyIndex: number = 10,
+    pieceType: PieceSymbol = 'p'
   ): { classification: MoveClassification; comment: string } {
     const isWhite = turn === 'w';
-    // Difference from player's perspective (positive means player improved position)
-    const diff = isWhite ? (evalAfter - evalBefore) : (evalBefore - evalAfter);
+    const evalDelta = isWhite ? evalAfter - evalBefore : evalBefore - evalAfter;
 
-    if (moveSan === bestMoveSan) {
-      // Check for Brilliant move (sacrifice or tactical shot that leads to huge win)
-      if (isCapture && Math.abs(evalAfter) > 200 && diff >= 0) {
-        return {
-          classification: 'brilliant',
-          comment: 'Brilliant move! You found a sharp tactical sacrifice that dismantles your opponent’s position!',
-        };
-      }
+    // Check for Book Move in the opening
+    if (plyIndex <= 8 && COMMON_BOOK_MOVES.has(moveSan)) {
       return {
-        classification: 'best',
-        comment: 'Best move! That was the engine’s top choice in this position.',
+        classification: 'book',
+        comment: `${moveSan} is a standard theoretical book move, adhering to classical opening principles.`,
       };
     }
 
-    // Centipawn loss (always positive)
-    const centipawnLoss = Math.max(0, -diff);
+    // Check for Brilliant move (Piece sacrifice that retains advantage)
+    const isPieceSacrifice =
+      (pieceType === 'q' || pieceType === 'r' || pieceType === 'b' || pieceType === 'n') &&
+      ((isWhite && evalAfter >= 150) || (!isWhite && evalAfter <= -150));
 
-    if (centipawnLoss <= 15) {
+    if (moveSan === bestMoveSan || evalDelta >= 0) {
+      if (isPieceSacrifice && Math.abs(evalDelta) <= 50) {
+        return {
+          classification: 'brilliant',
+          comment: `Brilliant move! You offered material sacrifice to blow open your opponent's king safety and secure decisive tactical advantage!`,
+        };
+      }
+
+      if (moveSan === bestMoveSan) {
+        return {
+          classification: 'best',
+          comment: `Best move! That was the engine's highest-depth recommendation in this position.`,
+        };
+      }
+
+      return {
+        classification: 'great',
+        comment: `Great move! An inventive and dynamic solution finding sharp initiative.`,
+      };
+    }
+
+    // Centipawn loss
+    const centipawnLoss = Math.max(0, -evalDelta);
+
+    if (centipawnLoss <= 18) {
       return {
         classification: 'excellent',
-        comment: 'Excellent move! Maintains great pressure and solid positional control.',
+        comment: `Excellent move! Keeps maximum pressure and solid positional advantage.`,
       };
-    } else if (centipawnLoss <= 45) {
+    } else if (centipawnLoss <= 55) {
       return {
         classification: 'good',
-        comment: 'Good move. A solid and playable continuation.',
+        comment: `Good move. A totally sound and playable choice.`,
       };
-    } else if (centipawnLoss <= 120) {
+    } else if (centipawnLoss <= 130) {
       return {
         classification: 'inaccuracy',
-        comment: `Inaccuracy. ${bestMoveSan ? `Playing ${bestMoveSan} was slightly better.` : 'This allows opponent counterplay.'}`,
+        comment: `Inaccuracy. ${bestMoveSan ? `Playing ${bestMoveSan} was slightly sharper.` : 'This concedes minor counterplay.'}`,
       };
     } else if (centipawnLoss <= 280) {
       return {
         classification: 'mistake',
-        comment: `Mistake! This concedes a tangible advantage to your opponent. You should have played ${bestMoveSan || 'more defensively'}.`,
+        comment: `Mistake! This surrenders momentum to your opponent. You should have calculated ${bestMoveSan || 'a more defensive square'}.`,
       };
     } else {
-      if (Math.abs(evalBefore) > 400 && Math.sign(evalBefore) !== Math.sign(evalAfter)) {
+      // Check if player missed mate or huge advantage
+      if (Math.abs(evalBefore) >= 400 && Math.sign(evalBefore) !== Math.sign(evalAfter)) {
         return {
           classification: 'miss',
-          comment: `Miss! You missed a game-winning opportunity here. ${bestMoveSan} was decisive!`,
+          comment: `Miss! You missed a decisive tactical blow here! ${bestMoveSan} was winning on the spot!`,
         };
       }
       return {
         classification: 'blunder',
-        comment: `Blunder! This gives away significant material or positional compensation. ${bestMoveSan} was crucial.`,
+        comment: `Blunder! This leaves a critical weakness or hangs material. ${bestMoveSan} was necessary.`,
       };
     }
   }
 
   /**
-   * Computes CAPS (Chess Accuracy Percentage System) based on average centipawn loss
+   * CAPS Accuracy Score Formula (0 - 100%)
    */
   public static calculateCapsAccuracy(centipawnLosses: number[]): number {
-    if (centipawnLosses.length === 0) return 90.0;
+    if (centipawnLosses.length === 0) return 92.5;
     const avgLoss = centipawnLosses.reduce((a, b) => a + b, 0) / centipawnLosses.length;
-    // Accuracy sigmoid formula matching Chess.com CAPS
-    const accuracy = 100 * Math.exp(-0.0035 * avgLoss);
-    return Math.min(99.9, Math.max(10.0, parseFloat(accuracy.toFixed(1))));
+    // Sigmoid model matching Chess.com CAPS
+    const accuracy = 100 * Math.exp(-0.0038 * avgLoss);
+    return Math.min(99.8, Math.max(12.0, parseFloat(accuracy.toFixed(1))));
+  }
+
+  /**
+   * Generates a random Chess960 (Fischer Random) starting position FEN
+   * Validated against all Fischer Random constraints (opposite bishops, king between rooks).
+   */
+  public static generateChess960Fen(): string {
+    const pieces: (PieceSymbol | null)[] = new Array(8).fill(null);
+
+    // 1. Place dark-square bishop (indices 1, 3, 5, 7)
+    const darkSquares = [1, 3, 5, 7];
+    const b1 = darkSquares[Math.floor(Math.random() * darkSquares.length)];
+    pieces[b1] = 'b';
+
+    // 2. Place light-square bishop (indices 0, 2, 4, 6)
+    const lightSquares = [0, 2, 4, 6];
+    const b2 = lightSquares[Math.floor(Math.random() * lightSquares.length)];
+    pieces[b2] = 'b';
+
+    // 3. Place Queen on random empty square
+    const emptyAfterB = [0, 1, 2, 3, 4, 5, 6, 7].filter((i) => pieces[i] === null);
+    const qIndex = emptyAfterB[Math.floor(Math.random() * emptyAfterB.length)];
+    pieces[qIndex] = 'q';
+
+    // 4. Place 2 Knights on random empty squares
+    const emptyAfterQ = [0, 1, 2, 3, 4, 5, 6, 7].filter((i) => pieces[i] === null);
+    const n1 = emptyAfterQ.splice(Math.floor(Math.random() * emptyAfterQ.length), 1)[0];
+    const n2 = emptyAfterQ.splice(Math.floor(Math.random() * emptyAfterQ.length), 1)[0];
+    pieces[n1] = 'n';
+    pieces[n2] = 'n';
+
+    // 5. Remaining 3 squares must be Rook, King, Rook (in that order)
+    const remaining = [0, 1, 2, 3, 4, 5, 6, 7].filter((i) => pieces[i] === null);
+    pieces[remaining[0]] = 'r';
+    pieces[remaining[1]] = 'k';
+    pieces[remaining[2]] = 'r';
+
+    const rankStr = pieces.join('');
+    return `${rankStr.toLowerCase()}/pppppppp/8/8/8/8/PPPPPPPP/${rankStr.toUpperCase()} w KQkq - 0 1`;
   }
 }
+

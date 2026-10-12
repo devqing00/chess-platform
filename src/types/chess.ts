@@ -21,6 +21,8 @@ export type PieceTheme = 'neo' | 'staunton' | '8bit' | 'alpha';
 export type SoundTheme = 'classic' | 'wood' | 'marble' | 'arcade' | 'silman';
 export type AnimationSpeed = 'instant' | 'fast' | 'normal';
 
+export type ChessVariant = 'standard' | 'chess960' | '3check' | 'kingofthehill' | 'crazyhouse' | 'solochess';
+
 export type MoveClassification = 
   | 'brilliant' 
   | 'great' 
@@ -32,6 +34,18 @@ export type MoveClassification =
   | 'blunder' 
   | 'miss' 
   | 'book';
+
+export interface ArrowAnnotation {
+  from: Square;
+  to: Square;
+  color?: string; // e.g. '#81b64c' for best move, '#06b6d4' for brilliant/coach, '#ef4444' for blunder
+}
+
+export interface Premove {
+  from: Square;
+  to: Square;
+  promotion?: PieceType;
+}
 
 export interface MoveRecord {
   san: string;
@@ -47,6 +61,8 @@ export interface MoveRecord {
   coachComment?: string;
   timeSpentMs?: number;
   bestMoveSan?: string;
+  bestMoveUci?: string;
+  isCheck?: boolean;
 }
 
 export interface GamePlayer {
@@ -68,6 +84,33 @@ export type TimeControl = {
 };
 
 export type GameStatus = 'waiting' | 'in_progress' | 'checkmate' | 'draw' | 'resigned' | 'timeout' | 'stalemate';
+
+export interface GameResultDetails {
+  winner: 'w' | 'b' | 'draw';
+  reason: 'resignation' | 'checkmate' | 'timeout' | 'stalemate' | 'insufficient' | 'agreement';
+  ratingDelta: number;
+  newRating: number;
+  league: string;
+  trophiesDelta: number;
+  achievementToast?: {
+    title: string;
+    subtitle: string;
+    icon: string;
+  };
+}
+
+export interface KeyMoment {
+  moveIndex: number;
+  turnNumber: number;
+  turnColor: PieceColor;
+  moveSan: string;
+  bestMoveSan: string;
+  classification: MoveClassification;
+  evalBefore: number;
+  evalAfter: number;
+  coachComment: string;
+  isMistake: boolean;
+}
 
 export interface BotPersonality {
   id: string;

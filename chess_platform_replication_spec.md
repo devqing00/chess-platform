@@ -231,5 +231,3 @@ Rules: descriptive `User-Agent` with contact info required; no move submission; 
 Each remediation ships behind a flag with an A/B read; guardrail metrics (game-start rate, review-completion rate, puzzle-streak retention) must not regress >2% relative.
 
 ---
-
-*Document generated 2026-10-12. Reference behaviors verified against community documentation, official help center, API terms, and technical analyses available as of that date. Implement original artwork, audio, and iconography throughout; this spec deliberately describes behavior and architecture rather than protected assets.*

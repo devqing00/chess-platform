@@ -1,9 +1,17 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Chess, Square, PieceSymbol, Move } from 'chess.js';
 import { PieceIcon } from './PieceIcons';
-import { BoardTheme, PieceTheme, PieceColor } from '@/types/chess';
+import { ClassificationBadge } from './ClassificationBadge';
+import {
+  BoardTheme,
+  PieceTheme,
+  PieceColor,
+  MoveClassification,
+  ArrowAnnotation,
+  Premove,
+} from '@/types/chess';
 
 interface ChessBoardProps {
   chess: Chess;
@@ -11,8 +19,14 @@ interface ChessBoardProps {
   boardTheme?: BoardTheme;
   pieceTheme?: PieceTheme;
   onMove?: (from: Square, to: Square, promotion?: PieceSymbol) => void;
+  onPremove?: (from: Square, to: Square) => void;
   lastMove?: { from: Square; to: Square } | null;
+  activeClassification?: { square: Square; classification: MoveClassification } | null;
   bestMoveArrow?: { from: Square; to: Square } | null;
+  premoves?: Premove[];
+  customArrows?: ArrowAnnotation[];
+  onAddCustomArrow?: (arrow: ArrowAnnotation) => void;
+  onClearCustomArrows?: () => void;
   disabled?: boolean;
   blindfold?: boolean;
 }
@@ -35,13 +49,23 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   boardTheme = 'green',
   pieceTheme = 'neo',
   onMove,
+  onPremove,
   lastMove = null,
+  activeClassification = null,
   bestMoveArrow = null,
+  premoves = [],
+  customArrows = [],
+  onAddCustomArrow,
+  onClearCustomArrows,
   disabled = false,
   blindfold = false,
 }) => {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
+
+  // Right-click drag arrow drawing state
+  const [arrowDragStart, setArrowDragStart] = useState<Square | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const colors = THEME_COLORS[boardTheme] || THEME_COLORS.green;
 
@@ -90,10 +114,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
     return null;
   }, [chess]);
 
+  // Handle left click on a square
   const handleSquareClick = (sq: Square) => {
     if (disabled) return;
 
-    // Check if selecting a destination for pending move
+    // Check if selecting destination for pending move
     if (selectedSquare) {
       const legalMove = legalSquaresMap.get(sq);
       if (legalMove) {
@@ -110,9 +135,14 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       }
     }
 
-    // Select new piece if it belongs to current player
+    // Premove logic when it's not our turn
+    const currentTurn = chess.turn();
     const piece = chess.get(sq);
-    if (piece && piece.color === chess.turn()) {
+
+    if (piece && piece.color === currentTurn) {
+      setSelectedSquare(sq);
+    } else if (piece && piece.color !== currentTurn && onPremove) {
+      // selecting piece for premove
       setSelectedSquare(sq);
     } else {
       setSelectedSquare(null);
@@ -127,8 +157,61 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
     }
   };
 
+  // Right-click arrow drag interactions
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
+
+  const handleMouseDown = (e: React.MouseEvent, sq: Square) => {
+    if (e.button === 2) {
+      // Right click down
+      e.preventDefault();
+      setArrowDragStart(sq);
+    } else if (e.button === 0) {
+      // Left click clears custom arrows
+      onClearCustomArrows?.();
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent, sq: Square) => {
+    if (e.button === 2 && arrowDragStart && arrowDragStart !== sq) {
+      e.preventDefault();
+      onAddCustomArrow?.({ from: arrowDragStart, to: sq, color: '#81b64c' });
+      setArrowDragStart(null);
+    } else {
+      setArrowDragStart(null);
+    }
+  };
+
+  // Convert square to pixel percentages (0-100%) for SVG arrow rendering
+  const getSquareCenterPercent = (sq: Square) => {
+    const file = sq[0];
+    const rank = sq[1];
+    const colIdx = filesLayout.indexOf(file);
+    const rowIdx = ranksLayout.indexOf(rank);
+    if (colIdx === -1 || rowIdx === -1) return { x: 0, y: 0 };
+    return {
+      x: (colIdx + 0.5) * 12.5,
+      y: (rowIdx + 0.5) * 12.5,
+    };
+  };
+
+  // Combined arrows to render
+  const arrowsToRender = useMemo(() => {
+    const list: ArrowAnnotation[] = [];
+    if (bestMoveArrow) {
+      list.push({ ...bestMoveArrow, color: '#81b64c' });
+    }
+    customArrows.forEach((a) => list.push(a));
+    return list;
+  }, [bestMoveArrow, customArrows]);
+
   return (
-    <div className="relative aspect-square w-full max-w-[620px] rounded-lg shadow-2xl overflow-hidden select-none border-4 border-[#272522]">
+    <div
+      ref={boardRef}
+      onContextMenu={handleContextMenu}
+      className="relative aspect-square w-full max-w-[580px] rounded-lg shadow-2xl overflow-hidden select-none border-4 border-[#272522]"
+    >
       {/* 8x8 Board Grid */}
       <div className="grid grid-cols-8 grid-rows-8 w-full h-full">
         {ranksLayout.map((rank, rankIdx) =>
@@ -144,32 +227,64 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
             const isLegalDestination = legalSquaresMap.has(sq);
             const isCapture = isLegalDestination && piece !== null;
 
-            // Coordinates labels (Chess.com shows rank on leftmost file, file on bottom rank)
-            const showRank = fileIdx === 0;
-            const showFile = rankIdx === 7;
+            // Premove indicator
+            const isPremoveFrom = premoves.some((p) => p.from === sq);
+            const isPremoveTo = premoves.some((p) => p.to === sq);
+
+            // Classification badge on destination square (from Game Review!)
+            const classificationOnSquare =
+              activeClassification && activeClassification.square === sq
+                ? activeClassification.classification
+                : null;
+
+            // Highlight styling
+            const isHighlightedSquare =
+              classificationOnSquare === 'brilliant'
+                ? '!bg-[#1baca6]/40'
+                : isLastMoveFrom || isLastMoveTo
+                ? '!bg-[#f5f682]/75'
+                : isSelected
+                ? '!bg-[#f7f769]'
+                : isPremoveFrom || isPremoveTo
+                ? '!bg-[#06b6d4]/40'
+                : '';
 
             const bgSquareColor = isLight ? colors.light : colors.dark;
+
+            // Labels: rank on leftmost file, file on bottom rank
+            const showRank = fileIdx === 0;
+            const showFile = rankIdx === 7;
 
             return (
               <div
                 key={sq}
                 onClick={() => handleSquareClick(sq)}
+                onMouseDown={(e) => handleMouseDown(e, sq)}
+                onMouseUp={(e) => handleMouseUp(e, sq)}
                 style={{ backgroundColor: bgSquareColor }}
-                className={`relative w-full h-full flex items-center justify-center cursor-pointer transition-colors ${
-                  isSelected ? '!bg-[#f7f769]' : ''
-                } ${
-                  isLastMoveFrom || isLastMoveTo ? '!bg-[#f5f682]/75' : ''
-                }`}
+                className={`relative w-full h-full flex items-center justify-center cursor-pointer transition-colors ${isHighlightedSquare}`}
               >
-                {/* Check alert radial highlight */}
+                {/* King in Check Red Glow & Badge (Image 2) */}
                 {isCheckSquare && (
-                  <div className="absolute inset-0 bg-red-600/70 rounded-full blur-[2px] animate-pulse" />
+                  <>
+                    <div className="absolute inset-0 bg-red-600/75 rounded-full blur-[2px] animate-pulse pointer-events-none" />
+                    <div className="absolute top-1 right-1 z-30 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[11px] font-black shadow-md border border-red-400 pointer-events-none animate-bounce">
+                      +
+                    </div>
+                  </>
                 )}
 
-                {/* Coordinate labels */}
+                {/* Move Classification Badge Pinned on Square (Image 1 & 4) */}
+                {classificationOnSquare && (
+                  <div className="absolute top-1 right-1 z-30 pointer-events-none animate-in zoom-in-75 duration-200">
+                    <ClassificationBadge classification={classificationOnSquare} size="md" />
+                  </div>
+                )}
+
+                {/* Coordinate Labels */}
                 {showRank && (
                   <span
-                    className={`absolute top-1 left-1.5 text-[11px] font-bold select-none ${
+                    className={`absolute top-0.5 left-1 text-[11px] font-bold select-none ${
                       isLight ? 'text-[#779556]' : 'text-[#ebecd0]'
                     }`}
                   >
@@ -178,7 +293,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
                 )}
                 {showFile && (
                   <span
-                    className={`absolute bottom-1 right-1.5 text-[11px] font-bold select-none ${
+                    className={`absolute bottom-0.5 right-1 text-[11px] font-bold select-none ${
                       isLight ? 'text-[#779556]' : 'text-[#ebecd0]'
                     }`}
                   >
@@ -189,11 +304,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
                 {/* Piece Icon */}
                 {piece && !blindfold && (
                   <div className="w-[84%] h-[84%] flex items-center justify-center z-10 transition-transform active:scale-95 pointer-events-none">
-                    <PieceIcon
-                      type={piece.type}
-                      color={piece.color}
-                      theme={pieceTheme}
-                    />
+                    <PieceIcon type={piece.type} color={piece.color} theme={pieceTheme} />
                   </div>
                 )}
 
@@ -210,7 +321,73 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
         )}
       </div>
 
-      {/* Pawn Promotion Modal */}
+      {/* SVG Arrow Annotations Overlay */}
+      {arrowsToRender.length > 0 && (
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none z-30"
+          viewBox="0 0 100 100"
+        >
+          <defs>
+            <marker
+              id="arrowhead-green"
+              markerWidth="4"
+              markerHeight="4"
+              refX="2"
+              refY="2"
+              orient="auto"
+            >
+              <polygon points="0 0, 4 2, 0 4" fill="#81b64c" />
+            </marker>
+            <marker
+              id="arrowhead-cyan"
+              markerWidth="4"
+              markerHeight="4"
+              refX="2"
+              refY="2"
+              orient="auto"
+            >
+              <polygon points="0 0, 4 2, 0 4" fill="#06b6d4" />
+            </marker>
+            <marker
+              id="arrowhead-red"
+              markerWidth="4"
+              markerHeight="4"
+              refX="2"
+              refY="2"
+              orient="auto"
+            >
+              <polygon points="0 0, 4 2, 0 4" fill="#ef4444" />
+            </marker>
+          </defs>
+          {arrowsToRender.map((arrow, idx) => {
+            const start = getSquareCenterPercent(arrow.from);
+            const end = getSquareCenterPercent(arrow.to);
+            const markerId =
+              arrow.color === '#ef4444'
+                ? 'url(#arrowhead-red)'
+                : arrow.color === '#06b6d4'
+                ? 'url(#arrowhead-cyan)'
+                : 'url(#arrowhead-green)';
+
+            return (
+              <line
+                key={idx}
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                stroke={arrow.color || '#81b64c'}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                opacity="0.85"
+                markerEnd={markerId}
+              />
+            );
+          })}
+        </svg>
+      )}
+
+      {/* Pawn Promotion Dialog */}
       {pendingPromotion && (
         <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#262522] border border-[#3f3d39] rounded-xl p-4 shadow-2xl flex flex-col items-center gap-3">

@@ -218,6 +218,12 @@ class SoundService {
   // Checkmate / Victory: Triumphant brass harmonic chime
   public playCheckmate() {
     if (!this.soundEnabled) return;
+    this.playGameEndWin();
+  }
+
+  // Win resolution sting (Major resolve)
+  public playGameEndWin() {
+    if (!this.soundEnabled) return;
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
@@ -236,6 +242,54 @@ class SoundService {
       osc.connect(gain).connect(ctx.destination);
       osc.start(t + idx * 0.08);
       osc.stop(t + idx * 0.08 + 0.5);
+    });
+  }
+
+  // Loss resolution sting (Minor descending fall)
+  public playGameEndLoss() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const notes = [440, 415.3, 392, 349.23]; // Descending melancholy
+    const t = ctx.currentTime;
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.1);
+
+      gain.gain.setValueAtTime(0.2, t + idx * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.1 + 0.4);
+
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t + idx * 0.1);
+      osc.stop(t + idx * 0.1 + 0.45);
+    });
+  }
+
+  // Draw resolution sting (Neutral tone)
+  public playGameEndDraw() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const notes = [440, 440]; // Neutral double chime
+    const t = ctx.currentTime;
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.12);
+
+      gain.gain.setValueAtTime(0.16, t + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.12 + 0.35);
+
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t + idx * 0.12);
+      osc.stop(t + idx * 0.12 + 0.4);
     });
   }
 
