@@ -213,7 +213,14 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
       className="relative aspect-square w-full max-w-[580px] rounded-lg shadow-2xl overflow-hidden select-none border-4 border-[#272522]"
     >
       {/* 8x8 Board Grid */}
-      <div className="grid grid-cols-8 grid-rows-8 w-full h-full">
+      <div
+        className="w-full h-full"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(8, minmax(0, 1fr))',
+          gridTemplateRows: 'repeat(8, minmax(0, 1fr))',
+        }}
+      >
         {ranksLayout.map((rank, rankIdx) =>
           filesLayout.map((file, fileIdx) => {
             const sq = `${file}${rank}` as Square;

@@ -35,6 +35,8 @@ import { GameOverModal } from '@/components/game/GameOverModal';
 import { CoachCommentaryCard } from '@/components/analysis/CoachCommentaryCard';
 import { GameReviewModal } from '@/components/analysis/GameReviewModal';
 import { GameReviewView } from '@/components/analysis/GameReviewView';
+import { GameReviewSummaryView } from '@/components/analysis/GameReviewSummaryView';
+import { GameSessionStore, generateGameReviewReport } from '@/lib/gameSessionStore';
 
 // Subsystems
 import { BotChatBubble } from '@/components/bots/BotChatBubble';
@@ -73,8 +75,9 @@ export default function ChessPlatformPage() {
   const [soundTheme, setSoundTheme] = useState<SoundTheme>('classic');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Dedicated Game Review View Mode (Screenshot 1 & 4)
+  // Dedicated Game Review View Mode (Screenshots 1, 2, 3, 4, 5)
   const [isReviewViewActive, setIsReviewViewActive] = useState(false);
+  const [reviewStage, setReviewStage] = useState<'summary' | 'stepper'>('summary');
 
   // Modals
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
@@ -174,6 +177,14 @@ export default function ChessPlatformPage() {
       materialDiff: wScore - bScore,
     };
   }, [moveHistory]);
+
+  // Active Game Review Report (generates full report or uses Masterpiece demo if no moves)
+  const activeReviewReport = useMemo(() => {
+    if (moveHistory.length > 0) {
+      return generateGameReviewReport('current-game', whitePlayer, blackPlayer, moveHistory);
+    }
+    return GameSessionStore.createDemoGameSession().reviewReport!;
+  }, [moveHistory, whitePlayer, blackPlayer]);
 
   // Handle Game Conclusion with Detailed Results Modal
   const triggerGameOver = useCallback(
@@ -601,16 +612,27 @@ export default function ChessPlatformPage() {
 
       {/* Main Center Area */}
       <main className="flex-1 h-full overflow-y-auto bg-[#161512] flex flex-col">
-        {/* If in Dedicated Game Review Mode (Screenshots 1 & 4) */}
+        {/* If in Dedicated Game Review Mode (Stage 1 Summary & Stage 2 Stepper) */}
         {isReviewViewActive ? (
-          <GameReviewView
-            moves={moveHistory}
-            whitePlayer={whitePlayer}
-            blackPlayer={blackPlayer}
-            boardTheme={boardTheme}
-            pieceTheme={pieceTheme}
-            onBackToGame={() => setIsReviewViewActive(false)}
-          />
+          reviewStage === 'summary' ? (
+            <GameReviewSummaryView
+              report={activeReviewReport}
+              boardTheme={boardTheme}
+              pieceTheme={pieceTheme}
+              onStartInteractiveReview={() => setReviewStage('stepper')}
+              onBackToGame={() => setIsReviewViewActive(false)}
+            />
+          ) : (
+            <GameReviewView
+              moves={activeReviewReport.moves}
+              whitePlayer={activeReviewReport.whitePlayer}
+              blackPlayer={activeReviewReport.blackPlayer}
+              boardTheme={boardTheme}
+              pieceTheme={pieceTheme}
+              onBackToGame={() => setIsReviewViewActive(false)}
+              onBackToSummary={() => setReviewStage('summary')}
+            />
+          )
         ) : (
           <>
             {/* Top Header Bar */}
@@ -633,7 +655,10 @@ export default function ChessPlatformPage() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsReviewViewActive(true)}
+                  onClick={() => {
+                    setReviewStage('summary');
+                    setIsReviewViewActive(true);
+                  }}
                   className="px-3 py-1.5 rounded-lg bg-[#272522] hover:bg-[#33302b] text-xs font-bold text-zinc-200 border border-[#3b3833] flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Open Game Review with Coach Danny Rensch"
                 >
@@ -1008,6 +1033,7 @@ export default function ChessPlatformPage() {
           blackPlayer={blackPlayer}
           onReviewGame={() => {
             setIsGameOverModalOpen(false);
+            setReviewStage('summary');
             setIsReviewViewActive(true);
           }}
           onRematch={startNewGame}

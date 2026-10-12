@@ -9,8 +9,8 @@ interface PlayerCardProps {
   color: PieceColor;
   timeRemainingSeconds: number;
   isActiveTurn: boolean;
-  capturedPieces: PieceType[];
-  materialAdvantage: number; // positive if this player has more material
+  capturedPieces?: PieceType[];
+  materialAdvantage?: number; // positive if this player has more material
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -18,8 +18,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   color,
   timeRemainingSeconds,
   isActiveTurn,
-  capturedPieces,
-  materialAdvantage,
+  capturedPieces = [],
+  materialAdvantage = 0,
 }) => {
   const minutes = Math.floor(timeRemainingSeconds / 60);
   const seconds = timeRemainingSeconds % 60;

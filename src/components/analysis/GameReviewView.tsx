@@ -33,6 +33,7 @@ interface GameReviewViewProps {
   boardTheme: BoardTheme;
   pieceTheme: PieceTheme;
   onBackToGame: () => void;
+  onBackToSummary?: () => void;
 }
 
 export const GameReviewView: React.FC<GameReviewViewProps> = ({
@@ -42,6 +43,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   boardTheme,
   pieceTheme,
   onBackToGame,
+  onBackToSummary,
 }) => {
   const [activeMoveIndex, setActiveMoveIndex] = useState<number>(() => {
     // Start on the first key moment or latest move
@@ -189,13 +191,23 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
     <div className="flex flex-col h-full w-full bg-[#161512] text-zinc-100 select-none">
       {/* Top Header Bar (Image 1 & 4) */}
       <header className="h-14 px-4 lg:px-6 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0">
-        <button
-          onClick={onBackToGame}
-          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="hidden sm:inline">Back</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBackToGame}
+            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="hidden sm:inline">Play</span>
+          </button>
+          {onBackToSummary && (
+            <button
+              onClick={onBackToSummary}
+              className="px-2.5 py-1 rounded-lg bg-[#272522] hover:bg-[#33302b] text-xs font-bold text-zinc-200 border border-[#3b3833] transition-colors cursor-pointer"
+            >
+              Overview
+            </button>
+          )}
+        </div>
 
         <h1 className="text-base font-black text-white tracking-wide">
           Game Review

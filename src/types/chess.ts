@@ -152,3 +152,58 @@ export interface OpeningInfo {
 }
 
 export type MembershipTier = 'free' | 'gold' | 'platinum' | 'diamond';
+
+export interface ClassificationTallies {
+  brilliant: number;
+  great: number;
+  best: number;
+  excellent: number;
+  good: number;
+  book: number;
+  inaccuracy: number;
+  mistake: number;
+  miss: number;
+  blunder: number;
+}
+
+export interface EvalTimelinePoint {
+  ply: number;
+  moveNumber: number;
+  isWhite: boolean;
+  score: number; // in centipawns
+  classification?: MoveClassification;
+}
+
+export interface GameReviewReport {
+  id: string;
+  gameId: string;
+  whitePlayer: GamePlayer;
+  blackPlayer: GamePlayer;
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  tallies: {
+    white: ClassificationTallies;
+    black: ClassificationTallies;
+  };
+  evalTimeline: EvalTimelinePoint[];
+  keyMoments: KeyMoment[];
+  moves: MoveRecord[];
+  summaryComment: string;
+}
+
+export interface GameSession {
+  id: string;
+  whitePlayer: GamePlayer;
+  blackPlayer: GamePlayer;
+  timeControl: number;
+  variant: ChessVariant;
+  moves: MoveRecord[];
+  fen: string;
+  isGameOver: boolean;
+  gameResult: string | null;
+  resultDetails: GameResultDetails | null;
+  reviewReport: GameReviewReport | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
