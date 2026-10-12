@@ -7,7 +7,20 @@ import { TACTICAL_PUZZLES } from '@/lib/puzzlesData';
 import { TacticalPuzzle, BoardTheme, PieceTheme } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
-import { Flame, Clock, Award, RotateCcw, ArrowRight, Eye, CheckCircle2, XCircle } from 'lucide-react';
+import {
+  Flame,
+  Clock,
+  Award,
+  RotateCcw,
+  ArrowRight,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  TrendingUp,
+  Calendar,
+  Filter,
+  Sparkles,
+} from 'lucide-react';
 
 interface PuzzleArenaProps {
   boardTheme: BoardTheme;
@@ -27,24 +40,64 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const [statusMessage, setStatusMessage] = useState<'idle' | 'correct' | 'incorrect' | 'solved'>('idle');
   const [showSolution, setShowSolution] = useState(false);
 
-  const currentPuzzle = TACTICAL_PUZZLES[puzzleIndex % TACTICAL_PUZZLES.length];
+  // Live Glicko-2 Rating & Remote Puzzle State
+  const [playerRating, setPlayerRating] = useState({ rating: 1500, rd: 350, vol: 0.06 });
+  const [ratingDelta, setRatingDelta] = useState<number | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<string>('all');
+  const [isDailyMode, setIsDailyMode] = useState(false);
+  const [remotePuzzle, setRemotePuzzle] = useState<TacticalPuzzle | null>(null);
+  const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
+
+  // Active puzzle: fallback to static array if remote not loaded
+  const currentPuzzle = remotePuzzle || TACTICAL_PUZZLES[puzzleIndex % TACTICAL_PUZZLES.length];
 
   // Chess instance for current puzzle
   const [chess, setChess] = useState(() => new Chess(currentPuzzle.fen));
   const [moveStepIndex, setMoveStepIndex] = useState(0);
+  const [playedMoves, setPlayedMoves] = useState<string[]>([]);
 
-  // Reset or load puzzle
-  const loadPuzzle = useCallback((idx: number) => {
-    const p = TACTICAL_PUZZLES[idx % TACTICAL_PUZZLES.length];
+  // Fetch puzzle from backend API
+  const fetchPuzzle = useCallback(async (theme: string, daily: boolean) => {
+    setIsLoadingPuzzle(true);
+    setRatingDelta(null);
+    try {
+      const endpoint = daily
+        ? '/api/puzzles/daily'
+        : `/api/puzzles/random?rating=${Math.round(playerRating.rating)}${
+            theme !== 'all' ? `&theme=${theme}` : ''
+          }`;
+
+      const res = await fetch(endpoint);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.puzzle) {
+          setRemotePuzzle(json.puzzle);
+          setChess(new Chess(json.puzzle.fen));
+          setMoveStepIndex(0);
+          setPlayedMoves([]);
+          setStatusMessage('idle');
+          setShowSolution(false);
+          setIsLoadingPuzzle(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch remote puzzle, using local fallback:', e);
+    }
+    // Fallback
+    const p = TACTICAL_PUZZLES[puzzleIndex % TACTICAL_PUZZLES.length];
+    setRemotePuzzle(null);
     setChess(new Chess(p.fen));
     setMoveStepIndex(0);
+    setPlayedMoves([]);
     setStatusMessage('idle');
     setShowSolution(false);
-  }, []);
+    setIsLoadingPuzzle(false);
+  }, [playerRating.rating, puzzleIndex]);
 
   useEffect(() => {
-    loadPuzzle(puzzleIndex);
-  }, [puzzleIndex, loadPuzzle]);
+    fetchPuzzle(selectedTheme, isDailyMode);
+  }, [selectedTheme, isDailyMode, puzzleIndex, fetchPuzzle]);
 
   // Rush mode timer
   useEffect(() => {
@@ -62,16 +115,18 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
     return () => clearInterval(interval);
   }, [rushActive, rushTimeRemaining]);
 
-  const handleMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
+  const handleMove = async (from: Square, to: Square, promotion?: PieceSymbol) => {
     if (statusMessage === 'solved') return;
 
     try {
       const uciMove = `${from}${to}${promotion || ''}`;
       const expectedUci = currentPuzzle.moves[moveStepIndex];
 
-      // Validate on chess board
       const moveResult = chess.move({ from, to, promotion });
       if (!moveResult) return;
+
+      const newPlayed = [...playedMoves, uciMove];
+      setPlayedMoves(newPlayed);
 
       // Check if move matches puzzle solution
       if (uciMove === expectedUci || moveResult.san === expectedUci) {
@@ -84,7 +139,29 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           setStatusMessage('solved');
           setScore((s) => s + 1);
           soundService.playPuzzleSuccess();
-          confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+
+          // Submit solve to backend Glicko-2 engine
+          try {
+            const solveRes = await fetch('/api/puzzles/solve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                puzzleId: currentPuzzle.id,
+                submittedMoves: newPlayed,
+                playerRating,
+              }),
+            });
+            if (solveRes.ok) {
+              const solveData = await solveRes.json();
+              if (solveData.newRating) {
+                setPlayerRating(solveData.newRating);
+                setRatingDelta(solveData.ratingDelta);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to submit puzzle rating update:', err);
+          }
 
           if (rushActive) {
             setTimeout(() => {
@@ -102,6 +179,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
               chess.move({ from: oppFrom, to: oppTo, promotion: oppPromo });
               soundService.playCapture();
               setMoveStepIndex(nextStep + 1);
+              setPlayedMoves((prev) => [...prev, opponentUci]);
               setChess(new Chess(chess.fen()));
             }
           }, 400);
@@ -113,12 +191,36 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         chess.undo();
         setChess(new Chess(chess.fen()));
 
+        // Submit failure to Glicko-2 engine if not in rush mode
+        if (!rushActive) {
+          try {
+            const solveRes = await fetch('/api/puzzles/solve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                puzzleId: currentPuzzle.id,
+                submittedMoves: ['fail'],
+                playerRating,
+              }),
+            });
+            if (solveRes.ok) {
+              const solveData = await solveRes.json();
+              if (solveData.newRating) {
+                setPlayerRating(solveData.newRating);
+                setRatingDelta(solveData.ratingDelta);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to submit puzzle failure update:', err);
+          }
+        }
+
         if (rushActive) {
           const nextStrikes = strikes + 1;
           setStrikes(nextStrikes);
           if (nextStrikes >= 3) {
             setRushActive(false);
-            soundService.playCheckmate();
+            soundService.playGameEndLoss();
           }
         }
       }
@@ -127,76 +229,150 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
     }
   };
 
-  const startPuzzleRush = () => {
-    setRushMode(true);
-    setRushActive(true);
-    setRushTimeRemaining(180);
-    setScore(0);
-    setStrikes(0);
-    setPuzzleIndex(0);
-    loadPuzzle(0);
-    soundService.playGameStart();
-  };
+  const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full items-center justify-center p-4 select-none">
-      {/* Tactical Chessboard */}
-      <div className="flex flex-col items-center">
-        <ChessBoard
-          chess={chess}
-          orientation={currentPuzzle.fen.split(' ')[1] === 'w' ? 'w' : 'b'}
-          boardTheme={boardTheme}
-          pieceTheme={pieceTheme}
-          onMove={handleMove}
-          disabled={statusMessage === 'solved' || (rushMode && !rushActive)}
-        />
-      </div>
-
-      {/* Control & Tactic Info Panel */}
-      <div className="w-full max-w-md flex flex-col gap-4">
-        {/* Mode Selector Header */}
-        <div className="p-4 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between">
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setRushMode(false);
-                setRushActive(false);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                !rushMode
-                  ? 'bg-[#81b64c] text-white shadow'
-                  : 'bg-[#2b2926] text-zinc-400 hover:text-white'
-              }`}
-            >
-              Daily Tactics
-            </button>
-            <button
-              onClick={startPuzzleRush}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                rushMode
-                  ? 'bg-amber-500 text-black shadow'
-                  : 'bg-[#2b2926] text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5" />
-              <span>Puzzle Rush (3 Min)</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold text-zinc-400">Rating</span>
-            <span className="text-xs font-mono font-black text-[#81b64c] bg-[#161512] px-2 py-0.5 rounded border border-[#302e2b]">
-              {currentPuzzle.rating}
-            </span>
-          </div>
+    <div className="flex flex-col xl:flex-row gap-6 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none">
+      {/* Tactical Board Column */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="relative">
+          <ChessBoard
+            chess={chess}
+            orientation={puzzleTurn}
+            boardTheme={boardTheme}
+            pieceTheme={pieceTheme}
+            onMove={handleMove}
+            disabled={statusMessage === 'solved'}
+          />
         </div>
 
-        {/* Rush Timer and Strikes */}
-        {rushMode && (
-          <div className="p-4 bg-[#262421] rounded-xl border border-[#383530] flex items-center justify-between">
+        {/* Turn indicator card */}
+        <div className="w-full max-w-[560px] bg-[#1a1815] border border-[#2b2824] rounded-xl p-3 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-3 h-3 rounded-full border ${
+                puzzleTurn === 'w' ? 'bg-white border-zinc-300' : 'bg-zinc-900 border-zinc-600'
+              }`}
+            />
+            <span className="font-bold text-white">
+              {puzzleTurn === 'w' ? 'White to Move' : 'Black to Move'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400">
+            <span>Puzzle #{currentPuzzle.id}</span>
+            <span>•</span>
+            <span>Rating: <strong className="text-[#81b64c]">{currentPuzzle.rating}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      {/* Control Hub & Tactical Rating Sidebar */}
+      <div className="w-full max-w-md flex flex-col gap-4">
+        {/* Rating & Mode Header Card */}
+        <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-400" />
-              <span className="text-xl font-black font-mono text-white">
+              <Award className="w-5 h-5 text-[#81b64c]" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Tactics Rating (Glicko-2)
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black text-white font-mono">
+                    {Math.round(playerRating.rating)}
+                  </span>
+                  {ratingDelta !== null && (
+                    <span
+                      className={`text-xs font-mono font-black px-1.5 py-0.5 rounded ${
+                        ratingDelta >= 0
+                          ? 'bg-[#81b64c]/20 text-[#81b64c]'
+                          : 'bg-rose-500/20 text-rose-400'
+                      }`}
+                    >
+                      {ratingDelta >= 0 ? `+${ratingDelta}` : ratingDelta}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mode Toggle Pills */}
+            <div className="flex items-center gap-1.5 bg-[#161512] p-1 rounded-xl border border-[#2b2824]">
+              <button
+                onClick={() => {
+                  setIsDailyMode(false);
+                  setRushMode(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  !isDailyMode && !rushMode
+                    ? 'bg-[#81b64c] text-white shadow'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Rated
+              </button>
+              <button
+                onClick={() => {
+                  setIsDailyMode(true);
+                  setRushMode(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  isDailyMode
+                    ? 'bg-amber-500 text-white shadow'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Calendar className="w-3 h-3" />
+                <span>Daily</span>
+              </button>
+              <button
+                onClick={() => {
+                  setRushMode(true);
+                  setIsDailyMode(false);
+                  setRushActive(true);
+                  setRushTimeRemaining(180);
+                  setScore(0);
+                  setStrikes(0);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  rushMode
+                    ? 'bg-orange-500 text-white shadow'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Flame className="w-3 h-3" />
+                <span>Rush</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Theme Filters (Rated Mode) */}
+          {!rushMode && !isDailyMode && (
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#2d2a26]">
+              {['all', 'fork', 'pin', 'skewer', 'mate', 'back_rank'].map((th) => (
+                <button
+                  key={th}
+                  onClick={() => setSelectedTheme(th)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                    selectedTheme === th
+                      ? 'bg-[#2d2a26] text-[#81b64c] border border-[#81b64c]/40'
+                      : 'bg-[#161512] text-zinc-400 hover:text-zinc-200 border border-transparent'
+                  }`}
+                >
+                  {th.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Rush Mode Status Header */}
+        {rushMode && (
+          <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-orange-400" />
+              <span className="font-mono font-bold text-white text-base">
                 {Math.floor(rushTimeRemaining / 60)}:
                 {rushTimeRemaining % 60 < 10 ? '0' : ''}
                 {rushTimeRemaining % 60}
@@ -204,12 +380,10 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="text-lg font-black font-mono text-[#81b64c]">
-                Score: {score}
-              </div>
-              <div className="flex gap-1 text-base">
+              <span className="font-mono font-bold text-[#81b64c] text-sm">Score: {score}</span>
+              <div className="flex gap-1">
                 {[0, 1, 2].map((s) => (
-                  <span key={s} className={s < strikes ? 'text-red-500' : 'text-zinc-600'}>
+                  <span key={s} className={s < strikes ? 'text-red-500 font-bold' : 'text-zinc-700'}>
                     ✕
                   </span>
                 ))}
@@ -218,71 +392,75 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           </div>
         )}
 
-        {/* Puzzle Details Card */}
-        <div className="p-5 bg-[#21201d] rounded-xl border border-[#302e2b] flex flex-col gap-3">
+        {/* Puzzle Card & Details */}
+        <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-white">{currentPuzzle.title}</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">
+            <span className="text-sm font-black text-white">{currentPuzzle.title}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/30">
               {currentPuzzle.theme}
             </span>
           </div>
 
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Find the best move for{' '}
-            <strong className="text-zinc-200">
-              {currentPuzzle.fen.split(' ')[1] === 'w' ? 'White' : 'Black'}
+          <p className="text-xs text-zinc-300 leading-relaxed">
+            Find the best continuation for{' '}
+            <strong className="text-white font-bold">
+              {puzzleTurn === 'w' ? 'White' : 'Black'}
             </strong>
-            . Calculate forcing moves, checks, captures, and threats!
+            . Look for forcing checks, tactical pins, double attacks, and mating nets.
           </p>
 
-          {/* Feedback Status */}
+          {/* Feedback Badges */}
           {statusMessage === 'solved' && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-2 text-emerald-300 text-xs font-bold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Brilliant! Puzzle Solved!</span>
+            <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-emerald-300 text-xs font-bold animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Brilliant! Tactical continuation verified!</span>
             </div>
           )}
 
           {statusMessage === 'incorrect' && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-2 text-rose-300 text-xs font-bold">
-              <XCircle className="w-4 h-4 text-rose-400" />
-              <span>Incorrect move. That hangs a piece or misses the tactic!</span>
+            <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl flex items-center gap-2 text-rose-300 text-xs font-bold animate-in fade-in">
+              <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>Incorrect move. That lets the opponent escape or loses material!</span>
             </div>
           )}
 
-          {/* Solution Explanation if revealed */}
+          {/* Solution Breakdown */}
           {showSolution && (
-            <div className="p-3 bg-[#161512] rounded-lg border border-[#302e2b] text-xs text-zinc-300 leading-relaxed font-sans">
+            <div className="p-3 bg-[#161512] rounded-xl border border-[#2b2824] text-xs text-zinc-300 leading-relaxed font-sans">
               <strong className="text-[#81b64c] block mb-1">Solution Breakdown:</strong>
               {currentPuzzle.solutionDescription}
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="flex items-center gap-2 mt-2 pt-3 border-t border-[#302e2b]">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 pt-2 border-t border-[#2d2a26]">
             <button
-              onClick={() => loadPuzzle(puzzleIndex)}
-              className="p-2 rounded-lg bg-[#2b2926] hover:bg-[#383530] text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Reset Puzzle"
+              onClick={() => {
+                setChess(new Chess(currentPuzzle.fen));
+                setMoveStepIndex(0);
+                setPlayedMoves([]);
+                setStatusMessage('idle');
+              }}
+              className="p-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
             </button>
 
             <button
               onClick={() => setShowSolution((prev) => !prev)}
-              className="p-2 rounded-lg bg-[#2b2926] hover:bg-[#383530] text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Eye className="w-4 h-4" />
-              <span>{showSolution ? 'Hide Solution' : 'View Solution'}</span>
+              <Eye className="w-3.5 h-3.5" />
+              <span>{showSolution ? 'Hide' : 'Solution'}</span>
             </button>
 
             <button
               onClick={() => setPuzzleIndex((idx) => idx + 1)}
-              className="ml-auto px-4 py-2 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow"
+              className="ml-auto px-4 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-[#81b64c]/20"
             >
               <span>Next Puzzle</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

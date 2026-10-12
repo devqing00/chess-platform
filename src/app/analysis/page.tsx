@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/board/ChessBoard';
 import { EvalBar } from '@/components/board/EvalBar';
-import { BoardTheme, PieceTheme, PieceColor } from '@/types/chess';
+import { BoardTheme, PieceTheme, PieceColor, ArrowAnnotation } from '@/types/chess';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -23,6 +23,11 @@ import {
   Pause,
   Loader2,
   Sparkles,
+  ShieldAlert,
+  Upload,
+  X,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { soundService } from '@/lib/audioService';
 
@@ -70,10 +75,25 @@ export default function AnalysisPage() {
   const [sanHistory, setSanHistory] = useState<string[]>([]);
   const [copiedFen, setCopiedFen] = useState(false);
 
+  // Threat analysis
+  const [threatInfo, setThreatInfo] = useState<{
+    threatMoveSan: string;
+    description: string;
+    severity: string;
+    arrow: ArrowAnnotation | null;
+  } | null>(null);
+  const [isDetectingThreat, setIsDetectingThreat] = useState(false);
+
+  // Import modal
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+
   // Fetch engine evaluation from backend API
   const fetchEngineEval = useCallback(async (fen: string, depth: number) => {
     if (!isEngineActive) return;
     setIsEvaluating(true);
+    setThreatInfo(null); // clear old threat on new position
     try {
       const res = await fetch('/api/engine/evaluate', {
         method: 'POST',
@@ -97,6 +117,86 @@ export default function AnalysisPage() {
       setIsEvaluating(false);
     }
   }, [isEngineActive]);
+
+  const handleDetectThreat = async () => {
+    setIsDetectingThreat(true);
+    try {
+      const res = await fetch('/api/engine/threat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fen: chess.fen() }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.threat) {
+          setThreatInfo(json.threat);
+        }
+      }
+    } catch {
+      //
+    } finally {
+      setIsDetectingThreat(false);
+    }
+  };
+
+  const handleImportSubmit = async () => {
+    const raw = importText.trim();
+    if (!raw) return;
+    setImportError(null);
+
+    // Check if FEN
+    const fenTokens = raw.split(/\s+/);
+    if (fenTokens.length >= 2 && /[prnbqkPRNBQK1-8\/]+/.test(fenTokens[0])) {
+      try {
+        const newChess = new Chess(raw);
+        setChess(newChess);
+        setHistoryFens([newChess.fen()]);
+        setSanHistory([]);
+        setHistoryIndex(0);
+        setLastMove(null);
+        setIsImportModalOpen(false);
+        setImportText('');
+        soundService.playGameStart();
+        return;
+      } catch {
+        // Not a valid FEN, try PGN
+      }
+    }
+
+    // Try PGN import via API
+    try {
+      const res = await fetch('/api/pgn/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pgn: raw }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data?.moves?.length > 0) {
+          const runner = new Chess();
+          const fens: string[] = [runner.fen()];
+          const sans: string[] = [];
+          for (const m of json.data.moves) {
+            runner.move(m);
+            fens.push(runner.fen());
+            sans.push(m);
+          }
+          setChess(runner);
+          setHistoryFens(fens);
+          setSanHistory(sans);
+          setHistoryIndex(fens.length - 1);
+          setLastMove(null);
+          setIsImportModalOpen(false);
+          setImportText('');
+          soundService.playGameStart();
+          return;
+        }
+      }
+      setImportError('Could not parse valid PGN or FEN');
+    } catch (err: any) {
+      setImportError(err.message || 'Import failed');
+    }
+  };
 
   useEffect(() => {
     fetchEngineEval(chess.fen(), targetDepth);
@@ -178,6 +278,14 @@ export default function AnalysisPage() {
           )}
 
           <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-lg bg-[#282622] hover:bg-[#33302b] text-zinc-200 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-[#3d3a35]"
+          >
+            <Upload className="w-4 h-4 text-[#81b64c]" />
+            <span>Import PGN / FEN</span>
+          </button>
+
+          <button
             onClick={() => router.push('/game/review/demo-game-masterpiece')}
             className="px-3.5 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
           >
@@ -201,9 +309,48 @@ export default function AnalysisPage() {
                 pieceTheme={pieceTheme}
                 onMove={handleMove}
                 lastMove={lastMove}
+                customArrows={threatInfo?.arrow ? [threatInfo.arrow] : []}
               />
             </div>
           </div>
+
+          {/* Opponent Threat Alert Banner */}
+          {threatInfo && (
+            <div
+              className={`mt-3 w-full max-w-[560px] p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                threatInfo.severity === 'critical'
+                  ? 'bg-rose-950/40 border-rose-600/50 text-rose-200'
+                  : threatInfo.severity === 'moderate'
+                  ? 'bg-amber-950/40 border-amber-600/50 text-amber-200'
+                  : 'bg-blue-950/40 border-blue-600/50 text-blue-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle
+                  className={`w-4 h-4 shrink-0 ${
+                    threatInfo.severity === 'critical'
+                      ? 'text-rose-400 animate-pulse'
+                      : 'text-amber-400'
+                  }`}
+                />
+                <div>
+                  <span className="font-black uppercase tracking-wider text-[10px] block opacity-85">
+                    {threatInfo.severity} Threat Detected ({threatInfo.threatMoveSan})
+                  </span>
+                  <span className="font-semibold text-white text-xs">
+                    {threatInfo.description}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setThreatInfo(null)}
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-black/30 cursor-pointer"
+                title="Dismiss threat"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Under-Board Toolbar */}
           <div className="flex items-center gap-2 mt-4 bg-[#211f1c] px-4 py-2 rounded-xl border border-[#2c2925]">
@@ -241,6 +388,27 @@ export default function AnalysisPage() {
               title="Last Move"
             >
               <ChevronsRight className="w-4 h-4" />
+            </button>
+
+            <div className="h-4 w-[1px] bg-[#332f2b] mx-1" />
+
+            {/* Threat Detection Button */}
+            <button
+              onClick={handleDetectThreat}
+              disabled={isDetectingThreat}
+              className={`px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 text-xs font-bold ${
+                threatInfo
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30'
+                  : 'text-zinc-400 hover:text-white hover:bg-[#2c2925]'
+              }`}
+              title="Analyze opponent tactical threats using Null-Move search"
+            >
+              {isDetectingThreat ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+              ) : (
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+              )}
+              <span>Threats</span>
             </button>
 
             <div className="h-4 w-[1px] bg-[#332f2b] mx-1" />
@@ -438,6 +606,69 @@ export default function AnalysisPage() {
           </div>
         </aside>
       </div>
+
+      {/* Import PGN / FEN Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1f1e1b] border border-[#33302b] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 border-b border-[#2d2b27] flex items-center justify-between bg-[#191815]">
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-[#81b64c]" />
+                <h2 className="text-sm font-black text-white">Import PGN or FEN</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportError(null);
+                }}
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#2c2925] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-3">
+              <p className="text-xs text-zinc-400">
+                Paste any standard PGN game notation (with headers or moves) or FEN position string to load it into the Stockfish 18 NNUE Studio.
+              </p>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder={`1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6...\n\nOR\n\nr1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3`}
+                rows={7}
+                className="w-full bg-[#141311] border border-[#2c2a26] rounded-xl p-3 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[#81b64c] transition-colors resize-none"
+              />
+
+              {importError && (
+                <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
+                  <span>{importError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-3 border-t border-[#2d2b27] bg-[#191815] flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportError(null);
+                }}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportSubmit}
+                disabled={!importText.trim()}
+                className="px-4 py-1.5 rounded-lg text-xs font-black bg-[#81b64c] hover:bg-[#72a342] text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Load Into Studio</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

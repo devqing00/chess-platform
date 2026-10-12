@@ -8,6 +8,8 @@ import { queryTablebase } from '@/lib/server/tablebaseService';
 import {
   classifyMoveEngine,
   calculateGameCaps,
+  calculateAcpl,
+  calculateEstimatedPerformanceRating,
 } from '@/lib/server/capsCalculator';
 import { generateCoachExplanation } from '@/lib/server/coachGenerator';
 import {
@@ -18,7 +20,9 @@ import {
   EvalTimelinePoint,
   KeyMoment,
 } from '@/types/chess';
-import { OPENINGS_DATABASE } from '@/lib/openingsData';
+import { OPENINGS_DATABASE, matchOpeningFromMoves } from '@/lib/openingsData';
+import { EntitlementGuard } from '@/lib/server/entitlementGuard';
+import { MembershipTier } from '@/types/chess';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,12 +61,24 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       gameId = `game-${Date.now()}`,
+      userId = 'guest-player',
+      tier = 'free' as MembershipTier,
       moves: inputMoves,
       pgn,
       whitePlayer = { id: 'white', name: 'White Player', rating: 1500, color: 'w' },
       blackPlayer = { id: 'black', name: 'Black Player', rating: 1500, color: 'b' },
       depth = 11,
     } = body;
+
+    // Enforce server-side entitlement quota & depth ceiling
+    const quotaCheck = EntitlementGuard.consumeReviewQuota(userId, tier, depth);
+    if (!quotaCheck.allowed) {
+      return NextResponse.json(
+        { error: quotaCheck.reason, code: 'TIER_QUOTA_EXCEEDED' },
+        { status: 403 }
+      );
+    }
+    const targetDepth = quotaCheck.effectiveDepth;
 
     const chess = new Chess();
     if (pgn) {
@@ -95,7 +111,10 @@ export async function POST(req: NextRequest) {
     const keyMoments: KeyMoment[] = [];
 
     // Evaluate starting position
-    let prevEval = await evaluatePositionStockfish(runner.fen(), depth, 2);
+    let prevEval = await evaluatePositionStockfish(runner.fen(), targetDepth, 2);
+
+    const whiteCpLosses: number[] = [];
+    const blackCpLosses: number[] = [];
 
     for (let ply = 0; ply < sanMoves.length; ply++) {
       const san = sanMoves[ply];
@@ -108,7 +127,6 @@ export async function POST(req: NextRequest) {
       const playedMove = verboseMoves.find((m) => m.san === san);
 
       if (!playedMove) {
-        // Fallback move attempt
         try {
           runner.move(san);
         } catch {
@@ -121,7 +139,7 @@ export async function POST(req: NextRequest) {
       const fenAfter = runner.fen();
 
       // Evaluate position after move with Stockfish 18 NNUE
-      const currentEval = await evaluatePositionStockfish(fenAfter, depth, 2);
+      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, 2);
 
       // Check tablebase for endgame
       const tbAfter = await queryTablebase(fenAfter);
@@ -142,6 +160,10 @@ export async function POST(req: NextRequest) {
       const pieceType = (playedMove?.piece || 'p') as PieceSymbol;
       const isCapture = Boolean(playedMove?.captured);
       const isCheck = runner.inCheck();
+
+      const cpLoss = Math.max(0, isWhite ? evalBeforeCp - evalAfterCp : evalAfterCp - evalBeforeCp);
+      if (isWhite) whiteCpLosses.push(cpLoss);
+      else blackCpLosses.push(cpLoss);
 
       // Run CAPS 2.0 classification
       const classificationResult = classifyMoveEngine({
@@ -238,11 +260,109 @@ export async function POST(req: NextRequest) {
 
     const whiteAccuracy = calculateGameCaps(whiteAccuracies);
     const blackAccuracy = calculateGameCaps(blackAccuracies);
+    const whiteAcpl = calculateAcpl(whiteCpLosses);
+    const blackAcpl = calculateAcpl(blackCpLosses);
+
+    const whiteEstimatedElo = calculateEstimatedPerformanceRating({
+      capsAccuracy: whiteAccuracy,
+      acpl: whiteAcpl,
+      baselineElo: whitePlayer.rating || 1500,
+      opponentElo: blackPlayer.rating || 1500,
+    });
+
+    const blackEstimatedElo = calculateEstimatedPerformanceRating({
+      capsAccuracy: blackAccuracy,
+      acpl: blackAcpl,
+      baselineElo: blackPlayer.rating || 1500,
+      opponentElo: whitePlayer.rating || 1500,
+    });
 
     const summaryComment =
       whiteAccuracy > blackAccuracy
-        ? `White dominated with ${whiteAccuracy}% CAPS accuracy, seizing the tactical initiative. Black put up resistance but faltered in the critical moments.`
-        : `Black outplayed White with ${blackAccuracy}% CAPS accuracy, punishing opening and tactical inaccuracies to secure victory!`;
+        ? `White dominated with ${whiteAccuracy}% CAPS accuracy (perf est. ${whiteEstimatedElo}), seizing the tactical initiative. Black put up resistance but faltered in the critical moments.`
+        : `Black outplayed White with ${blackAccuracy}% CAPS accuracy (perf est. ${blackEstimatedElo}), punishing opening and tactical inaccuracies to secure victory!`;
+
+    const opening = matchOpeningFromMoves(sanMoves);
+
+    // Dynamic Chess Phase Segmentation (Grandmaster Material & Development Heuristic)
+    // 1. Opening: Plies 0 to 20 while queens remain and material is intact
+    // 2. Middlegame: Dynamic tactical and strategic combat between opening and endgame
+    // 3. Endgame: Triggered when both queens are traded or total non-pawn piece material <= 16
+    const openingMoves: { move: MoveRecord; acc: number; isWhite: boolean }[] = [];
+    const middlegameMoves: { move: MoveRecord; acc: number; isWhite: boolean }[] = [];
+    const endgameMoves: { move: MoveRecord; acc: number; isWhite: boolean }[] = [];
+
+    analyzedMoves.forEach((m, idx) => {
+      const isWhite = idx % 2 === 0;
+      const moveIdx = Math.floor(idx / 2);
+      const acc = isWhite
+        ? whiteAccuracies[moveIdx] ?? 85
+        : blackAccuracies[moveIdx] ?? 85;
+
+      const fenPlacement = m.fenAfter.split(' ')[0];
+      const hasWhiteQueen = fenPlacement.includes('Q');
+      const hasBlackQueen = fenPlacement.includes('q');
+      const queensCount = (hasWhiteQueen ? 1 : 0) + (hasBlackQueen ? 1 : 0);
+
+      let npm = 0;
+      for (const char of fenPlacement) {
+        if (char === 'R' || char === 'r') npm += 5;
+        else if (char === 'B' || char === 'b' || char === 'N' || char === 'n') npm += 3;
+      }
+
+      const isEndgame = queensCount === 0 || npm <= 16;
+      const isOpening = idx < 20 && !isEndgame && queensCount === 2;
+
+      if (isOpening) {
+        openingMoves.push({ move: m, acc, isWhite });
+      } else if (isEndgame) {
+        endgameMoves.push({ move: m, acc, isWhite });
+      } else {
+        middlegameMoves.push({ move: m, acc, isWhite });
+      }
+    });
+
+    const calcDynamicPhase = (bucket: typeof openingMoves) => {
+      const w = bucket.filter((b) => b.isWhite).map((b) => b.acc);
+      const b = bucket.filter((b) => !b.isWhite).map((b) => b.acc);
+      return {
+        whiteAccuracy: w.length > 0 ? calculateGameCaps(w) : 100,
+        blackAccuracy: b.length > 0 ? calculateGameCaps(b) : 100,
+        plies: bucket.length,
+      };
+    };
+
+    const phaseBreakdown = {
+      opening: calcDynamicPhase(openingMoves),
+      middlegame: calcDynamicPhase(middlegameMoves),
+      endgame: calcDynamicPhase(endgameMoves),
+    };
+
+    // Find critical blunder for instant Retry-Your-Mistakes puzzle
+    let worstBlunderMove: MoveRecord | null = null;
+    let worstLoss = 0;
+    let worstPly = 0;
+
+    analyzedMoves.forEach((m, idx) => {
+      if (m.classification === 'blunder' || m.classification === 'miss') {
+        const loss = Math.abs((m.evalBefore || 0) - (m.evalAfter || 0));
+        if (loss > worstLoss) {
+          worstLoss = loss;
+          worstBlunderMove = m;
+          worstPly = idx + 1;
+        }
+      }
+    });
+
+    const blunderRetryPuzzle = worstBlunderMove
+      ? {
+          ply: worstPly,
+          fen: (worstBlunderMove as MoveRecord).fenBefore,
+          blunderedMoveSan: (worstBlunderMove as MoveRecord).san,
+          solutionSan: (worstBlunderMove as MoveRecord).bestMoveSan || '',
+          explanation: `In this position, you played ${(worstBlunderMove as MoveRecord).san}. Stockfish's top continuation was ${(worstBlunderMove as MoveRecord).bestMoveSan}.`,
+        }
+      : undefined;
 
     const report: GameReviewReport = {
       id: `review-${gameId}`,
@@ -251,6 +371,13 @@ export async function POST(req: NextRequest) {
       blackPlayer,
       whiteAccuracy,
       blackAccuracy,
+      whiteEstimatedElo,
+      blackEstimatedElo,
+      whiteAcpl,
+      blackAcpl,
+      opening,
+      phaseBreakdown,
+      blunderRetryPuzzle,
       tallies: {
         white: whiteTallies,
         black: blackTallies,

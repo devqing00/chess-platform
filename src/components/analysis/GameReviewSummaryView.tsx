@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Chess } from 'chess.js';
+import React, { useState } from 'react';
+import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
 import { ClassificationBadge } from '../board/ClassificationBadge';
 import {
@@ -15,11 +15,16 @@ import {
   Volume2,
   Sparkles,
   Play,
-  Share2,
-  Star,
-  Award,
+  RotateCcw,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  X,
+  Target,
+  Layers,
 } from 'lucide-react';
 import { soundService } from '@/lib/audioService';
+import confetti from 'canvas-confetti';
 
 interface GameReviewSummaryViewProps {
   report: GameReviewReport;
@@ -41,6 +46,65 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   // Board position for summary: show final move or most brilliant move
   const keyMove = moves.find((m) => m.classification === 'brilliant') || moves[moves.length - 1];
   const summaryChess = new Chess(keyMove ? keyMove.fenAfter : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+
+  // Interactive Blunder Retry State
+  const [isBlunderModalOpen, setIsBlunderModalOpen] = useState(false);
+  const [blunderStatus, setBlunderStatus] = useState<'idle' | 'correct' | 'wrong' | 'revealed'>('idle');
+  const [blunderChess, setBlunderChess] = useState(() => {
+    return new Chess(
+      report.blunderRetryPuzzle?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    );
+  });
+
+  const puzzle = report.blunderRetryPuzzle;
+
+  const handleBlunderMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
+    if (!puzzle || blunderStatus === 'correct' || blunderStatus === 'revealed') return;
+
+    try {
+      const clone = new Chess(blunderChess.fen());
+      const res = clone.move({ from, to, promotion: promotion || 'q' });
+      if (!res) return;
+
+      const isSolution =
+        res.san === puzzle.solutionSan ||
+        `${res.from}${res.to}`.toLowerCase() === puzzle.solutionSan.toLowerCase();
+
+      setBlunderChess(clone);
+
+      if (isSolution) {
+        setBlunderStatus('correct');
+        soundService.playPuzzleSuccess();
+        confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+      } else {
+        setBlunderStatus('wrong');
+        soundService.playMove();
+      }
+    } catch {
+      // invalid move
+    }
+  };
+
+  const resetBlunderPuzzle = () => {
+    if (puzzle) {
+      setBlunderChess(new Chess(puzzle.fen));
+      setBlunderStatus('idle');
+    }
+  };
+
+  const revealBlunderSolution = () => {
+    if (puzzle) {
+      try {
+        const clone = new Chess(puzzle.fen);
+        clone.move(puzzle.solutionSan);
+        setBlunderChess(clone);
+        setBlunderStatus('revealed');
+        soundService.playMove();
+      } catch {
+        // fallback
+      }
+    }
+  };
 
   // Classification comparison rows matching Screenshot 3
   const classificationRows: {
@@ -90,7 +154,6 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   // SVG Evaluation graph points
   const points = evalTimeline.map((p, idx) => {
     const x = (idx / Math.max(1, evalTimeline.length - 1)) * 100;
-    // Map eval from -800..+800 to 0..100% (50% is equal)
     const winProb = 1 / (1 + Math.pow(10, -p.score / 400));
     const y = 100 - winProb * 100;
     return `${x},${y}`;
@@ -138,57 +201,27 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
       {/* Main Review Hub Body: 60/40 Split */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 flex items-center justify-center">
         <div className="flex flex-col xl:flex-row gap-6 w-full max-w-6xl items-center xl:items-start justify-center">
-          {/* Left: Chessboard showing key highlight moment */}
-          <div className="w-full max-w-[560px] flex flex-col gap-3 items-center">
+          {/* Left Column: Board & Eval Graph */}
+          <div className="flex flex-col items-center gap-4 w-full max-w-[560px]">
             <ChessBoard
               chess={summaryChess}
+              orientation="w"
               boardTheme={boardTheme}
               pieceTheme={pieceTheme}
-              activeClassification={
-                keyMove && keyMove.classification
-                  ? { square: keyMove.to, classification: keyMove.classification }
-                  : null
-              }
-              lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
               disabled={true}
             />
-            <div className="text-xs text-zinc-400 flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#06b6d4]" />
-              <span>Displaying key tactical position from the game</span>
-            </div>
-          </div>
 
-          {/* Right Context Panel (Matches Screenshot 3) */}
-          <div className="w-full max-w-[480px] bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-5 flex flex-col gap-4 shadow-2xl">
-            {/* Coach Speech Bubble Header */}
-            <div className="flex items-start gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 border border-white/10 flex items-center justify-center shrink-0 shadow-lg text-2xl">
-                👨‍💼
-              </div>
-              <div className="flex-1 bg-[#262421] border border-[#36332e] rounded-2xl p-3.5 shadow-md relative">
-                <div className="absolute top-4 -left-2 w-3 h-3 bg-[#262421] border-l border-b border-[#36332e] rotate-45" />
-                <p className="text-xs text-zinc-200 font-medium leading-relaxed">
-                  &ldquo;Right, let&apos;s go through this game and find some key moments.&rdquo;
-                </p>
-              </div>
-            </div>
-
-            {/* Evaluation Graph Across Moves */}
-            <div className="bg-[#181614] border border-[#2a2824] rounded-xl p-3 flex flex-col gap-1.5">
+            {/* Evaluation Flow Area Chart */}
+            <div className="w-full bg-[#1b1917] p-3 rounded-xl border border-[#2d2a26] flex flex-col gap-1.5 shadow-lg">
               <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400">
-                <span>Evaluation Graph</span>
-                <span className="text-zinc-500 font-mono text-[10px]">
-                  {evalTimeline.length} plies
+                <span>Evaluation Advantage Over Time</span>
+                <span className="font-mono text-xs text-[#81b64c] font-black">
+                  {moves.length} Plies Analyzed
                 </span>
               </div>
-              <div className="relative h-16 w-full bg-[#12110f] rounded-lg overflow-hidden border border-[#22201d]">
-                {/* Center equilibrium zero line */}
-                <div className="absolute top-1/2 left-0 right-0 h-px bg-zinc-700/60" />
+              <div className="h-16 w-full bg-[#12110f] rounded-lg border border-[#282622] relative overflow-hidden">
+                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/60" />
                 <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                  <polygon
-                    points={`0,100 ${points} 100,100`}
-                    className="fill-[#81b64c]/20"
-                  />
                   <polyline
                     fill="none"
                     stroke="#81b64c"
@@ -200,57 +233,136 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 </svg>
               </div>
             </div>
+          </div>
 
-            {/* Players Accuracy Comparison Cards (Screenshot 3) */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* White Player */}
-              <div className="bg-[#262421] border border-[#33302b] rounded-xl p-3 flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{whitePlayer.avatar}</span>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black text-white truncate max-w-[100px]">
-                      {whitePlayer.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 font-mono">
-                      {whitePlayer.rating}
-                    </span>
+          {/* Right Column: CAPS Accuracies, Phases, Matrix, and Actions */}
+          <div className="w-full max-w-md flex flex-col gap-4">
+            {/* Accuracy Comparison Card */}
+            <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-zinc-400">
+                  Computer Accuracy (CAPS 2.0)
+                </span>
+                {report.opening && (
+                  <span className="text-[11px] font-bold text-[#81b64c] bg-[#161512] px-2 py-0.5 rounded border border-[#2d2a26]">
+                    {report.opening.eco}: {report.opening.name}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* White Player Acc */}
+                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex flex-col">
+                  <span className="text-xs font-bold text-zinc-200 truncate">{whitePlayer.name}</span>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mt-1">Accuracy</span>
+                  <span className="text-2xl font-black text-white font-mono mt-0.5">{whiteAccuracy}%</span>
+                  <div className="flex items-center gap-2 mt-1.5 text-[10px] font-mono text-zinc-400">
+                    <span>Est. Elo: <strong className="text-[#81b64c]">{report.whiteEstimatedElo || 1500}</strong></span>
+                    {report.whiteAcpl !== undefined && (
+                      <span>ACPL: <strong className="text-zinc-300">{report.whiteAcpl}</strong></span>
+                    )}
                   </div>
                 </div>
-                <div className="w-full py-1.5 bg-[#181715] rounded-lg border border-[#302d28] flex flex-col items-center">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                    Accuracy
-                  </span>
-                  <span className="text-xl font-black text-white font-mono">
-                    {whiteAccuracy}%
-                  </span>
+
+                {/* Black Player Acc */}
+                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex flex-col">
+                  <span className="text-xs font-bold text-zinc-200 truncate">{blackPlayer.name}</span>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mt-1">Accuracy</span>
+                  <span className="text-2xl font-black text-white font-mono mt-0.5">{blackAccuracy}%</span>
+                  <div className="flex items-center gap-2 mt-1.5 text-[10px] font-mono text-zinc-400">
+                    <span>Est. Elo: <strong className="text-[#81b64c]">{report.blackEstimatedElo || 1500}</strong></span>
+                    {report.blackAcpl !== undefined && (
+                      <span>ACPL: <strong className="text-zinc-300">{report.blackAcpl}</strong></span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Black Player */}
-              <div className="bg-[#262421] border border-[#33302b] rounded-xl p-3 flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{blackPlayer.avatar}</span>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black text-white truncate max-w-[100px]">
-                      {blackPlayer.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 font-mono">
-                      {blackPlayer.rating}
-                    </span>
-                  </div>
-                </div>
-                <div className="w-full py-1.5 bg-[#181715] rounded-lg border border-[#302d28] flex flex-col items-center">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                    Accuracy
-                  </span>
-                  <span className="text-xl font-black text-white font-mono">
-                    {blackAccuracy}%
-                  </span>
-                </div>
+              {/* Coach Summary Quote */}
+              <div className="bg-[#171513] p-3 rounded-xl border border-[#2a2723] text-xs text-zinc-300 leading-relaxed font-medium">
+                "{report.summaryComment}"
               </div>
             </div>
 
-            {/* Classification Comparison Matrix Table (Screenshot 3) */}
+            {/* Game Phase Accuracy Breakdown */}
+            {report.phaseBreakdown && (
+              <div className="bg-[#1a1815] border border-[#2d2a26] rounded-xl p-3.5 flex flex-col gap-2.5 shadow-lg text-xs">
+                <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400">
+                  <span className="flex items-center gap-1.5 text-zinc-200 uppercase tracking-wider">
+                    <Layers className="w-3.5 h-3.5 text-[#81b64c]" />
+                    Phase Accuracy Breakdown
+                  </span>
+                  <span className="font-mono text-[10px]">WHITE vs BLACK</span>
+                </div>
+
+                <div className="flex flex-col gap-2 divide-y divide-[#262420]">
+                  {/* Opening Phase */}
+                  <div className="pt-1.5 flex flex-col gap-1">
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-zinc-300">Opening</span>
+                      <div className="font-mono text-[11px] flex gap-4">
+                        <span className="text-white font-bold">{report.phaseBreakdown.opening.whiteAccuracy}%</span>
+                        <span className="text-zinc-400 font-bold">{report.phaseBreakdown.opening.blackAccuracy}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-[#12110f] rounded-full overflow-hidden flex">
+                      <div
+                        style={{ width: `${report.phaseBreakdown.opening.whiteAccuracy}%` }}
+                        className="bg-white h-full"
+                      />
+                      <div
+                        style={{ width: `${100 - report.phaseBreakdown.opening.whiteAccuracy}%` }}
+                        className="bg-zinc-800 h-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Middlegame Phase */}
+                  <div className="pt-2 flex flex-col gap-1">
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-zinc-300">Middlegame</span>
+                      <div className="font-mono text-[11px] flex gap-4">
+                        <span className="text-white font-bold">{report.phaseBreakdown.middlegame.whiteAccuracy}%</span>
+                        <span className="text-zinc-400 font-bold">{report.phaseBreakdown.middlegame.blackAccuracy}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-[#12110f] rounded-full overflow-hidden flex">
+                      <div
+                        style={{ width: `${report.phaseBreakdown.middlegame.whiteAccuracy}%` }}
+                        className="bg-white h-full"
+                      />
+                      <div
+                        style={{ width: `${100 - report.phaseBreakdown.middlegame.whiteAccuracy}%` }}
+                        className="bg-zinc-800 h-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Endgame Phase */}
+                  <div className="pt-2 flex flex-col gap-1">
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-zinc-300">Endgame</span>
+                      <div className="font-mono text-[11px] flex gap-4">
+                        <span className="text-white font-bold">{report.phaseBreakdown.endgame.whiteAccuracy}%</span>
+                        <span className="text-zinc-400 font-bold">{report.phaseBreakdown.endgame.blackAccuracy}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-[#12110f] rounded-full overflow-hidden flex">
+                      <div
+                        style={{ width: `${report.phaseBreakdown.endgame.whiteAccuracy}%` }}
+                        className="bg-white h-full"
+                      />
+                      <div
+                        style={{ width: `${100 - report.phaseBreakdown.endgame.whiteAccuracy}%` }}
+                        className="bg-zinc-800 h-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Classification Comparison Matrix Table */}
             <div className="bg-[#181614] border border-[#2a2824] rounded-xl overflow-hidden text-xs">
               <div className="px-3 py-2 bg-[#201e1b] border-b border-[#2d2a26] flex items-center justify-between text-[11px] font-bold text-zinc-400">
                 <span>Move Classification</span>
@@ -284,17 +396,154 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
               </div>
             </div>
 
-            {/* Dominant Green CTA: Start Game Review (Screenshot 3) */}
-            <button
-              onClick={onStartInteractiveReview}
-              className="w-full py-3.5 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white font-black text-sm tracking-wide shadow-xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Start Game Review</span>
-            </button>
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={onStartInteractiveReview}
+                className="w-full py-3.5 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white font-black text-sm tracking-wide shadow-xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Start Interactive Game Review</span>
+              </button>
+
+              {/* Blunder Retry CTA Button */}
+              {report.blunderRetryPuzzle && (
+                <button
+                  onClick={() => {
+                    resetBlunderPuzzle();
+                    setIsBlunderModalOpen(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-[#e05344]/15 hover:bg-[#e05344]/25 text-[#f87171] hover:text-white font-bold text-xs border border-[#e05344]/30 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Target className="w-4 h-4 text-[#e05344]" />
+                  <span>Practice & Retry Your Blunder</span>
+                </button>
+              )}
+
+              {/* PGN Export Button */}
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/pgn/export', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ report }),
+                    });
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `review-${report.gameId || 'game'}.pgn`;
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(a);
+                    }
+                  } catch (e) {
+                    console.error('Export failed:', e);
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 border border-[#36332e]"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
+                <span>Export Annotated PGN with [%eval]</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Interactive Blunder Retry Modal */}
+      {isBlunderModalOpen && puzzle && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1f1d1a] border border-[#36332e] rounded-2xl w-full max-w-lg p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#2d2a26]">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-[#e05344]" />
+                <h3 className="text-base font-black text-white">Retry Your Blunder (Ply {puzzle.ply})</h3>
+              </div>
+              <button
+                onClick={() => setIsBlunderModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-zinc-300 bg-[#161512] p-3 rounded-xl border border-[#282622]">
+              In this position, you played <strong className="text-[#f87171]">{puzzle.blunderedMoveSan}</strong>. Can you find Stockfish's top winning continuation?
+            </div>
+
+            <div className="flex justify-center">
+              <ChessBoard
+                chess={blunderChess}
+                orientation={puzzle.ply % 2 !== 0 ? 'w' : 'b'}
+                boardTheme={boardTheme}
+                pieceTheme={pieceTheme}
+                onMove={handleBlunderMove}
+                disabled={blunderStatus === 'correct' || blunderStatus === 'revealed'}
+              />
+            </div>
+
+            {/* Status Feedback */}
+            {blunderStatus === 'correct' && (
+              <div className="p-3 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 text-[#81b64c] text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Brilliant! You found the winning continuation ({puzzle.solutionSan})!</span>
+              </div>
+            )}
+
+            {blunderStatus === 'wrong' && (
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <XCircle className="w-4 h-4 shrink-0" />
+                  <span>That's not the top move. Try again!</span>
+                </div>
+                <button
+                  onClick={resetBlunderPuzzle}
+                  className="px-2 py-1 rounded bg-[#2b2824] hover:bg-[#38342f] text-white text-[11px] flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset</span>
+                </button>
+              </div>
+            )}
+
+            {blunderStatus === 'revealed' && (
+              <div className="p-3 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold">
+                Stockfish solution: <strong>{puzzle.solutionSan}</strong>. {puzzle.explanation}
+              </div>
+            )}
+
+            {/* Modal Controls */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={resetBlunderPuzzle}
+                className="px-3 py-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Try Again</span>
+              </button>
+
+              <button
+                onClick={revealBlunderSolution}
+                className="px-3 py-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Show Solution</span>
+              </button>
+
+              <button
+                onClick={() => setIsBlunderModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -57,6 +57,37 @@ export function calculateGameCaps(accuracies: number[]): number {
 }
 
 /**
+ * Calculates Average Centipawn Loss (ACPL)
+ */
+export function calculateAcpl(centipawnLosses: number[]): number {
+  if (centipawnLosses.length === 0) return 15.0;
+  const sum = centipawnLosses.reduce((a, b) => a + Math.max(0, b), 0);
+  return parseFloat((sum / centipawnLosses.length).toFixed(1));
+}
+
+/**
+ * Calculates Estimated Performance Rating (EPR) / Game Rating
+ * Derived from CAPS 2.0 accuracy, Average Centipawn Loss (ACPL), and opponent strength.
+ */
+export function calculateEstimatedPerformanceRating(params: {
+  capsAccuracy: number;
+  acpl: number;
+  baselineElo?: number;
+  opponentElo?: number;
+}): number {
+  const { capsAccuracy, acpl, baselineElo = 1500, opponentElo = 1500 } = params;
+  const anchorElo = Math.round((baselineElo * 0.6) + (opponentElo * 0.4));
+  
+  // Dynamic scaling based on accuracy curve and ACPL penalty
+  const accuracyDelta = (capsAccuracy - 72.0) * 26.0;
+  const acplPenalty = Math.max(0, acpl) * 3.2;
+  const rawRating = anchorElo + accuracyDelta - acplPenalty;
+
+  // Bounded between 450 and 3150
+  return Math.min(3150, Math.max(450, Math.round(rawRating)));
+}
+
+/**
  * Checks if a move was a genuine piece sacrifice
  */
 export function isTacticalSacrifice(

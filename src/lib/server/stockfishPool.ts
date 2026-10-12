@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import path from 'path';
 import { Chess } from 'chess.js';
 
@@ -105,11 +105,15 @@ class StockfishProcessEngine {
       }
     }
 
-    const scriptPath = path.join(process.cwd(), 'scripts', 'engine-cli.js');
-    this.process = spawn('node', [scriptPath], {
+    const cp = typeof require !== 'undefined' ? eval("require('child_process')") : null;
+    const rootDir = process.cwd();
+    const scriptPath = path.resolve(rootDir, 'scripts', 'engine-cli.js');
+    if (!cp) return;
+    this.process = cp.spawn('node', [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
+    if (!this.process) return;
 
     this.process.on('error', (err) => {
       console.error('Stockfish process error:', err);

@@ -1,3 +1,6 @@
+import type { PieceSymbol } from 'chess.js';
+export type { PieceSymbol };
+
 export type PieceColor = 'w' | 'b';
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 
@@ -149,6 +152,8 @@ export interface OpeningInfo {
   blackWinPct: number;
   totalGames: number;
   description: string;
+  variation?: string;
+  keyIdeas?: string[];
 }
 
 export type MembershipTier = 'free' | 'gold' | 'platinum' | 'diamond';
@@ -174,6 +179,34 @@ export interface EvalTimelinePoint {
   classification?: MoveClassification;
 }
 
+export interface EngineThreat {
+  threatMoveSan: string;
+  threatMoveUci: string;
+  from: Square;
+  to: Square;
+  description: string;
+  severity: 'critical' | 'moderate' | 'mild';
+  defensiveMoveSan?: string;
+  defensiveExplanation?: string;
+}
+
+export interface GamePhaseScore {
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  plies: number;
+}
+
+export interface ParsedPgn {
+  headers: Record<string, string>;
+  moves: string[];
+  result: string;
+  white?: string;
+  black?: string;
+  date?: string;
+  eco?: string;
+  opening?: string;
+}
+
 export interface GameReviewReport {
   id: string;
   gameId: string;
@@ -181,6 +214,23 @@ export interface GameReviewReport {
   blackPlayer: GamePlayer;
   whiteAccuracy: number;
   blackAccuracy: number;
+  whiteEstimatedElo?: number;
+  blackEstimatedElo?: number;
+  whiteAcpl?: number;
+  blackAcpl?: number;
+  opening?: OpeningInfo;
+  phaseBreakdown?: {
+    opening: GamePhaseScore;
+    middlegame: GamePhaseScore;
+    endgame: GamePhaseScore;
+  };
+  blunderRetryPuzzle?: {
+    ply: number;
+    fen: string;
+    blunderedMoveSan: string;
+    solutionSan: string;
+    explanation: string;
+  };
   tallies: {
     white: ClassificationTallies;
     black: ClassificationTallies;
@@ -206,4 +256,91 @@ export interface GameSession {
   createdAt: number;
   updatedAt: number;
 }
+
+export type AuthoritativeGameStatus =
+  | 'active'
+  | 'checkmate'
+  | 'stalemate'
+  | 'timeout'
+  | 'resigned'
+  | 'draw_agreement'
+  | 'threefold_repetition'
+  | 'fifty_move_rule'
+  | 'insufficient_material';
+
+export interface AuthoritativeMoveLog {
+  san: string;
+  from: Square;
+  to: Square;
+  promotion?: PieceSymbol;
+  timestamp: number;
+  durationMs: number;
+  fenAfter: string;
+}
+
+export interface AuthoritativeGameState {
+  id: string;
+  fen: string;
+  turn: PieceColor;
+  whitePlayer: GamePlayer;
+  blackPlayer: GamePlayer;
+  whiteTimeRemainingMs: number;
+  blackTimeRemainingMs: number;
+  baseTimeSec: number;
+  incrementSec: number;
+  status: AuthoritativeGameStatus;
+  winner: PieceColor | 'draw' | null;
+  endReason?: string;
+  moves: AuthoritativeMoveLog[];
+  sanHistory: string[];
+  drawOffer: PieceColor | null;
+  lastMoveTimestamp: number | null;
+  whiteCumulativeLagRefundMs?: number;
+  blackCumulativeLagRefundMs?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type GameActionType =
+  | 'resign'
+  | 'offer_draw'
+  | 'accept_draw'
+  | 'decline_draw'
+  | 'claim_draw'
+  | 'claim_timeout';
+
+export interface AntiCheatMoveAnomaly {
+  ply: number;
+  san: string;
+  durationMs: number;
+  isEngineRank1: boolean;
+  engineRank: number;
+  centipawnLoss: number;
+  description: string;
+}
+
+export interface AntiCheatReport {
+  gameId: string;
+  evaluatedColor: PieceColor;
+  nominalRating: number;
+  cheatLikelihoodScore: number; // 0 - 100
+  verdict: 'CLEAN' | 'NORMAL_VARIANCE' | 'SUSPICIOUS' | 'FLAGGED_HIGH_CORRELATION';
+  metrics: {
+    engineCorrelationPct: number;
+    rank1MoveCount: number;
+    totalEvaluatedMoves: number;
+    acpl: number;
+    expectedAcplForRating: number;
+    moveTimeMeanMs: number;
+    moveTimeStdDevMs: number;
+    timingCoefficientOfVariation: number;
+    zScore?: number;
+    informativeDecisions?: number;
+  };
+  flags: string[];
+  moveAnomalies: AntiCheatMoveAnomaly[];
+  summary: string;
+}
+
+
 
