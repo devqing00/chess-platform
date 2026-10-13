@@ -39,7 +39,6 @@ export type ActiveTab =
   | 'bots'
   | 'historical'
   | 'variants'
-  | 'landing'
   | 'pubapi';
 
 interface SidebarNavProps {
@@ -68,7 +67,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     { id: 'lessons' as ActiveTab, label: 'Lessons', icon: GraduationCap, badge: 'Master' },
     { id: 'analysis' as ActiveTab, label: 'Analysis & Review', icon: Microscope, badge: 'AI' },
     { id: 'bots' as ActiveTab, label: 'Computer Bots', icon: Bot, badge: '20+' },
-    { id: 'landing' as ActiveTab, label: 'About Chess.com', icon: Sparkles, badge: 'Site' },
     { id: 'openings' as ActiveTab, label: 'Openings', icon: Compass, badge: 'ECO' },
     { id: 'insights' as ActiveTab, label: 'Diamond Insights', icon: Flame, badge: 'PRO' },
     { id: 'historical' as ActiveTab, label: 'Master Games', icon: History, badge: 'GM' },

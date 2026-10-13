@@ -32,7 +32,6 @@ import { MobileBottomBar } from '@/components/game/MobileBottomBar';
 import { GameOverModal } from '@/components/game/GameOverModal';
 import { DesktopPlayPanel } from '@/components/game/DesktopPlayPanel';
 import { ChessHomeDashboard } from '@/components/home/ChessHomeDashboard';
-import { ChessLandingPage } from '@/components/landing/ChessLandingPage';
 
 // Analysis & Review
 import { CoachCommentaryCard } from '@/components/analysis/CoachCommentaryCard';
@@ -720,7 +719,7 @@ export default function ChessPlatformPage() {
 
             {/* View Switcher based on active tab */}
             <div className="flex-1 p-3 sm:p-4 lg:p-6 flex items-center justify-center">
-              {/* Home Dashboard (Image 3 Parity) */}
+              {/* Home Dashboard */}
               {activeTab === 'home' && (
                 <ChessHomeDashboard
                   onStartGame={(tc) => {
@@ -732,27 +731,20 @@ export default function ChessPlatformPage() {
                     setActiveTab('play');
                     startNewGame();
                   }}
-                  onOpenBots={() => setActiveTab('bots')}
+                  onOpenBots={(botId) => {
+                    if (botId) {
+                      const b = CHESS_BOTS.find((x) => x.id === botId);
+                      if (b) setSelectedBot(b);
+                    }
+                    setActiveTab('bots');
+                  }}
                   onOpenLessons={() => setActiveTab('lessons')}
                   onOpenPuzzles={() => setActiveTab('puzzles')}
                   onOpenReview={() => {
                     setIsReviewViewActive(true);
                     setReviewStage('summary');
                   }}
-                />
-              )}
-
-              {/* Public Landing Page (Image 1 Parity) */}
-              {activeTab === 'landing' && (
-                <ChessLandingPage
-                  onGetStarted={() => {
-                    setActiveTab('play');
-                    startNewGame();
-                  }}
-                  onLogin={openAuthModal}
-                  onChallengeBot={() => setActiveTab('bots')}
-                  onStartLesson={() => setActiveTab('lessons')}
-                  onSolvePuzzles={() => setActiveTab('puzzles')}
+                  onOpenInsights={() => setActiveTab('insights')}
                 />
               )}
 
@@ -859,6 +851,8 @@ export default function ChessPlatformPage() {
                       isGameActive={moveHistory.length > 0 && !gameResult}
                       onResign={handleResign}
                       onDraw={handleOfferDraw}
+                      onFlipBoard={() => setOrientation((prev) => (prev === 'w' ? 'b' : 'w'))}
+                      onSelectVariant={(v) => setVariant(v)}
                     />
 
                     {/* Move History Table */}

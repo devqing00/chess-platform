@@ -4,18 +4,18 @@ import React, { useState } from 'react';
 import {
   Plus,
   Grid3X3,
-  Users,
   Clock,
   Swords,
   Handshake,
-  Trophy,
   ChevronDown,
-  MessageSquare,
-  Globe,
-  Bell,
-  X,
-  RotateCcw,
   Sparkles,
+  Bot,
+  Zap,
+  RotateCw,
+  Award,
+  Cpu,
+  Sliders,
+  CheckCircle2,
 } from 'lucide-react';
 import { ChessVariant } from '@/types/chess';
 
@@ -25,6 +25,8 @@ interface DesktopPlayPanelProps {
   onStartGame: () => void;
   onPlayBot: () => void;
   onPlayFriend: () => void;
+  onSelectVariant?: (variant: ChessVariant) => void;
+  onFlipBoard?: () => void;
   isGameActive: boolean;
   onResign?: () => void;
   onDraw?: () => void;
@@ -36,13 +38,15 @@ export const DesktopPlayPanel: React.FC<DesktopPlayPanelProps> = ({
   onStartGame,
   onPlayBot,
   onPlayFriend,
+  onSelectVariant,
+  onFlipBoard,
   isGameActive,
   onResign,
   onDraw,
 }) => {
-  const [activeTab, setActiveTab] = useState<'new_game' | 'games' | 'players'>('new_game');
+  const [activeTab, setActiveTab] = useState<'play' | 'variants' | 'engine'>('play');
   const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<ChessVariant>('standard');
 
   const timeOptions = [
     { sec: 60, label: '1 min (Bullet)' },
@@ -51,56 +55,66 @@ export const DesktopPlayPanel: React.FC<DesktopPlayPanelProps> = ({
     { sec: 600, label: '10 min (Rapid)' },
     { sec: 900, label: '15|10 (Rapid)' },
     { sec: 1800, label: '30 min (Classical)' },
-    { sec: 0, label: 'Unlimited (Daily)' },
+    { sec: 0, label: 'Unlimited (Casual)' },
   ];
 
   const currentOption = timeOptions.find((t) => t.sec === timeControl) || timeOptions[3];
 
+  const variantsList: { id: ChessVariant; name: string; desc: string }[] = [
+    { id: 'standard', name: 'Standard Chess', desc: 'Classic FIDE rules, 8x8 board' },
+    { id: 'chess960', name: 'Chess960 (Fischer Random)', desc: 'Randomized back-rank pieces' },
+    { id: '3check', name: '3-Check Chess', desc: 'Deliver 3 checks to win instantly' },
+    { id: 'kingofthehill', name: 'King of the Hill', desc: 'First King to reach the 4 center squares wins' },
+  ];
+
   return (
     <div className="w-full max-w-[400px] h-[680px] bg-[#21201d] border border-[#2e2b26] rounded-2xl flex flex-col justify-between shadow-2xl select-none text-zinc-100 overflow-hidden relative">
-      {/* Top Navigation Tabs (Image 5 Parity) */}
+      {/* Top Navigation Tabs */}
       <div>
         <div className="grid grid-cols-3 border-b border-[#2e2b26] bg-[#1a1815] text-xs font-bold">
           <button
-            onClick={() => setActiveTab('new_game')}
+            onClick={() => setActiveTab('play')}
             className={`py-3 flex items-center justify-center gap-1.5 transition cursor-pointer border-b-2 ${
-              activeTab === 'new_game'
+              activeTab === 'play'
                 ? 'border-[#81b64c] text-white bg-[#21201d]'
                 : 'border-transparent text-zinc-400 hover:text-white'
             }`}
           >
-            <Plus className="w-4 h-4" />
-            <span>New Game</span>
+            <Clock className="w-4 h-4 text-[#81b64c]" />
+            <span>Play</span>
           </button>
           <button
-            onClick={() => setActiveTab('games')}
+            onClick={() => setActiveTab('variants')}
             className={`py-3 flex items-center justify-center gap-1.5 transition cursor-pointer border-b-2 ${
-              activeTab === 'games'
+              activeTab === 'variants'
                 ? 'border-[#81b64c] text-white bg-[#21201d]'
                 : 'border-transparent text-zinc-400 hover:text-white'
             }`}
           >
-            <Grid3X3 className="w-4 h-4" />
-            <span>Games</span>
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Variants</span>
           </button>
           <button
-            onClick={() => setActiveTab('players')}
+            onClick={() => setActiveTab('engine')}
             className={`py-3 flex items-center justify-center gap-1.5 transition cursor-pointer border-b-2 ${
-              activeTab === 'players'
+              activeTab === 'engine'
                 ? 'border-[#81b64c] text-white bg-[#21201d]'
                 : 'border-transparent text-zinc-400 hover:text-white'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>Players</span>
+            <Cpu className="w-4 h-4 text-blue-400" />
+            <span>Engine</span>
           </button>
         </div>
 
-        {/* Tab 1: New Game Mode Selector */}
-        {activeTab === 'new_game' && (
+        {/* Tab 1: Play & Time Controls */}
+        {activeTab === 'play' && (
           <div className="p-4 sm:p-5 flex flex-col gap-3">
             {/* Time Control Dropdown Pill */}
             <div className="relative">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 block">
+                Time Control
+              </span>
               <button
                 onClick={() => setIsTimeDropdownOpen((p) => !p)}
                 className="w-full py-3 px-4 bg-[#262420] hover:bg-[#2d2a25] border border-[#38342e] rounded-xl flex items-center justify-between transition cursor-pointer text-sm font-bold text-white shadow-sm"
@@ -145,213 +159,155 @@ export const DesktopPlayPanel: React.FC<DesktopPlayPanelProps> = ({
               onClick={onStartGame}
               className="w-full py-4 bg-[#81b64c] hover:bg-[#73a542] active:bg-[#68973b] text-white text-base font-black tracking-wide rounded-xl shadow-lg shadow-[#81b64c]/20 transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Start Game</span>
+              <span>{isGameActive ? 'Restart / New Match' : 'Start Game'}</span>
             </button>
 
-            {/* Secondary Action Options (Image 5 Parity) */}
+            {/* Play Modes Shortcuts */}
             <div className="flex flex-col gap-2 mt-2">
               <button
                 onClick={onPlayBot}
-                className="w-full py-3 px-4 bg-[#2b2824] hover:bg-[#34302c] border border-[#3a3630] rounded-xl flex items-center justify-center gap-2.5 text-xs font-extrabold text-zinc-200 transition cursor-pointer"
+                className="w-full py-2.5 px-4 bg-[#2b2824] hover:bg-[#34302c] border border-[#3a3630] rounded-xl flex items-center justify-between text-xs font-extrabold text-zinc-200 transition cursor-pointer"
               >
-                <Swords className="w-4 h-4 text-amber-400" />
-                <span>Custom Challenge</span>
+                <div className="flex items-center gap-2.5">
+                  <Bot className="w-4 h-4 text-blue-400" />
+                  <span>Play Computer (Bots)</span>
+                </div>
+                <span className="text-[10px] text-zinc-400">20+ Personalities</span>
               </button>
 
               <button
                 onClick={onPlayFriend}
-                className="w-full py-3 px-4 bg-[#2b2824] hover:bg-[#34302c] border border-[#3a3630] rounded-xl flex items-center justify-center gap-2.5 text-xs font-extrabold text-zinc-200 transition cursor-pointer"
+                className="w-full py-2.5 px-4 bg-[#2b2824] hover:bg-[#34302c] border border-[#3a3630] rounded-xl flex items-center justify-between text-xs font-extrabold text-zinc-200 transition cursor-pointer"
               >
-                <Handshake className="w-4 h-4 text-amber-400" />
-                <span>Play a Friend</span>
-              </button>
-
-              <button
-                onClick={() => setShowNotificationModal(true)}
-                className="w-full py-3 px-4 bg-[#2b2824] hover:bg-[#34302c] border border-[#3a3630] rounded-xl flex items-center justify-center gap-2.5 text-xs font-extrabold text-zinc-200 transition cursor-pointer"
-              >
-                <Trophy className="w-4 h-4 text-amber-400" />
-                <span>Tournaments & Alerts</span>
+                <div className="flex items-center gap-2.5">
+                  <Handshake className="w-4 h-4 text-emerald-400" />
+                  <span>Pass & Play (Local Friend)</span>
+                </div>
+                <span className="text-[10px] text-zinc-400">Shared Screen</span>
               </button>
             </div>
 
-            {/* In-Game Controls (Resign / Draw / Restart) */}
+            {/* In-Game Action Controls (When match is live) */}
             {isGameActive && (
-              <div className="pt-3 border-t border-[#312e29] flex items-center justify-between gap-2">
-                <button
-                  onClick={onDraw}
-                  className="flex-1 py-2 rounded-lg bg-[#2b2824] hover:bg-[#35312c] text-xs font-bold text-zinc-300 transition cursor-pointer"
-                >
-                  Offer Draw
-                </button>
-                <button
-                  onClick={onResign}
-                  className="flex-1 py-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-xs font-bold text-red-300 transition cursor-pointer"
-                >
-                  Resign
-                </button>
+              <div className="pt-3 border-t border-[#312e29] flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  Game Controls
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onDraw}
+                    className="flex-1 py-2 rounded-lg bg-[#2b2824] hover:bg-[#35312c] text-xs font-bold text-zinc-300 transition cursor-pointer"
+                  >
+                    Offer Draw
+                  </button>
+                  <button
+                    onClick={onResign}
+                    className="flex-1 py-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-xs font-bold text-red-300 transition cursor-pointer"
+                  >
+                    Resign
+                  </button>
+                  {onFlipBoard && (
+                    <button
+                      onClick={onFlipBoard}
+                      className="p-2 rounded-lg bg-[#2b2824] hover:bg-[#35312c] text-zinc-300 transition cursor-pointer"
+                      title="Flip Board"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Tab 2: Live Games Overview */}
-        {activeTab === 'games' && (
+        {/* Tab 2: Chess Variants */}
+        {activeTab === 'variants' && (
           <div className="p-4 flex flex-col gap-2.5 text-xs">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-              Top Live Grandmaster Broadcasts
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
+              Select Chess Variant
             </span>
-            {[
-              { w: 'Magnus Carlsen', b: 'Hikaru Nakamura', rating: '2830 vs 2875', time: '3+2 Blitz' },
-              { w: 'Gukesh D', b: 'Ding Liren', rating: '2794 vs 2728', time: '10+0 Rapid' },
-              { w: 'Alireza Firouzja', b: 'Fabiano Caruana', rating: '2805 vs 2805', time: 'Bullet 1+0' },
-            ].map((g, idx) => (
+            {variantsList.map((v) => (
               <div
-                key={idx}
-                className="p-3 bg-[#1e1c18] border border-[#332f29] rounded-xl flex items-center justify-between hover:bg-[#282520] transition cursor-pointer"
+                key={v.id}
+                onClick={() => {
+                  setSelectedVariant(v.id);
+                  if (onSelectVariant) onSelectVariant(v.id);
+                }}
+                className={`p-3 rounded-xl border transition cursor-pointer flex flex-col gap-1 ${
+                  selectedVariant === v.id
+                    ? 'bg-[#2b2824] border-[#81b64c] shadow-md'
+                    : 'bg-[#1e1c18] border-[#332f29] hover:bg-[#25221e]'
+                }`}
               >
-                <div className="flex flex-col">
-                  <span className="font-bold text-white">
-                    {g.w} vs {g.b}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 font-mono">{g.rating}</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-white text-xs">{v.name}</span>
+                  {selectedVariant === v.id && (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#81b64c]" />
+                  )}
                 </div>
-                <span className="px-2 py-0.5 rounded bg-[#2e2b26] text-[10px] font-bold text-[#81b64c]">
-                  {g.time}
-                </span>
+                <span className="text-[11px] text-zinc-400">{v.desc}</span>
               </div>
             ))}
-          </div>
-        )}
 
-        {/* Tab 3: Online Players Pool */}
-        {activeTab === 'players' && (
-          <div className="p-4 flex flex-col gap-2.5 text-xs">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-              Ready in Matchmaking Pool
-            </span>
-            {[
-              { name: 'Checkacabra', r: 1250, country: '🇯🇵', status: 'In Queue' },
-              { name: 'Aman_22_03', r: 1420, country: '🇮🇳', status: 'Open' },
-              { name: 'Croissantszz', r: 1640, country: '🇦🇷', status: 'Playing' },
-              { name: 'Agathadelima', r: 1625, country: '🇩🇪', status: 'Open' },
-            ].map((p, idx) => (
-              <div
-                key={idx}
-                className="p-2.5 bg-[#1e1c18] border border-[#332f29] rounded-xl flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span>{p.country}</span>
-                  <span className="font-bold text-white">{p.name}</span>
-                  <span className="font-mono text-[10px] text-zinc-400">({p.r})</span>
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    p.status === 'Open'
-                      ? 'bg-[#81b64c]/20 text-[#81b64c]'
-                      : 'bg-zinc-800 text-zinc-400'
-                  }`}
-                >
-                  {p.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Live Player Stats Bar (Image 5 Parity) */}
-      <div className="p-3 bg-[#181614] border-t border-[#2a2723] flex items-center justify-between text-xs text-zinc-400 font-mono">
-        <button
-          onClick={() => setShowNotificationModal(true)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-[#25221e] transition cursor-pointer"
-          title="Game Chat & Alerts"
-        >
-          <MessageSquare className="w-4 h-4" />
-        </button>
-
-        <div className="flex items-center gap-3 text-[11px] font-bold tracking-tight">
-          <span className="text-zinc-200">
-            <strong className="text-[#81b64c]">149,114</strong> PLAYING
-          </span>
-          <span className="text-zinc-500">•</span>
-          <span className="text-zinc-400">
-            <strong>24,916,525</strong> GAMES TODAY
-          </span>
-        </div>
-      </div>
-
-      {/* Enable Notifications Modal Overlay (Image 4 Parity) */}
-      {showNotificationModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-[3px] z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-[#262421] border border-[#3b3730] rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center gap-3.5 relative">
-            <button
-              onClick={() => setShowNotificationModal(false)}
-              className="absolute top-3.5 right-3.5 p-1 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <h3 className="text-lg font-black text-white mt-1">Enable Notifications</h3>
-
-            {/* Notification Preview Card */}
-            <div className="w-full p-3 bg-[#1e1c19] border border-[#35312a] rounded-xl flex items-center justify-between text-left text-xs shadow-inner">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#1e3a5f] flex items-center justify-center text-blue-400 text-sm shadow">
-                  🌍
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-black text-white text-xs">Your Move!</span>
-                  <span className="text-[11px] text-zinc-400">Opponent played c4</span>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-[9px] text-zinc-500 font-mono">Just now</span>
-                <span className="text-xs text-[#81b64c]">♟</span>
-              </div>
-            </div>
-
-            {/* Bullet List */}
-            <div className="text-xs text-zinc-300 flex flex-col items-start gap-1.5 w-full pl-1">
-              <span className="text-xs font-bold text-zinc-400 mb-0.5">
-                Allow and get notified when:
-              </span>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c]" />
-                <span>It&apos;s your turn to move</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c]" />
-                <span>You receive a message</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c]" />
-                <span>You get challenged by a friend</span>
-              </div>
-            </div>
-
-            {/* Confirmation CTA */}
             <button
               onClick={() => {
-                if (typeof Notification !== 'undefined') {
-                  Notification.requestPermission();
-                }
-                setShowNotificationModal(false);
+                if (onSelectVariant) onSelectVariant(selectedVariant);
+                onStartGame();
               }}
-              className="w-full py-3 bg-[#81b64c] hover:bg-[#73a542] text-white font-black text-sm rounded-xl transition shadow-lg cursor-pointer mt-1"
+              className="w-full mt-2 py-3 bg-[#81b64c] hover:bg-[#73a542] text-white font-black rounded-xl transition shadow cursor-pointer"
             >
-              Yes, Remind Me!
-            </button>
-
-            <button
-              onClick={() => setShowNotificationModal(false)}
-              className="text-xs text-zinc-400 hover:text-white transition cursor-pointer"
-            >
-              No, thanks
+              Play {variantsList.find((v) => v.id === selectedVariant)?.name}
             </button>
           </div>
+        )}
+
+        {/* Tab 3: Local Engine & AI Status */}
+        {activeTab === 'engine' && (
+          <div className="p-4 flex flex-col gap-3 text-xs">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+              Engine Status & Settings
+            </span>
+            <div className="p-3 bg-[#1e1c18] border border-[#332f29] rounded-xl flex flex-col gap-2 font-mono text-[11px]">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Engine Core</span>
+                <span className="text-[#81b64c] font-bold">Stockfish 16 (NNUE)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Architecture</span>
+                <span className="text-white">WebAssembly SIMD</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Search Threads</span>
+                <span className="text-white">Web Worker Pool</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Evaluation Accuracy</span>
+                <span className="text-emerald-400 font-bold">CAPS Metric Enabled</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#24221f] border border-[#38342e] rounded-xl flex items-center gap-3">
+              <Award className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="flex flex-col text-zinc-300">
+                <span className="font-bold text-white text-xs">Diamond Coach Active</span>
+                <span className="text-[10px] text-zinc-400">
+                  Real-time natural language move classifications and suggestions.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Engine & Network Status Bar */}
+      <div className="p-3 bg-[#181614] border-t border-[#2a2723] flex items-center justify-between text-xs text-zinc-400 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
+          <span className="text-[11px] font-bold text-zinc-300">Stockfish 16 Active</span>
         </div>
-      )}
+        <span className="text-[10px] text-zinc-500">Low-Latency WASM</span>
+      </div>
     </div>
   );
 };
