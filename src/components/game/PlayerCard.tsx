@@ -68,6 +68,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                   ? '🇩🇪'
                   : player.country === 'AR'
                   ? '🇦🇷'
+                  : player.country === 'NG'
+                  ? '🇳🇬'
                   : '🌍'}
               </span>
             )}

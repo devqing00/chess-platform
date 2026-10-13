@@ -283,45 +283,48 @@ export const DesktopPlayPanel: React.FC<DesktopPlayPanelProps> = ({
 
       {/* Enable Notifications Modal Overlay (Image 4 Parity) */}
       {showNotificationModal && (
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-xs bg-[#24221f] border border-[#3b3730] rounded-2xl p-5 shadow-2xl flex flex-col items-center text-center gap-3 relative">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-[3px] z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-sm bg-[#262421] border border-[#3b3730] rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center gap-3.5 relative">
             <button
               onClick={() => setShowNotificationModal(false)}
-              className="absolute top-3 right-3 p-1 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
+              className="absolute top-3.5 right-3.5 p-1 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-base font-black text-white mt-1">Enable Notifications</h3>
+            <h3 className="text-lg font-black text-white mt-1">Enable Notifications</h3>
 
             {/* Notification Preview Card */}
-            <div className="w-full p-2.5 bg-[#1b1916] border border-[#332f2a] rounded-xl flex items-center justify-between text-left text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-blue-600/30 flex items-center justify-center text-blue-400 text-sm">
+            <div className="w-full p-3 bg-[#1e1c19] border border-[#35312a] rounded-xl flex items-center justify-between text-left text-xs shadow-inner">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#1e3a5f] flex items-center justify-center text-blue-400 text-sm shadow">
                   🌍
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-black text-white text-[11px]">Your Move!</span>
-                  <span className="text-[10px] text-zinc-400">Opponent played c4</span>
+                  <span className="font-black text-white text-xs">Your Move!</span>
+                  <span className="text-[11px] text-zinc-400">Opponent played c4</span>
                 </div>
               </div>
-              <span className="text-[9px] text-zinc-500 font-mono">Just now</span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-[9px] text-zinc-500 font-mono">Just now</span>
+                <span className="text-xs text-[#81b64c]">♟</span>
+              </div>
             </div>
 
             {/* Bullet List */}
-            <div className="text-xs text-zinc-300 flex flex-col items-start gap-1 w-full pl-2">
-              <span className="text-[11px] font-bold text-zinc-400 mb-1">
+            <div className="text-xs text-zinc-300 flex flex-col items-start gap-1.5 w-full pl-1">
+              <span className="text-xs font-bold text-zinc-400 mb-0.5">
                 Allow and get notified when:
               </span>
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c]" />
                 <span>It&apos;s your turn to move</span>
               </div>
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c]" />
                 <span>You receive a message</span>
               </div>
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c]" />
                 <span>You get challenged by a friend</span>
               </div>
@@ -335,14 +338,14 @@ export const DesktopPlayPanel: React.FC<DesktopPlayPanelProps> = ({
                 }
                 setShowNotificationModal(false);
               }}
-              className="w-full py-2.5 bg-[#81b64c] hover:bg-[#73a542] text-white font-black text-xs rounded-xl transition shadow cursor-pointer mt-1"
+              className="w-full py-3 bg-[#81b64c] hover:bg-[#73a542] text-white font-black text-sm rounded-xl transition shadow-lg cursor-pointer mt-1"
             >
               Yes, Remind Me!
             </button>
 
             <button
               onClick={() => setShowNotificationModal(false)}
-              className="text-[11px] text-zinc-400 hover:text-white transition cursor-pointer"
+              className="text-xs text-zinc-400 hover:text-white transition cursor-pointer"
             >
               No, thanks
             </button>

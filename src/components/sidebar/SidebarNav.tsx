@@ -20,6 +20,9 @@ import {
   LogOut,
   User as UserIcon,
   Camera,
+  Users,
+  Mail,
+  Bell,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
@@ -127,39 +130,53 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       </div>
 
       {/* Bottom Section: User Auth, Membership Tier Card & Settings */}
+      {/* Bottom Section: Search, User Account, Tier Banner, and Social/Settings Toolbar */}
       <div className="p-3 border-t border-[#2d2a26] space-y-2 bg-[#161512]">
-        {/* User Account / Auth Card */}
-        {user ? (
-          <div className="p-2.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between">
-            <div
-              onClick={() => setIsAvatarModalOpen(true)}
-              className="flex items-center gap-2 min-w-0 cursor-pointer group"
-              title="Click to change avatar (Cloudflare R2)"
-            >
-              <div className="relative w-8 h-8 rounded-lg bg-zinc-700 overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 border border-[#403e3a] group-hover:border-amber-400 transition-colors">
-                {profile?.avatar && profile.avatar.startsWith('http') ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={profile.avatar}
-                    alt={profile.displayName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>{profile?.avatar || '♟️'}</span>
-                )}
+        {/* Search button (Image 5 Parity) */}
+        <button
+          onClick={() => {}}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white hover:bg-[#272522] transition-colors cursor-pointer"
+        >
+          <Search className="w-4 h-4 text-zinc-400" />
+          <span>Search</span>
+        </button>
+
+        {/* User Account / Profile Card (Displays rapid_qing 🇳🇬 429 by default) */}
+        <div className="p-2.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between">
+          <div
+            onClick={() => (user ? setIsAvatarModalOpen(true) : openAuthModal())}
+            className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+            title={user ? 'Click to change avatar' : 'Click to Log In'}
+          >
+            <div className="relative w-8 h-8 rounded-lg bg-[#2b2824] border border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 group-hover:border-[#81b64c] transition-colors shadow">
+              {profile?.avatar && profile.avatar.startsWith('http') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar}
+                  alt={profile.displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-zinc-300">♟️</span>
+              )}
+              {user && (
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <Camera className="w-3.5 h-3.5 text-white" />
                 </div>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate group-hover:text-amber-400 transition-colors">
-                  {profile?.displayName || user.displayName || 'Player'}
-                </span>
-                <span className="text-[10px] text-zinc-400">
-                  Blitz {profile?.ratings.blitz || 1200}
-                </span>
-              </div>
+              )}
             </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-white truncate group-hover:text-[#81b64c] transition-colors">
+                {profile?.displayName || user?.displayName || 'rapid_qing'}
+              </span>
+              <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
+                <span>({profile?.ratings?.rapid || 429})</span>
+                <span>🇳🇬</span>
+              </span>
+            </div>
+          </div>
+
+          {user ? (
             <button
               onClick={logout}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition cursor-pointer"
@@ -167,21 +184,20 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             >
               <LogOut className="w-4 h-4" />
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={openAuthModal}
-            className="w-full py-2 px-3 bg-[#81b64c] hover:bg-[#92c855] text-black font-black text-xs rounded-xl transition shadow flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <LogIn className="w-4 h-4" />
-            <span>Sign In / Register</span>
-          </button>
-        )}
+          ) : (
+            <button
+              onClick={openAuthModal}
+              className="px-2 py-1 rounded bg-[#81b64c]/20 hover:bg-[#81b64c] text-[#81b64c] hover:text-white text-[10px] font-bold transition cursor-pointer"
+            >
+              Log In
+            </button>
+          )}
+        </div>
 
         {/* Tier Banner */}
         <div
           onClick={onOpenMembershipModal}
-          className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-transparent border border-amber-500/30 hover:border-amber-500/60 transition-all cursor-pointer group"
+          className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-transparent border border-amber-500/30 hover:border-amber-500/60 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -194,21 +210,39 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               {effectiveTier === 'diamond' ? 'Active' : 'Upgrade'}
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1 line-clamp-1">
-            {effectiveTier === 'diamond'
-              ? 'Unlimited Game Review & AI Coach active'
-              : 'Unlock Diamond AI Coach, Game Review & Bots'}
-          </p>
         </div>
 
-        {/* Settings Button */}
-        <button
-          onClick={onOpenSettingsModal}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white hover:bg-[#272522] transition-colors cursor-pointer"
-        >
-          <Settings className="w-4 h-4" />
-          <span>Board & Sound Settings</span>
-        </button>
+        {/* Bottom 4 Social/Tool Action Icons (Image 3 & 5 Parity: Friends, Mail, Bell, Settings) */}
+        <div className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400">
+          <button
+            onClick={() => {}}
+            className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
+            title="Friends"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {}}
+            className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
+            title="Messages"
+          >
+            <Mail className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {}}
+            className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
+            title="Alerts & Notifications"
+          >
+            <Bell className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onOpenSettingsModal}
+            className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
+            title="Board & Sound Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Cloudflare R2 Avatar Upload Modal */}
