@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { GameSessionStore } from '@/lib/gameSessionStore';
+import { MatchmakingService } from '@/lib/firebase/matchmakingService';
+import { useAuth } from '@/context/AuthContext';
 import { ChessVariant, GamePlayer } from '@/types/chess';
 import { CHESS_BOTS } from '@/lib/botsData';
 import {
@@ -16,14 +18,25 @@ import {
   Award,
   Play,
   ArrowRight,
+  Globe,
+  Loader2,
+  X,
+  Share2,
 } from 'lucide-react';
 
 export default function PlayLobbyPage() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [selectedTimeControl, setSelectedTimeControl] = useState<number>(600);
   const [selectedVariant, setSelectedVariant] = useState<ChessVariant>('standard');
-  const [selectedMode, setSelectedMode] = useState<'bot' | 'pass_and_play'>('bot');
+  const [selectedMode, setSelectedMode] = useState<'online_pvp' | 'bot' | 'pass_and_play'>('online_pvp');
   const [selectedBotId, setSelectedBotId] = useState<string>('martin');
+
+  // Live Matchmaking Queue State
+  const [isQueueing, setIsQueueing] = useState<boolean>(false);
+  const [queueDuration, setQueueDuration] = useState<number>(0);
+  const queueCleanupRef = useRef<(() => void) | null>(null);
+  const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const timeControls = [
     { sec: 60, label: '1 min', sub: 'Bullet', icon: Zap },
@@ -40,12 +53,94 @@ export default function PlayLobbyPage() {
     { id: 'kingofthehill' as ChessVariant, name: 'King of the Hill', desc: 'Occupy the center' },
   ];
 
-  const handleStartGame = () => {
+  // Matchmaking timer ticker
+  useEffect(() => {
+    if (isQueueing) {
+      queueTimerRef.current = setInterval(() => {
+        setQueueDuration((d) => d + 1);
+      }, 1000);
+    } else {
+      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+      setQueueDuration(0);
+    }
+
+    return () => {
+      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+    };
+  }, [isQueueing]);
+
+  // Clean up queue on unmount
+  useEffect(() => {
+    return () => {
+      if (queueCleanupRef.current) {
+        queueCleanupRef.current();
+      }
+    };
+  }, []);
+
+  const handleStartLiveMatchmaking = async () => {
+    if (!user) {
+      alert('Please sign in or continue as a guest to join live 1v1 matchmaking.');
+      return;
+    }
+
+    setIsQueueing(true);
+    setQueueDuration(0);
+
+    const currentUserProfile = profile || {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || 'Player',
+      avatar: '♟️',
+      tier: 'free',
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      isAnonymous: user.isAnonymous,
+      ratings: { rapid: 1200, blitz: 1200, bullet: 1200, daily: 1200, puzzles: 1500, puzzleRush: 0 },
+      stats: { gamesPlayed: 0, wins: 0, losses: 0, draws: 0, winStreak: 0 },
+    };
+
+    try {
+      const { ticketId, unsubscribe } = await MatchmakingService.enterQueue(
+        currentUserProfile,
+        selectedTimeControl,
+        0,
+        selectedVariant,
+        (matchedGameId) => {
+          setIsQueueing(false);
+          router.push(`/play/live/${matchedGameId}`);
+        }
+      );
+
+      queueCleanupRef.current = () => {
+        unsubscribe();
+        MatchmakingService.cancelQueue(ticketId);
+      };
+    } catch (err) {
+      console.error('Matchmaking error:', err);
+      setIsQueueing(false);
+    }
+  };
+
+  const handleCancelQueue = () => {
+    if (queueCleanupRef.current) {
+      queueCleanupRef.current();
+      queueCleanupRef.current = null;
+    }
+    setIsQueueing(false);
+  };
+
+  const handleCreateCustomRoom = () => {
+    const customGameId = `room-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    router.push(`/play/live/${customGameId}`);
+  };
+
+  const handleStartLocalGame = () => {
     const whitePlayer: GamePlayer = {
-      id: 'player-you',
-      name: 'You',
-      rating: 1250,
-      avatar: '🧑‍💻',
+      id: user?.uid || 'player-you',
+      name: profile?.displayName || user?.displayName || 'You',
+      rating: profile?.ratings.blitz || 1250,
+      avatar: profile?.avatar || '🧑‍💻',
       country: 'US',
     };
 
@@ -87,7 +182,7 @@ export default function PlayLobbyPage() {
           <div>
             <h1 className="text-2xl font-black text-white tracking-wide">Play Chess</h1>
             <p className="text-xs text-zinc-400 mt-1">
-              Select time control, play against grandmaster bots, or review historical games.
+              Live 1v1 PvP Matchmaking, Grandmaster Computer Bots, or Pass & Play.
             </p>
           </div>
 
@@ -133,81 +228,150 @@ export default function PlayLobbyPage() {
           </div>
         </div>
 
-        {/* Opponent Mode */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-3">
-            <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Bot className="w-4 h-4 text-cyan-400" />
-              <span>Opponent Mode</span>
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setSelectedMode('bot')}
-                className={`p-3.5 rounded-xl border flex items-center gap-3 transition-all cursor-pointer ${
-                  selectedMode === 'bot'
-                    ? 'bg-[#282622] border-[#81b64c] text-white'
-                    : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-                }`}
-              >
-                <Bot className="w-6 h-6 text-[#81b64c]" />
-                <div className="flex flex-col text-left">
-                  <span className="text-xs font-black text-white">vs Computer</span>
-                  <span className="text-[10px] text-zinc-400">Play rated bots</span>
-                </div>
-              </button>
+        {/* Opponent Mode (3 Options: Online 1v1, vs Computer, Pass & Play) */}
+        <div className="flex flex-col gap-3">
+          <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Swords className="w-4 h-4 text-[#81b64c]" />
+            <span>Game Mode</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* 1. Online 1v1 PvP */}
+            <button
+              onClick={() => setSelectedMode('online_pvp')}
+              className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                selectedMode === 'online_pvp'
+                  ? 'bg-gradient-to-br from-[#2b271d] to-[#1e1c18] border-amber-500 text-white shadow-lg shadow-amber-500/10'
+                  : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
+              }`}
+            >
+              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-white">Online 1v1 PvP</span>
+                <span className="text-[10px] text-zinc-400">Live Matchmaking & Rooms</span>
+              </div>
+            </button>
 
-              <button
-                onClick={() => setSelectedMode('pass_and_play')}
-                className={`p-3.5 rounded-xl border flex items-center gap-3 transition-all cursor-pointer ${
-                  selectedMode === 'pass_and_play'
-                    ? 'bg-[#282622] border-[#81b64c] text-white'
-                    : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-                }`}
-              >
-                <Users className="w-6 h-6 text-amber-400" />
-                <div className="flex flex-col text-left">
-                  <span className="text-xs font-black text-white">Pass & Play</span>
-                  <span className="text-[10px] text-zinc-400">Two players</span>
-                </div>
-              </button>
-            </div>
-          </div>
+            {/* 2. vs Computer */}
+            <button
+              onClick={() => setSelectedMode('bot')}
+              className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                selectedMode === 'bot'
+                  ? 'bg-[#282622] border-[#81b64c] text-white shadow-lg shadow-[#81b64c]/10'
+                  : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
+              }`}
+            >
+              <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-white">vs Computer</span>
+                <span className="text-[10px] text-zinc-400">20+ Grandmaster Bots</span>
+              </div>
+            </button>
 
-          {/* Variant Selection */}
-          <div className="flex flex-col gap-3">
-            <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Crown className="w-4 h-4 text-amber-400" />
-              <span>Chess Variant</span>
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {variants.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => setSelectedVariant(v.id)}
-                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                    selectedVariant === v.id
-                      ? 'bg-[#282622] border-[#81b64c] text-white'
-                      : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-                  }`}
-                >
-                  <span className="text-xs font-black block text-white">{v.name}</span>
-                  <span className="text-[10px] text-zinc-500">{v.desc}</span>
-                </button>
-              ))}
-            </div>
+            {/* 3. Pass & Play */}
+            <button
+              onClick={() => setSelectedMode('pass_and_play')}
+              className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                selectedMode === 'pass_and_play'
+                  ? 'bg-[#282622] border-[#81b64c] text-white'
+                  : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
+              }`}
+            >
+              <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-white">Pass & Play</span>
+                <span className="text-[10px] text-zinc-400">Local 2-Player Board</span>
+              </div>
+            </button>
           </div>
         </div>
 
-        {/* Primary Play Button */}
-        <button
-          onClick={handleStartGame}
-          className="w-full py-4 rounded-2xl bg-[#81b64c] hover:bg-[#73a542] text-white text-base font-black tracking-wide shadow-2xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-        >
-          <Play className="w-5 h-5 fill-current" />
-          <span>Start Game</span>
-        </button>
+        {/* Variant Selection */}
+        <div className="flex flex-col gap-3">
+          <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Crown className="w-4 h-4 text-amber-400" />
+            <span>Chess Variant</span>
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {variants.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => setSelectedVariant(v.id)}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  selectedVariant === v.id
+                    ? 'bg-[#282622] border-[#81b64c] text-white'
+                    : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
+                }`}
+              >
+                <span className="text-xs font-black block text-white">{v.name}</span>
+                <span className="text-[10px] text-zinc-500">{v.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-        {/* Recent Games List with Game Review Funnel */}
+        {/* Main Action Section */}
+        {selectedMode === 'online_pvp' ? (
+          <div className="flex flex-col gap-3">
+            {isQueueing ? (
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-transparent border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-amber-500/20 rounded-xl text-amber-400">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      Searching for Opponent...
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Rating Window: ±{Math.min(400, 75 + queueDuration * 15)} &bull; Queue Time:{' '}
+                      <span className="font-mono text-amber-400">{queueDuration}s</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCancelQueue}
+                  className="px-5 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Cancel Search</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={handleStartLiveMatchmaking}
+                  className="py-4 rounded-2xl bg-[#81b64c] hover:bg-[#73a542] text-white text-sm font-black tracking-wide shadow-2xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Globe className="w-5 h-5" />
+                  <span>Find 1v1 Rated Opponent</span>
+                </button>
+                <button
+                  onClick={handleCreateCustomRoom}
+                  className="py-4 rounded-2xl bg-[#262420] hover:bg-[#302d28] border border-[#3b3832] text-zinc-200 text-sm font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-5 h-5 text-amber-400" />
+                  <span>Create Private Challenge Room</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={handleStartLocalGame}
+            className="w-full py-4 rounded-2xl bg-[#81b64c] hover:bg-[#73a542] text-white text-base font-black tracking-wide shadow-2xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            <span>Start Game</span>
+          </button>
+        )}
+
+        {/* Recent Games List */}
         <div className="flex flex-col gap-3 pt-4 border-t border-[#262421]">
           <h2 className="text-sm font-black text-zinc-300 uppercase tracking-wider flex items-center gap-2">
             <Award className="w-4 h-4 text-[#81b64c]" />

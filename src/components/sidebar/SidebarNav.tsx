@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Gamepad2,
   Puzzle,
@@ -18,9 +18,11 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
+  Camera,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
+import { AvatarUploader } from '@/components/profile/AvatarUploader';
 
 export type ActiveTab =
   | 'play'
@@ -51,6 +53,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 }) => {
   const { user, profile, openAuthModal, logout } = useAuth();
   const effectiveTier = profile?.tier || membership;
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   const navItems = [
     { id: 'play' as ActiveTab, label: 'Play', icon: Gamepad2, badge: 'Live' },
@@ -124,12 +127,28 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         {/* User Account / Auth Card */}
         {user ? (
           <div className="p-2.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-                {profile?.avatar || '♟️'}
+            <div
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="flex items-center gap-2 min-w-0 cursor-pointer group"
+              title="Click to change avatar (Cloudflare R2)"
+            >
+              <div className="relative w-8 h-8 rounded-lg bg-zinc-700 overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 border border-[#403e3a] group-hover:border-amber-400 transition-colors">
+                {profile?.avatar && profile.avatar.startsWith('http') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar}
+                    alt={profile.displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{profile?.avatar || '♟️'}</span>
+                )}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Camera className="w-3.5 h-3.5 text-white" />
+                </div>
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">
+                <span className="text-xs font-bold text-white truncate group-hover:text-amber-400 transition-colors">
                   {profile?.displayName || user.displayName || 'Player'}
                 </span>
                 <span className="text-[10px] text-zinc-400">
@@ -187,6 +206,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           <span>Board & Sound Settings</span>
         </button>
       </div>
+
+      {/* Cloudflare R2 Avatar Upload Modal */}
+      <AvatarUploader
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+      />
     </aside>
   );
 };

@@ -67,6 +67,15 @@ export interface FirebaseGameRecord {
   createdAt: string;
 }
 
+export interface LiveMoveRecord {
+  from: Square;
+  to: Square;
+  san: string;
+  fen: string;
+  timeTakenMs?: number;
+  timestamp: number;
+}
+
 export interface LiveSyncGame {
   id: string;
   fen: string;
@@ -76,22 +85,33 @@ export interface LiveSyncGame {
     to: Square;
     san: string;
   };
+  moves: LiveMoveRecord[];
   whiteTime: number;
   blackTime: number;
+  timeControlSec: number;
+  incrementSec?: number;
+  variant?: string;
   status: 'waiting' | 'active' | 'completed' | 'abandoned';
   whitePlayer: {
     uid: string;
     name: string;
     rating: number;
     online: boolean;
+    avatar?: string;
   };
   blackPlayer?: {
     uid: string;
     name: string;
     rating: number;
     online: boolean;
+    avatar?: string;
   };
+  drawOfferFrom?: 'w' | 'b' | null;
+  rematchRequestedBy?: 'w' | 'b' | null;
+  disconnectTimeoutAt?: number | null;
+  disconnectedPlayer?: 'w' | 'b' | null;
   winner?: 'w' | 'b' | 'draw' | null;
   winReason?: string;
   updatedAt: number;
 }
+

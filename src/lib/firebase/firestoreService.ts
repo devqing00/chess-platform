@@ -143,4 +143,17 @@ export class FirestoreService {
       console.warn('Error updating rating:', e);
     }
   }
+
+  /**
+   * Update user avatar in Firestore
+   */
+  public static async updateUserAvatar(uid: string, avatarUrl: string): Promise<void> {
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        avatar: avatarUrl,
+      });
+    } catch (e) {
+      console.warn('Error updating user avatar:', e);
+    }
+  }
 }
