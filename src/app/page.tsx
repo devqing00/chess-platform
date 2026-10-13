@@ -30,6 +30,9 @@ import { MoveHistory } from '@/components/game/MoveHistory';
 import { NotationRibbon } from '@/components/game/NotationRibbon';
 import { MobileBottomBar } from '@/components/game/MobileBottomBar';
 import { GameOverModal } from '@/components/game/GameOverModal';
+import { DesktopPlayPanel } from '@/components/game/DesktopPlayPanel';
+import { ChessHomeDashboard } from '@/components/home/ChessHomeDashboard';
+import { ChessLandingPage } from '@/components/landing/ChessLandingPage';
 
 // Analysis & Review
 import { CoachCommentaryCard } from '@/components/analysis/CoachCommentaryCard';
@@ -73,7 +76,7 @@ import confetti from 'canvas-confetti';
 
 export default function ChessPlatformPage() {
   // Navigation & User State
-  const [activeTab, setActiveTab] = useState<ActiveTab>('play');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [membership, setMembership] = useState<MembershipTier>('diamond'); // Diamond unlocks full AI coach & review
   const [boardTheme, setBoardTheme] = useState<BoardTheme>('green');
   const [pieceTheme, setPieceTheme] = useState<PieceTheme>('neo');
@@ -124,16 +127,18 @@ export default function ChessPlatformPage() {
   // In-Game Bot Banter
   const [botMessage, setBotMessage] = useState<string>('');
 
-  // Players Profile
+  const { user, profile, openAuthModal } = useAuth();
+
+  // Players Profile (Screenshot 3 & 5 Parity: rapid_qing 🇳🇬 (429))
   const whitePlayer: GamePlayer = useMemo(
     () => ({
       id: 'player-1',
-      name: 'You',
-      rating: 1250,
-      avatar: '🧑‍💻',
-      country: 'US',
+      name: profile?.displayName || user?.displayName || 'rapid_qing',
+      rating: profile?.ratings?.rapid || 429,
+      avatar: profile?.avatar || '🧑‍💻',
+      country: 'NG',
     }),
-    []
+    [profile, user]
   );
 
   const blackPlayer: GamePlayer = useMemo(() => {
@@ -190,8 +195,6 @@ export default function ChessPlatformPage() {
     }
     return GameSessionStore.createDemoGameSession().reviewReport!;
   }, [moveHistory, whitePlayer, blackPlayer]);
-
-  const { user, profile } = useAuth();
 
   // Handle Game Conclusion with Detailed Results Modal
   const triggerGameOver = useCallback(
@@ -717,6 +720,42 @@ export default function ChessPlatformPage() {
 
             {/* View Switcher based on active tab */}
             <div className="flex-1 p-3 sm:p-4 lg:p-6 flex items-center justify-center">
+              {/* Home Dashboard (Image 3 Parity) */}
+              {activeTab === 'home' && (
+                <ChessHomeDashboard
+                  onStartGame={(tc) => {
+                    if (tc > 0) {
+                      setTimeControl(tc);
+                      setWhiteTime(tc);
+                      setBlackTime(tc);
+                    }
+                    setActiveTab('play');
+                    startNewGame();
+                  }}
+                  onOpenBots={() => setActiveTab('bots')}
+                  onOpenLessons={() => setActiveTab('lessons')}
+                  onOpenPuzzles={() => setActiveTab('puzzles')}
+                  onOpenReview={() => {
+                    setIsReviewViewActive(true);
+                    setReviewStage('summary');
+                  }}
+                />
+              )}
+
+              {/* Public Landing Page (Image 1 Parity) */}
+              {activeTab === 'landing' && (
+                <ChessLandingPage
+                  onGetStarted={() => {
+                    setActiveTab('play');
+                    startNewGame();
+                  }}
+                  onLogin={openAuthModal}
+                  onChallengeBot={() => setActiveTab('bots')}
+                  onStartLesson={() => setActiveTab('lessons')}
+                  onSolvePuzzles={() => setActiveTab('puzzles')}
+                />
+              )}
+
               {activeTab === 'play' && (
                 <div className="flex flex-col xl:flex-row gap-5 w-full max-w-6xl items-center xl:items-start justify-center">
                   {/* Left Column: Top Notation Ribbon + Players + Eval Bar + Board + Mobile Bottom Bar */}
@@ -799,148 +838,31 @@ export default function ChessPlatformPage() {
                     />
                   </div>
 
-                  {/* Right Game Controls & Notation Column */}
-                  <div className="w-full max-w-[420px] flex flex-col gap-3 h-[720px]">
-                    {/* Mode Selector & Time Controls */}
-                    <div className="p-3 bg-[#21201d] rounded-xl border border-[#302e2b] flex flex-col gap-2.5">
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <button
-                          onClick={() => {
-                            setGameMode('vs_bot');
-                            startNewGame();
-                          }}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            gameMode === 'vs_bot'
-                              ? 'bg-[#81b64c] text-white shadow'
-                              : 'bg-[#2b2926] text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          <Swords className="w-3.5 h-3.5" />
-                          <span>vs Bot</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setGameMode('pass_and_play');
-                            startNewGame();
-                          }}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            gameMode === 'pass_and_play'
-                              ? 'bg-[#81b64c] text-white shadow'
-                              : 'bg-[#2b2926] text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          <Users className="w-3.5 h-3.5" />
-                          <span>Pass & Play</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setGameMode('analysis');
-                            startNewGame();
-                          }}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            gameMode === 'analysis'
-                              ? 'bg-[#81b64c] text-white shadow'
-                              : 'bg-[#2b2926] text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          <Compass className="w-3.5 h-3.5" />
-                          <span>Analysis</span>
-                        </button>
-                      </div>
-
-                      {/* Variant Selection Chips (Section A4 Parity) */}
-                      <div className="flex items-center justify-between pt-2 border-t border-[#302e2b] text-xs">
-                        <span className="text-zinc-400 font-semibold flex items-center gap-1">
-                          <Crown className="w-3 h-3 text-amber-400" />
-                          <span>Variant:</span>
-                        </span>
-                        <div className="flex gap-1">
-                          {[
-                            { id: 'standard' as ChessVariant, label: 'Standard' },
-                            { id: 'chess960' as ChessVariant, label: '960' },
-                            { id: '3check' as ChessVariant, label: '3-Check' },
-                            { id: 'kingofthehill' as ChessVariant, label: 'KotH' },
-                          ].map((v) => (
-                            <button
-                              key={v.id}
-                              onClick={() => {
-                                setVariant(v.id);
-                                setTimeout(startNewGame, 0);
-                              }}
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
-                                variant === v.id
-                                  ? 'bg-[#81b64c] text-white'
-                                  : 'bg-[#161512] text-zinc-400 hover:text-white'
-                              }`}
-                            >
-                              {v.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 3-Check Status Counters */}
-                      {variant === '3check' && (
-                        <div className="p-2 bg-[#171614] rounded-lg border border-[#33302b] flex items-center justify-around text-xs font-mono">
-                          <span className="text-zinc-300">
-                            White Checks: <strong className="text-amber-400">{checksDelivered.w}/3</strong>
-                          </span>
-                          <span className="text-zinc-300">
-                            Black Checks: <strong className="text-amber-400">{checksDelivered.b}/3</strong>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Time Control Buttons */}
-                      <div className="flex items-center justify-between pt-2 border-t border-[#302e2b] text-xs">
-                        <span className="text-zinc-400 font-semibold">Time:</span>
-                        <div className="flex gap-1 font-mono font-bold">
-                          {[
-                            { sec: 60, label: '1 min' },
-                            { sec: 180, label: '3 min' },
-                            { sec: 600, label: '10 min' },
-                            { sec: 0, label: 'No Limit' },
-                          ].map((tc) => (
-                            <button
-                              key={tc.sec}
-                              onClick={() => {
-                                setTimeControl(tc.sec);
-                                setWhiteTime(tc.sec);
-                                setBlackTime(tc.sec);
-                              }}
-                              className={`px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer ${
-                                timeControl === tc.sec
-                                  ? 'bg-zinc-200 text-black font-extrabold'
-                                  : 'bg-[#161512] text-zinc-400 hover:text-white'
-                              }`}
-                            >
-                              {tc.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bot Banter Bubble */}
-                    {showChatPanel && gameMode === 'vs_bot' && botMessage && (
-                      <BotChatBubble bot={selectedBot} message={botMessage} />
-                    )}
-
-                    {/* Game Result Banner */}
-                    {gameResult && (
-                      <div className="p-3 bg-gradient-to-r from-emerald-600/30 to-emerald-900/30 border border-emerald-500/50 rounded-xl flex items-center justify-between text-xs font-bold text-white shadow animate-in fade-in">
-                        <span>{gameResult}</span>
-                        <button
-                          onClick={() => setIsReviewViewActive(true)}
-                          className="px-2.5 py-1 rounded bg-[#81b64c] text-black text-xs font-black cursor-pointer hover:bg-[#72a342]"
-                        >
-                          Review Game
-                        </button>
-                      </div>
-                    )}
+                  {/* Right Game Controls & Notation Column (Image 4 & 5 Parity) */}
+                  <div className="w-full max-w-[420px] flex flex-col gap-3">
+                    <DesktopPlayPanel
+                      timeControl={timeControl}
+                      onSelectTimeControl={(sec) => {
+                        setTimeControl(sec);
+                        setWhiteTime(sec);
+                        setBlackTime(sec);
+                      }}
+                      onStartGame={startNewGame}
+                      onPlayBot={() => {
+                        setGameMode('vs_bot');
+                        setActiveTab('bots');
+                      }}
+                      onPlayFriend={() => {
+                        setGameMode('pass_and_play');
+                        startNewGame();
+                      }}
+                      isGameActive={moveHistory.length > 0 && !gameResult}
+                      onResign={handleResign}
+                      onDraw={handleOfferDraw}
+                    />
 
                     {/* Move History Table */}
-                    {showMovesPanel && (
+                    {showMovesPanel && moveHistory.length > 0 && (
                       <div className="flex-1 min-h-[160px]">
                         <MoveHistory
                           moves={moveHistory}
@@ -951,48 +873,12 @@ export default function ChessPlatformPage() {
                     )}
 
                     {/* Coach Danny AI Commentary Card */}
-                    <CoachCommentaryCard
-                      move={activeCommentaryMove}
-                      turnColor={chess.turn()}
-                    />
-
-                    {/* Bottom Action Controls */}
-                    <div className="p-2.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}
-                        className="p-2 rounded-lg bg-[#2b2926] hover:bg-[#383530] text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                        title="Flip Board"
-                      >
-                        <ArrowUpDown className="w-3.5 h-3.5" />
-                        <span>Flip</span>
-                      </button>
-
-                      <button
-                        onClick={handleOfferDraw}
-                        disabled={Boolean(gameResult) || moveHistory.length === 0}
-                        className="p-2 rounded-lg bg-[#2b2926] hover:bg-[#383530] disabled:opacity-40 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <Handshake className="w-3.5 h-3.5" />
-                        <span>Draw</span>
-                      </button>
-
-                      <button
-                        onClick={handleResign}
-                        disabled={Boolean(gameResult) || moveHistory.length === 0}
-                        className="p-2 rounded-lg bg-[#2b2926] hover:bg-[#383530] disabled:opacity-40 text-rose-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <Flag className="w-3.5 h-3.5" />
-                        <span>Resign</span>
-                      </button>
-
-                      <button
-                        onClick={startNewGame}
-                        className="ml-auto px-4 py-2 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>New Game</span>
-                      </button>
-                    </div>
+                    {moveHistory.length > 0 && (
+                      <CoachCommentaryCard
+                        move={activeCommentaryMove}
+                        turnColor={chess.turn()}
+                      />
+                    )}
                   </div>
                 </div>
               )}

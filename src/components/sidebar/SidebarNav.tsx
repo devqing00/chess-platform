@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import {
+  Home,
   Gamepad2,
   Puzzle,
   GraduationCap,
@@ -25,6 +26,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AvatarUploader } from '@/components/profile/AvatarUploader';
 
 export type ActiveTab =
+  | 'home'
   | 'play'
   | 'puzzles'
   | 'lessons'
@@ -34,6 +36,7 @@ export type ActiveTab =
   | 'bots'
   | 'historical'
   | 'variants'
+  | 'landing'
   | 'pubapi';
 
 interface SidebarNavProps {
@@ -56,16 +59,17 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   const navItems = [
+    { id: 'home' as ActiveTab, label: 'Home', icon: Home, badge: 'Lobby' },
     { id: 'play' as ActiveTab, label: 'Play', icon: Gamepad2, badge: 'Live' },
     { id: 'puzzles' as ActiveTab, label: 'Puzzles', icon: Puzzle, badge: 'Rush' },
     { id: 'lessons' as ActiveTab, label: 'Lessons', icon: GraduationCap, badge: 'Master' },
-    { id: 'openings' as ActiveTab, label: 'Openings', icon: Compass, badge: 'ECO' },
     { id: 'analysis' as ActiveTab, label: 'Analysis & Review', icon: Microscope, badge: 'AI' },
-    { id: 'insights' as ActiveTab, label: 'Diamond Insights', icon: Flame, badge: 'PRO' },
     { id: 'bots' as ActiveTab, label: 'Computer Bots', icon: Bot, badge: '20+' },
+    { id: 'landing' as ActiveTab, label: 'About Chess.com', icon: Sparkles, badge: 'Site' },
+    { id: 'openings' as ActiveTab, label: 'Openings', icon: Compass, badge: 'ECO' },
+    { id: 'insights' as ActiveTab, label: 'Diamond Insights', icon: Flame, badge: 'PRO' },
     { id: 'historical' as ActiveTab, label: 'Master Games', icon: History, badge: 'GM' },
     { id: 'variants' as ActiveTab, label: 'Chess Variants', icon: Sparkles, badge: '960' },
-    { id: 'pubapi' as ActiveTab, label: 'Chess.com API', icon: Search, badge: 'Live' },
   ];
 
   return (
