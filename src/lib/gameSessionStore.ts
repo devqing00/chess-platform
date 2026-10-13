@@ -41,6 +41,16 @@ export function generateGameReviewReport(
   blackPlayer: GamePlayer,
   moves: MoveRecord[]
 ): GameReviewReport {
+  // If moves were imported without classification or eval, automatically run ChessEvaluator.analyzeGameHistory!
+  let analyzedMoves = moves;
+  const needsAnalysis =
+    moves.length > 0 &&
+    moves.some((m) => !m.classification || (m.evalBefore === 0 && m.evalAfter === 0));
+
+  if (needsAnalysis) {
+    analyzedMoves = ChessEvaluator.analyzeGameHistory(moves);
+  }
+
   const whiteLosses: number[] = [];
   const blackLosses: number[] = [];
   const whiteTallies = createEmptyTallies();
@@ -48,18 +58,25 @@ export function generateGameReviewReport(
   const evalTimeline: EvalTimelinePoint[] = [];
   const keyMoments: KeyMoment[] = [];
 
-  moves.forEach((m, idx) => {
+  let blunderPuzzle: GameReviewReport['blunderRetryPuzzle'] | undefined = undefined;
+
+  analyzedMoves.forEach((m, idx) => {
     const isWhite = idx % 2 === 0;
     const moveNumber = Math.floor(idx / 2) + 1;
-    const loss = Math.max(0, isWhite ? m.evalBefore - m.evalAfter : m.evalAfter - m.evalBefore);
+
+    const wpBeforeWhite = ChessEvaluator.centipawnsToWinProbability(m.evalBefore);
+    const wpAfterWhite = ChessEvaluator.centipawnsToWinProbability(m.evalAfter);
+    const wpBefore = isWhite ? wpBeforeWhite : 100 - wpBeforeWhite;
+    const wpAfter = isWhite ? wpAfterWhite : 100 - wpAfterWhite;
+    const winProbLoss = Math.max(0, wpBefore - wpAfter);
 
     if (isWhite) {
-      whiteLosses.push(loss);
+      whiteLosses.push(winProbLoss);
       if (m.classification && m.classification in whiteTallies) {
         whiteTallies[m.classification as keyof ClassificationTallies]++;
       }
     } else {
-      blackLosses.push(loss);
+      blackLosses.push(winProbLoss);
       if (m.classification && m.classification in blackTallies) {
         blackTallies[m.classification as keyof ClassificationTallies]++;
       }
@@ -93,6 +110,17 @@ export function generateGameReviewReport(
         isMistake: m.classification === 'blunder' || m.classification === 'mistake',
       });
     }
+
+    // Set first critical blunder/mistake for interactive retry puzzle
+    if (!blunderPuzzle && (m.classification === 'blunder' || m.classification === 'mistake') && m.bestMoveSan) {
+      blunderPuzzle = {
+        ply: idx,
+        fen: m.fenBefore,
+        blunderedMoveSan: m.san,
+        solutionSan: m.bestMoveSan,
+        explanation: m.coachComment || `Instead of ${m.san}, ${m.bestMoveSan} was Stockfish's top recommendation.`,
+      };
+    }
   });
 
   const whiteAccuracy = ChessEvaluator.calculateCapsAccuracy(whiteLosses);
@@ -100,8 +128,8 @@ export function generateGameReviewReport(
 
   const summaryComment =
     whiteAccuracy > blackAccuracy
-      ? `You played with outstanding ${whiteAccuracy}% accuracy, capitalizing on critical imbalances to dominate the game!`
-      : `Competitive duel with decisive swings. Let's inspect the key tactical moments and explore sharper lines!`;
+      ? `You played with ${whiteAccuracy}% accuracy! You controlled key imbalances and capitalized on decisive moments.`
+      : `Competitive contest (${whiteAccuracy}% vs ${blackAccuracy}%). Review the key tactical moments to explore sharper alternatives!`;
 
   return {
     id: `review-${gameId}`,
@@ -110,13 +138,14 @@ export function generateGameReviewReport(
     blackPlayer,
     whiteAccuracy,
     blackAccuracy,
+    blunderRetryPuzzle: blunderPuzzle,
     tallies: {
       white: whiteTallies,
       black: blackTallies,
     },
     evalTimeline,
     keyMoments,
-    moves,
+    moves: analyzedMoves,
     summaryComment,
   };
 }

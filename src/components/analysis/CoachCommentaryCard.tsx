@@ -56,6 +56,21 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
       badgeText = 'Best Move ★';
       badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
       break;
+    case 'excellent':
+      icon = <CheckCircle className="w-4 h-4 text-lime-400" />;
+      badgeText = 'Excellent Move ✓';
+      badgeColor = 'bg-lime-500/20 text-lime-300 border-lime-500/40';
+      break;
+    case 'good':
+      icon = <CheckCircle className="w-4 h-4 text-zinc-400" />;
+      badgeText = 'Good Move ✓';
+      badgeColor = 'bg-zinc-600/30 text-zinc-300 border-zinc-500/40';
+      break;
+    case 'book':
+      icon = <span className="text-sm">📖</span>;
+      badgeText = 'Book Move';
+      badgeColor = 'bg-amber-600/25 text-amber-300 border-amber-600/40';
+      break;
     case 'inaccuracy':
       icon = <AlertTriangle className="w-4 h-4 text-yellow-400" />;
       badgeText = 'Inaccuracy ?!';

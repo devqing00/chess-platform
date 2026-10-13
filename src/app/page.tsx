@@ -14,6 +14,7 @@ import {
   BotPersonality,
   ChessVariant,
   GameResultDetails,
+  GameReviewReport,
   Premove,
   ArrowAnnotation,
 } from '@/types/chess';
@@ -192,13 +193,18 @@ export default function ChessPlatformPage() {
     };
   }, [moveHistory]);
 
+  const [reviewOverrideReport, setReviewOverrideReport] = useState<GameReviewReport | null>(null);
+
   // Active Game Review Report (generates full report or uses Masterpiece demo if no moves)
   const activeReviewReport = useMemo(() => {
+    if (reviewOverrideReport) {
+      return reviewOverrideReport;
+    }
     if (moveHistory.length > 0) {
       return generateGameReviewReport('current-game', whitePlayer, blackPlayer, moveHistory);
     }
     return GameSessionStore.createDemoGameSession().reviewReport!;
-  }, [moveHistory, whitePlayer, blackPlayer]);
+  }, [reviewOverrideReport, moveHistory, whitePlayer, blackPlayer]);
 
   // Handle Game Conclusion with Detailed Results Modal
   const triggerGameOver = useCallback(
@@ -345,7 +351,9 @@ export default function ChessPlatformPage() {
 
       try {
         const fenBefore = chess.fen();
-        const evalBefore = ChessEvaluator.evaluatePosition(chess);
+        const evalBefore = ChessEvaluator.evaluateWithReply(chess);
+        const bestChoice = ChessEvaluator.findBestMoveAndScore(chess);
+        const secondBestDiff = Math.abs(bestChoice.score - bestChoice.secondBestScore);
         const turnBefore = chess.turn();
         const pieceMoved = chess.get(from);
 
@@ -356,7 +364,7 @@ export default function ChessPlatformPage() {
         setIsClockRunning(true);
 
         const fenAfter = chess.fen();
-        const evalAfter = ChessEvaluator.evaluatePosition(chess);
+        const evalAfter = ChessEvaluator.evaluateWithReply(chess);
         const isCheckNow = chess.isCheck();
 
         // 1. King of the Hill Variant Check (King reaches d4, e4, d5, or e5 wins)
@@ -387,18 +395,18 @@ export default function ChessPlatformPage() {
           }
         }
 
-        // Best move according to engine
-        const bestMoveResult = ChessEvaluator.getBestMove(chess, 2);
+        // Classify move with Expected Points Win Probability Model
         const { classification, comment } = ChessEvaluator.classifyMove(
           move.san,
-          bestMoveResult.bestMoveSan,
+          bestChoice.bestMoveSan,
           evalBefore,
           evalAfter,
           turnBefore,
           Boolean(move.captured),
           isCheckNow,
           moveHistory.length + 1,
-          pieceMoved ? pieceMoved.type : 'p'
+          pieceMoved ? pieceMoved.type : 'p',
+          secondBestDiff
         );
 
         // Play audio cues & handle checkmate/stalemate
@@ -432,7 +440,8 @@ export default function ChessPlatformPage() {
           evalAfter,
           classification,
           coachComment: comment,
-          bestMoveSan: bestMoveResult.bestMoveSan,
+          bestMoveSan: bestChoice.bestMoveSan,
+          bestMoveUci: bestChoice.bestMoveUci,
           isCheck: isCheckNow,
         };
 
@@ -668,7 +677,10 @@ export default function ChessPlatformPage() {
               boardTheme={boardTheme}
               pieceTheme={pieceTheme}
               onStartInteractiveReview={() => setReviewStage('stepper')}
-              onBackToGame={() => setIsReviewViewActive(false)}
+              onBackToGame={() => {
+                setIsReviewViewActive(false);
+                setReviewOverrideReport(null);
+              }}
             />
           ) : (
             <GameReviewView
@@ -677,7 +689,10 @@ export default function ChessPlatformPage() {
               blackPlayer={activeReviewReport.blackPlayer}
               boardTheme={boardTheme}
               pieceTheme={pieceTheme}
-              onBackToGame={() => setIsReviewViewActive(false)}
+              onBackToGame={() => {
+                setIsReviewViewActive(false);
+                setReviewOverrideReport(null);
+              }}
               onBackToSummary={() => setReviewStage('summary')}
             />
           )
@@ -1032,30 +1047,32 @@ export default function ChessPlatformPage() {
         onSelectGameForReview={(gameId, pgn) => {
           if (pgn) {
             try {
-              const pgnChess = new Chess();
-              pgnChess.loadPgn(pgn);
-              const history = pgnChess.history({ verbose: true });
-              if (history.length > 0) {
-                const tempMoves: MoveRecord[] = [];
-                const sim = new Chess();
-                history.forEach((m) => {
-                  const fenBefore = sim.fen();
-                  sim.move(m);
-                  tempMoves.push({
-                    san: m.san,
-                    from: m.from,
-                    to: m.to,
-                    fenBefore,
-                    fenAfter: sim.fen(),
-                    evalBefore: 0,
-                    evalAfter: 0,
-                  });
-                });
-                setMoveHistory(tempMoves);
-                setCurrentMoveIndex(tempMoves.length - 1);
+              const analyzedMoves = ChessEvaluator.analyzeGameHistory(pgn);
+              if (analyzedMoves.length > 0) {
+                setMoveHistory(analyzedMoves);
+                setCurrentMoveIndex(analyzedMoves.length - 1);
+                setEvalScore(analyzedMoves[analyzedMoves.length - 1].evalAfter);
+
+                const existingSession = GameSessionStore.getSession(gameId);
+                const wPlayer = existingSession ? existingSession.whitePlayer : whitePlayer;
+                const bPlayer = existingSession ? existingSession.blackPlayer : blackPlayer;
+
+                const report = generateGameReviewReport(
+                  gameId,
+                  wPlayer,
+                  bPlayer,
+                  analyzedMoves
+                );
+
+                if (existingSession) {
+                  existingSession.moves = analyzedMoves;
+                  existingSession.reviewReport = report;
+                  GameSessionStore.saveSession(existingSession);
+                }
+                setReviewOverrideReport(report);
               }
             } catch (err) {
-              console.warn('Could not parse imported PGN:', err);
+              console.warn('Could not analyze imported PGN:', err);
             }
           }
           setIsReviewViewActive(true);
