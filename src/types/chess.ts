@@ -19,9 +19,23 @@ export type Square =
   | 'a2' | 'b2' | 'c2' | 'd2' | 'e2' | 'f2' | 'g2' | 'h2'
   | 'a1' | 'b1' | 'c1' | 'd1' | 'e1' | 'f1' | 'g1' | 'h1';
 
-export type BoardTheme = 'green' | 'wood' | 'glass' | 'neon' | 'marble' | 'arcade';
+export type BoardTheme = 'green' | 'wood' | 'glass' | 'neon' | 'marble' | 'arcade' | 'high_contrast' | 'low_vision_amber';
 export type PieceTheme = 'neo' | 'staunton' | '8bit' | 'alpha';
 export type SoundTheme = 'classic' | 'wood' | 'marble' | 'arcade' | 'silman';
+export type LowTimeRegister = 'tick' | 'shrill' | 'beep' | 'voice';
+export type SoundPreset = 'focus' | 'casual' | 'commentary';
+
+export interface AudioSettings {
+  masterVolume: number;
+  sfxVolume: number;
+  lowTimeVolume: number;
+  voiceVolume: number;
+  lowTimeRegister: LowTimeRegister;
+  lowTimeThresholdSeconds: number;
+  neverBelowFloorVolume: boolean;
+  preset: SoundPreset;
+}
+
 export type AnimationSpeed = 'instant' | 'fast' | 'normal';
 
 export type ChessVariant = 'standard' | 'chess960' | '3check' | 'kingofthehill' | 'crazyhouse' | 'solochess';

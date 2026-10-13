@@ -180,7 +180,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
             triggerGameOver('b', 'timeout', 'Black wins on time! (0-1)');
             return 0;
           }
-          if (prev === 20) soundService.playLowTime();
+          const threshold = soundService.getSettings().lowTimeThresholdSeconds;
+          if (prev <= threshold) soundService.playLowTime(prev);
           return prev - 1;
         });
       } else {
@@ -189,7 +190,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
             triggerGameOver('w', 'timeout', 'White wins on time! (1-0)');
             return 0;
           }
-          if (prev === 20) soundService.playLowTime();
+          const threshold = soundService.getSettings().lowTimeThresholdSeconds;
+          if (prev <= threshold) soundService.playLowTime(prev);
           return prev - 1;
         });
       }

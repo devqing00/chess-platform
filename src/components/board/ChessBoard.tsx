@@ -38,6 +38,8 @@ const THEME_COLORS: Record<BoardTheme, { light: string; dark: string; border: st
   neon: { light: '#263345', dark: '#151e2b', border: '#06b6d4' },
   marble: { light: '#e5e5e5', dark: '#737373', border: '#262626' },
   arcade: { light: '#a8b98b', dark: '#547343', border: '#1c2813' },
+  high_contrast: { light: '#ffffff', dark: '#111827', border: '#000000' },
+  low_vision_amber: { light: '#fef3c7', dark: '#b45309', border: '#78350f' },
 };
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -209,8 +211,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   return (
     <div
       ref={boardRef}
+      role="grid"
+      aria-label="Chessboard"
+      tabIndex={0}
       onContextMenu={handleContextMenu}
-      className="relative aspect-square w-full max-w-[580px] rounded-lg shadow-2xl overflow-hidden select-none border-4 border-[#272522]"
+      className="relative aspect-square w-full max-w-[580px] rounded-lg shadow-2xl overflow-hidden select-none border-4 border-[#272522] focus:outline-none focus:ring-2 focus:ring-[#81b64c]"
     >
       {/* 8x8 Board Grid */}
       <div
@@ -262,14 +267,39 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
             const showRank = fileIdx === 0;
             const showFile = rankIdx === 7;
 
+            const pieceAria = piece
+              ? `${piece.color === 'w' ? 'White' : 'Black'} ${
+                  piece.type === 'p'
+                    ? 'pawn'
+                    : piece.type === 'n'
+                    ? 'knight'
+                    : piece.type === 'b'
+                    ? 'bishop'
+                    : piece.type === 'r'
+                    ? 'rook'
+                    : piece.type === 'q'
+                    ? 'queen'
+                    : 'king'
+                }`
+              : 'Empty square';
+
             return (
               <div
                 key={sq}
+                role="gridcell"
+                tabIndex={0}
+                aria-label={`${sq}: ${pieceAria}`}
                 onClick={() => handleSquareClick(sq)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSquareClick(sq);
+                  }
+                }}
                 onMouseDown={(e) => handleMouseDown(e, sq)}
                 onMouseUp={(e) => handleMouseUp(e, sq)}
                 style={{ backgroundColor: bgSquareColor }}
-                className={`relative w-full h-full flex items-center justify-center cursor-pointer transition-colors ${isHighlightedSquare}`}
+                className={`relative w-full h-full flex items-center justify-center cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-[#81b64c] ${isHighlightedSquare}`}
               >
                 {/* King in Check Red Glow & Badge (Image 2) */}
                 {isCheckSquare && (
