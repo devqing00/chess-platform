@@ -48,7 +48,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        setErrorMsg(json.error || 'Failed to sync Chess.com profile.');
+        setErrorMsg(json.error || 'Failed to sync Check.mate profile.');
         soundService.playPuzzleFail();
         setIsLoading(false);
         return;
@@ -118,7 +118,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
         });
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Network error syncing with Chess.com.');
+      setErrorMsg(err.message || 'Network error syncing with Check.mate.');
     } finally {
       setIsLoading(false);
     }
@@ -142,13 +142,13 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h2 className="text-sm font-black text-white flex items-center gap-1.5">
-                <span>Chess.com Profile & Games Sync</span>
+                <span>Check.mate Account Sync</span>
                 <span className="text-[10px] font-bold uppercase bg-[#81b64c] text-white px-1.5 py-0.2 rounded">
                   Live Sync
                 </span>
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Connect your Chess.com account to import your official ratings, avatar, and live games.
+                Connect your account to import your official ratings, avatar, and live games.
               </p>
             </div>
           </div>
@@ -168,7 +168,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter Chess.com Username (e.g. rapid_qing)"
+                placeholder="Enter username (e.g. rapid_qing)"
                 onKeyDown={(e) => e.key === 'Enter' && handleSync()}
                 className="w-full px-3.5 py-2.5 bg-[#211f1c] border border-[#35322c] rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] font-medium"
               />
@@ -225,7 +225,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
                       </span>
                     </div>
                     <span className="text-xs text-zinc-400">
-                      Chess.com Member • Joined {new Date(syncData.profile.joined).toLocaleDateString()}
+                      Check.mate Member • Joined {new Date(syncData.profile.joined).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -235,7 +235,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-                  title="View on Chess.com"
+                  title="View on Check.mate"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
@@ -348,7 +348,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
               <div className="flex flex-col max-w-sm">
                 <span className="text-xs font-bold text-white">No profile synced yet</span>
                 <span className="text-[11px] text-zinc-400 mt-1">
-                  Click "Sync Account" above to instantly load your Chess.com avatar, active ELO ratings, and last 30 live games.
+                  Click "Sync Account" above to instantly load your Check.mate avatar, active ELO ratings, and last 30 live games.
                 </span>
               </div>
             </div>

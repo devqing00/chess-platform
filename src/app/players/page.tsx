@@ -94,14 +94,14 @@ export default function PlayersExplorerPage() {
       if (res.status === 429 || data.rateLimited) {
         setCooldownSeconds(data.retryAfterSeconds || 5);
         setErrorMessage(
-          'Chess.com Public API rate limit reached (1 request/second). Cooling down before accepting new requests...'
+          'Public API rate limit reached (1 request/second). Cooling down before accepting new requests...'
         );
         setIsLoading(false);
         return;
       }
 
       if (!res.ok || !data.success) {
-        setErrorMessage(data.error || `Could not find Chess.com player "${user}".`);
+        setErrorMessage(data.error || `Could not find player "${user}".`);
         setIsLoading(false);
         return;
       }
@@ -111,7 +111,7 @@ export default function PlayersExplorerPage() {
       setGames(data.games || []);
       setActiveUsername(user);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to connect to Chess.com API.');
+      setErrorMessage(err.message || 'Failed to connect to player lookup API.');
     } finally {
       setIsLoading(false);
     }
@@ -166,14 +166,9 @@ export default function PlayersExplorerPage() {
                 Public Player Explorer
               </h1>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Inspect any Chess.com player profile, live ratings, tactical milestones, and match archives.
+                Inspect player profiles, live ELO ratings, tactical milestones, and match archives.
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 bg-[#211f1c] px-3.5 py-2 rounded-xl border border-[#2d2a26]">
-            <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
-            <span>API Rate-Limit Protected</span>
           </div>
         </div>
 
@@ -186,7 +181,7 @@ export default function PlayersExplorerPage() {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search Chess.com username (e.g. rapid_qing, hikaru, magnuscarlsen)..."
+                placeholder="Search player username (e.g. rapid_qing, hikaru, magnuscarlsen)..."
                 className="w-full bg-[#1e1c19] border border-[#2d2a26] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] transition"
               />
             </div>
@@ -231,7 +226,7 @@ export default function PlayersExplorerPage() {
               <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
               <div>
                 <strong className="font-black text-amber-300 block text-sm">
-                  Rate Limit In Effect (Chess.com Public API)
+                  Rate Limit In Effect (Public Data API)
                 </strong>
                 <span>
                   To prevent rate limiting, we limit queries to 1 per second. Cooldown active for{' '}
@@ -317,7 +312,7 @@ export default function PlayersExplorerPage() {
                   rel="noreferrer"
                   className="px-4 py-2 rounded-xl bg-[#272522] hover:bg-[#34312b] border border-[#3d3a34] text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <span>Chess.com Profile</span>
+                  <span>View Official Profile</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

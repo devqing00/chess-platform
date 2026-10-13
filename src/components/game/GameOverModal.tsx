@@ -68,7 +68,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <button
             onClick={() => {
               if (navigator.share) {
-                navigator.share({ title: 'Chess.com Match', text: `I played a match on Chess.com!` });
+                navigator.share({ title: 'Check.mate Match', text: `I played a match on Check.mate!` });
               }
             }}
             className="p-1 rounded-full hover:bg-black/10 transition-colors cursor-pointer text-white"

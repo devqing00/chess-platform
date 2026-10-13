@@ -79,7 +79,7 @@ export const GameReviewModal: React.FC<GameReviewModalProps> = ({
           <div className="flex items-center gap-2.5">
             <Award className="w-6 h-6 text-[#81b64c]" />
             <span className="text-lg font-black text-white tracking-wide">
-              Chess.com Game Review & Insights
+              Check.mate Game Review & Insights
             </span>
           </div>
           <button

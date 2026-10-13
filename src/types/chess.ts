@@ -260,6 +260,7 @@ export interface GameSession {
   whitePlayer: GamePlayer;
   blackPlayer: GamePlayer;
   timeControl: number;
+  incrementSeconds?: number;
   variant: ChessVariant;
   moves: MoveRecord[];
   fen: string;

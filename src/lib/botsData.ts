@@ -164,7 +164,7 @@ export const CHESS_BOTS: BotPersonality[] = [
     rating: 2000,
     category: 'master',
     avatar: '🎙️',
-    bio: 'Chess.com Chief Chess Officer and Head Coach. Analyzes your moves with witty educational wisdom.',
+    bio: 'Check.mate Chief Chess Officer and Head Coach. Analyzes your moves with witty educational wisdom.',
     playStyle: 'Educational commentary, adaptive teaching, balanced tactical flair.',
     quotes: {
       gameStart: ["Welcome to the board! Remember: develop pieces, castle early, control the center!", "Let's play and learn together!"],

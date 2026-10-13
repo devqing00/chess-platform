@@ -21,8 +21,8 @@ const fontMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Chess.com - Play Chess Online - Free Games & Grandmaster Training',
-  description: 'The world’s premier chess platform featuring Stockfish evaluation, AI Coach explanations, 20+ grandmaster bots, tactical puzzles, opening explorer, and game review.',
+  title: 'Check.mate - Play Chess Online - Free Games & Grandmaster Training',
+  description: 'The premier Check.mate chess platform featuring Stockfish evaluation, AI Coach explanations, 20+ grandmaster bots, tactical puzzles, opening explorer, and game review.',
 };
 
 export default function RootLayout({

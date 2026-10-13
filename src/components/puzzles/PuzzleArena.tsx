@@ -39,6 +39,9 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const [strikes, setStrikes] = useState(0);
   const [statusMessage, setStatusMessage] = useState<'idle' | 'correct' | 'incorrect' | 'solved'>('idle');
   const [showSolution, setShowSolution] = useState(false);
+  const [hintLevel, setHintLevel] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [selectedLevel, setSelectedLevel] = useState<'all' | 'beginner' | 'club' | 'advanced' | 'master'>('all');
 
   // Live Glicko-2 Rating & Remote Puzzle State
   const [playerRating, setPlayerRating] = useState({ rating: 1500, rd: 350, vol: 0.06 });
@@ -48,8 +51,23 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const [remotePuzzle, setRemotePuzzle] = useState<TacticalPuzzle | null>(null);
   const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
 
+  // Filtered local puzzles based on category and level
+  const filteredLocalPuzzles = useMemo(() => {
+    return TACTICAL_PUZZLES.filter((p) => {
+      if (selectedTheme !== 'all' && !p.theme.toLowerCase().includes(selectedTheme.replace('_', ' ').toLowerCase())) {
+        return false;
+      }
+      if (selectedLevel === 'beginner') return p.rating <= 900;
+      if (selectedLevel === 'club') return p.rating > 900 && p.rating <= 1400;
+      if (selectedLevel === 'advanced') return p.rating > 1400 && p.rating <= 1800;
+      if (selectedLevel === 'master') return p.rating > 1800;
+      return true;
+    });
+  }, [selectedTheme, selectedLevel]);
+
   // Active puzzle: fallback to static array if remote not loaded
-  const currentPuzzle = remotePuzzle || TACTICAL_PUZZLES[puzzleIndex % TACTICAL_PUZZLES.length];
+  const availablePool = filteredLocalPuzzles.length > 0 ? filteredLocalPuzzles : TACTICAL_PUZZLES;
+  const currentPuzzle = remotePuzzle || availablePool[puzzleIndex % availablePool.length];
 
   // Normalized solution sequence from either remote API or local data
   const solutionSequence: string[] = useMemo(() => {
@@ -61,6 +79,18 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const [chess, setChess] = useState(() => new Chess(currentPuzzle.fen));
   const [moveStepIndex, setMoveStepIndex] = useState(0);
   const [playedMoves, setPlayedMoves] = useState<string[]>([]);
+
+  // Reset and load next puzzle
+  const handleNextPuzzle = useCallback(() => {
+    setRemotePuzzle(null);
+    setPuzzleIndex((prev) => prev + 1);
+    setHintLevel(0);
+    setShowSolution(false);
+    setStatusMessage('idle');
+    setMoveStepIndex(0);
+    setPlayedMoves([]);
+    setRatingDelta(null);
+  }, []);
 
   // Fetch puzzle from backend API
   const fetchPuzzle = useCallback(async (theme: string, daily: boolean) => {
@@ -83,6 +113,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           setPlayedMoves([]);
           setStatusMessage('idle');
           setShowSolution(false);
+          setHintLevel(0);
           setIsLoadingPuzzle(false);
           return;
         }
@@ -90,16 +121,17 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
     } catch (e) {
       console.error('Failed to fetch remote puzzle, using local fallback:', e);
     }
-    // Fallback
-    const p = TACTICAL_PUZZLES[puzzleIndex % TACTICAL_PUZZLES.length];
+    // Fallback to local pool
+    const p = availablePool[puzzleIndex % availablePool.length];
     setRemotePuzzle(null);
     setChess(new Chess(p.fen));
     setMoveStepIndex(0);
     setPlayedMoves([]);
     setStatusMessage('idle');
     setShowSolution(false);
+    setHintLevel(0);
     setIsLoadingPuzzle(false);
-  }, [playerRating.rating, puzzleIndex]);
+  }, [playerRating.rating, puzzleIndex, availablePool]);
 
   useEffect(() => {
     fetchPuzzle(selectedTheme, isDailyMode);
@@ -157,6 +189,9 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         if (nextStep >= solutionSequence.length) {
           setStatusMessage('solved');
           setScore((s) => s + 1);
+          if (hintLevel < 3 && !showSolution) {
+            setStreak((s) => s + 1);
+          }
           soundService.playPuzzleSuccess();
           confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
 
@@ -219,6 +254,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         // Blunder/Mistake in puzzle: play fail sound & revert after brief pause
         soundService.playPuzzleFail();
         setStatusMessage('incorrect');
+        setStreak(0);
 
         setTimeout(() => {
           setChess(new Chess(originalFen));
@@ -381,6 +417,33 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </div>
           </div>
 
+          {/* Level Filter & Streak Banner */}
+          <div className="flex items-center justify-between pt-1 border-t border-[#2d2a26]">
+            <div className="flex items-center gap-1">
+              {(['all', 'beginner', 'club', 'advanced', 'master'] as const).map((lvl) => (
+                <button
+                  key={lvl}
+                  onClick={() => {
+                    setSelectedLevel(lvl);
+                    handleNextPuzzle();
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                    selectedLevel === lvl
+                      ? 'bg-[#81b64c] text-white'
+                      : 'bg-[#161512] text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20">
+              <Flame className="w-3.5 h-3.5 text-amber-500" />
+              <span>{streak} Streak</span>
+            </div>
+          </div>
+
           {/* Theme Filters (Rated Mode) */}
           {!rushMode && !isDailyMode && (
             <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#2d2a26]">
@@ -458,11 +521,55 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </div>
           )}
 
+          {/* Progressive Hint Display */}
+          {hintLevel > 0 && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-200 flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Tactical Hint ({hintLevel}/3):</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-zinc-300">
+                {hintLevel === 1 && (
+                  <>
+                    Notice the piece alignment and unprotected units. Consider moving your{' '}
+                    <strong className="text-white">
+                      {solutionSequence[0]?.slice(0, 2) ? 'tactical piece' : 'active piece'}
+                    </strong>
+                    .
+                  </>
+                )}
+                {hintLevel === 2 && (
+                  <>
+                    Look specifically at the square{' '}
+                    <strong className="text-amber-300 font-mono">
+                      {solutionSequence[0]?.length >= 4
+                        ? solutionSequence[0].slice(2, 4)
+                        : solutionSequence[0]}
+                    </strong>
+                    . Is there a forcing tempo or check?
+                  </>
+                )}
+                {hintLevel === 3 && (
+                  <>
+                    The winning first move is{' '}
+                    <strong className="text-[#81b64c] font-mono">
+                      {solutionSequence[0]}
+                    </strong>
+                    ! Execute it to continue the attack.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Solution Breakdown */}
           {showSolution && (
             <div className="p-3 bg-[#161512] rounded-xl border border-[#2b2824] text-xs text-zinc-300 leading-relaxed font-sans">
               <strong className="text-[#81b64c] block mb-1">Solution Breakdown:</strong>
               {currentPuzzle.solutionDescription}
+              <div className="mt-2 text-[11px] font-mono text-zinc-400">
+                Moves: {solutionSequence.join(' → ')}
+              </div>
             </div>
           )}
 
@@ -482,6 +589,18 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </button>
 
             <button
+              onClick={() => setHintLevel((lvl) => (lvl >= 3 ? 0 : lvl + 1))}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                hintLevel > 0
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-[#282622] hover:bg-[#34312b] text-zinc-300'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{hintLevel > 0 ? `Hint (${hintLevel}/3)` : 'Hint'}</span>
+            </button>
+
+            <button
               onClick={() => setShowSolution((prev) => !prev)}
               className="p-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
@@ -490,10 +609,10 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </button>
 
             <button
-              onClick={() => setPuzzleIndex((idx) => idx + 1)}
+              onClick={handleNextPuzzle}
               className="ml-auto px-4 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-[#81b64c]/20"
             >
-              <span>Next Puzzle</span>
+              <span>Next</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

@@ -310,7 +310,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   onClick={() => {
                     if (navigator.share) {
                       navigator.share({
-                        title: 'Chess.com Review',
+                        title: 'Check.mate Review',
                         text: `Check out my move: ${activeMove?.san} is ${activeMove?.classification}!`,
                       });
                     }

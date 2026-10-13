@@ -76,6 +76,17 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
   const effectiveTier = profile?.tier || tier || membership;
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isMessagesOpen, setIsMessagesOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: '1', title: 'Daily Tactical Puzzle', text: 'New puzzle available: Smothered Knight deflection (+15 ELO)', time: '10m ago', unread: true, link: '/puzzles' },
+    { id: '2', title: 'Grandmaster Bot Challenge', text: 'Can you defeat GM Hikaru in a 3-minute blitz arena?', time: '1h ago', unread: true, link: '/bots' },
+    { id: '3', title: 'Performance Review', text: 'Your recent game review is processed with accuracy breakdown.', time: '2h ago', unread: false, link: '/analysis' },
+  ]);
+  const [messages, setMessages] = useState([
+    { id: '1', sender: 'Coach Danny Rensch', role: 'Grandmaster Coach', text: 'Welcome to Check.mate! Focus on central control and king safety before launching flank pawn storms.', time: 'Just now', unread: true },
+    { id: '2', sender: 'Check.mate Arena', role: 'Matchmaking System', text: 'Tournament pairings and live rated 1v1 arenas are live. Choose your time control and test your rating!', time: '1d ago', unread: false },
+  ]);
 
   const navItems: { id: ActiveTab; label: string; icon: any; badge?: string; href: string }[] = [
     { id: 'home', label: 'Home', icon: Home, badge: 'Lobby', href: '/' },
@@ -111,7 +122,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           </div>
           <div className="flex flex-col">
             <span className="text-base font-extrabold tracking-wide text-white flex items-center gap-1.5">
-              Chess<span className="text-[#81b64c]">.com</span>
+              Check<span className="text-[#81b64c]">.mate</span>
             </span>
             <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">
               Grandmaster Suite
@@ -126,7 +137,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             const isPathActive =
               item.href === '/'
                 ? pathname === '/'
-                : pathname === item.href || pathname?.startsWith(item.href);
+                : pathname === item.href || pathname?.startsWith(`${item.href}/`);
             const isActive = isPathActive || activeTab === item.id;
 
             return (
@@ -207,15 +218,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            {onOpenChessComSync && (
-              <button
-                onClick={onOpenChessComSync}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-[#81b64c] hover:bg-zinc-800 transition cursor-pointer"
-                title="Sync Chess.com Profile / Connect Account"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
-            )}
             {user ? (
               <button
                 onClick={logout}
@@ -254,7 +256,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         </div>
 
         {/* Bottom Social/Tool Action Icons */}
-        <div className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400">
+        <div className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400 relative">
           <button
             onClick={() => router.push('/players')}
             className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
@@ -262,20 +264,109 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           >
             <Users className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => {}}
-            className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
-            title="Messages"
-          >
-            <Mail className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {}}
-            className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
-            title="Alerts & Notifications"
-          >
-            <Bell className="w-4 h-4" />
-          </button>
+
+          {/* Messages Button with Unread Badge & Flyout */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsMessagesOpen(!isMessagesOpen);
+                setIsNotificationsOpen(false);
+              }}
+              className={`p-1.5 rounded-lg transition cursor-pointer relative ${
+                isMessagesOpen ? 'text-white bg-[#272522]' : 'hover:text-white hover:bg-[#272522]'
+              }`}
+              title="Messages & Inbox"
+            >
+              <Mail className="w-4 h-4" />
+              {messages.some((m) => m.unread) && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#81b64c] ring-2 ring-[#161512]" />
+              )}
+            </button>
+
+            {isMessagesOpen && (
+              <div className="absolute bottom-10 left-0 w-72 bg-[#1e1c19] border border-[#33302b] rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <span>Inbox & Coaching</span>
+                  </span>
+                  <button
+                    onClick={() => setMessages((prev) => prev.map((m) => ({ ...m, unread: false })))}
+                    className="text-[10px] text-[#81b64c] hover:underline cursor-pointer"
+                  >
+                    Mark read
+                  </button>
+                </div>
+                <div className="divide-y divide-[#282622] max-h-60 overflow-y-auto mt-2">
+                  {messages.map((msg) => (
+                    <div key={msg.id} className="py-2.5 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-200">{msg.sender}</span>
+                        <span className="text-[10px] text-zinc-500">{msg.time}</span>
+                      </div>
+                      <span className="text-[10px] text-amber-400 font-mono">{msg.role}</span>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">{msg.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Notifications Button with Unread Badge & Flyout */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsNotificationsOpen(!isNotificationsOpen);
+                setIsMessagesOpen(false);
+              }}
+              className={`p-1.5 rounded-lg transition cursor-pointer relative ${
+                isNotificationsOpen ? 'text-white bg-[#272522]' : 'hover:text-white hover:bg-[#272522]'
+              }`}
+              title="Alerts & Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {notifications.some((n) => n.unread) && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#161512]" />
+              )}
+            </button>
+
+            {isNotificationsOpen && (
+              <div className="absolute bottom-10 -right-8 w-72 bg-[#1e1c19] border border-[#33302b] rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Notifications</span>
+                  </span>
+                  <button
+                    onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))}
+                    className="text-[10px] text-[#81b64c] hover:underline cursor-pointer"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div className="divide-y divide-[#282622] max-h-60 overflow-y-auto mt-2">
+                  {notifications.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setIsNotificationsOpen(false);
+                        if (item.link) router.push(item.link);
+                      }}
+                      className="py-2.5 flex flex-col gap-1 cursor-pointer hover:bg-[#262420] px-1.5 rounded transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-200">{item.title}</span>
+                        <span className="text-[10px] text-zinc-500">{item.time}</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 leading-snug">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={onOpenSettingsModal || (() => {})}
             className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"

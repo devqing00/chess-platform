@@ -192,7 +192,8 @@ export class GameSessionStore {
     blackPlayer: GamePlayer,
     timeControl: number,
     variant: ChessVariant = 'standard',
-    startingFen?: string
+    startingFen?: string,
+    incrementSeconds: number = 0
   ): GameSession {
     const id = `game-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const session: GameSession = {
@@ -200,6 +201,7 @@ export class GameSessionStore {
       whitePlayer,
       blackPlayer,
       timeControl,
+      incrementSeconds,
       variant,
       moves: [],
       fen: startingFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',

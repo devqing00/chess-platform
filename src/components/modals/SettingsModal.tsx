@@ -86,7 +86,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   ];
 
   const soundThemes: { id: SoundTheme; name: string; desc: string }[] = [
-    { id: 'classic', name: 'Chess.com Classic', desc: 'Tactile woody piece contacts & snappy captures.' },
+    { id: 'classic', name: 'Check.mate Classic', desc: 'Tactile woody piece contacts & snappy captures.' },
     { id: 'wood', name: 'Heavy Oak', desc: 'Rich acoustic resonant wood impacts.' },
     { id: 'marble', name: 'Smooth Marble', desc: 'Polished stone clicks and crisp clinks.' },
     { id: 'arcade', name: '8-Bit Arcade', desc: 'Retro electronic chip synths and blips.' },
@@ -470,7 +470,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-white flex items-center gap-2">
-                        Chess.com Profile Sync
+                        Check.mate Profile Sync
                         {syncedChessCom && (
                           <span className="text-[10px] bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded-full font-bold">
                             Connected
@@ -478,7 +478,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         )}
                       </span>
                       <span className="text-xs text-zinc-400">
-                        Sync your Chess.com rating, avatar, game archives, and match history.
+                        Sync your verified ELO rating, avatar, game archives, and match history.
                       </span>
                     </div>
                   </div>

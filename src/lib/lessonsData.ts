@@ -128,6 +128,40 @@ export const LESSON_TRACKS: LessonTrack[] = [
           },
         ],
       },
+      {
+        id: 'lesson-scholar-mate',
+        trackId: 'track-beginner',
+        title: "Countering the Scholar's Mate Trap",
+        subtitle: 'Punishing Premature Queen Attacks with Solid Development',
+        difficulty: 'beginner',
+        durationMinutes: 7,
+        coachIntro:
+          "Beginners face the 4-move Scholar's Mate constantly. When White brings their Queen out early with 2. Qh5, don't panic! Defend your e-pawn, kick the Queen with tempo, and gain a massive lead in development.",
+        steps: [
+          {
+            stepId: 1,
+            title: 'Defend the Central Pawn',
+            instruction: 'White played 2. Qh5 attacking e5. Develop your knight to defend e5 solidly.',
+            fen: 'rnbqkbnr/pppp1ppp/8/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2',
+            solutionMoves: ['Nc6'],
+            hint: 'Develop your b8 knight to c6 to protect the e5 pawn.',
+            explanation:
+              '2... Nc6 defends e5 and develops a piece. Never play 2... g6 immediately because White wins the e5 pawn and your h8 rook with 3. Qxe5+!',
+            arrowHint: { from: 'b8', to: 'c6' },
+          },
+          {
+            stepId: 2,
+            title: 'Kick the Queen with Tempo',
+            instruction: 'White played 3. Bc4 aiming for checkmate on f7. Repel the threat by blocking the diagonal!',
+            fen: 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3',
+            solutionMoves: ['g6'],
+            hint: 'Push your g-pawn to g6 to shut down the f7 diagonal.',
+            explanation:
+              '3... g6! blunts the attack on f7 and kicks White’s queen. Since e5 is already guarded by the knight, White gets no tricks!',
+            arrowHint: { from: 'g7', to: 'g6' },
+          },
+        ],
+      },
     ],
   },
   {
@@ -149,7 +183,7 @@ export const LESSON_TRACKS: LessonTrack[] = [
           {
             stepId: 1,
             title: 'The Royal Fork',
-            instruction: 'Black’s King and Queen are aligned on e8 and d8. Find the crushing knight fork on c7!',
+            instruction: 'Black’s King and Queen are aligned on e8 and d8. Find the crushing knight fork on d6!',
             fen: 'r1bqk2r/pp2bppp/2n1p3/2pp4/4N3/3P1N2/PPP1BPPP/R1BQK2R w KQkq - 0 8',
             solutionMoves: ['Nd6+'],
             hint: 'Check the king while simultaneously targeting the queen or bishop.',
@@ -167,6 +201,29 @@ export const LESSON_TRACKS: LessonTrack[] = [
             explanation:
               'Ndb5 creates an irresistible threat of Nc7+, which will fork Black’s King on e8 and Rook on a8!',
             arrowHint: { from: 'd4', to: 'b5' },
+          },
+        ],
+      },
+      {
+        id: 'lesson-discovered-attack',
+        trackId: 'track-intermediate',
+        title: 'The Devastating Discovered Check',
+        subtitle: 'Unmasking Hidden Artillery With Inescapable Double Threats',
+        difficulty: 'intermediate',
+        durationMinutes: 9,
+        coachIntro:
+          "A discovered check happens when one piece moves out of the way, unleashing check from a rook or bishop behind it. Because the king must respond to the check, the moving piece can wreak total havoc!",
+        steps: [
+          {
+            stepId: 1,
+            title: 'Unmask the Bishop',
+            instruction: 'White’s bishop on b2 aligns with Black’s king on g7. Unleash discovered check to win Black’s queen!',
+            fen: 'r4rk1/pb3ppp/1p2p3/3q4/3N4/8/PB3PPP/R2Q1RK1 w - - 0 16',
+            solutionMoves: ['Nf3'],
+            hint: 'Retreat the knight to f3 to discover a mate threat or bishop fire on the king.',
+            explanation:
+              'By uncovering the battery towards g7, White threatens mate on g7 while defending against Queen infiltration!',
+            arrowHint: { from: 'd4', to: 'f3' },
           },
         ],
       },
@@ -243,6 +300,29 @@ export const LESSON_TRACKS: LessonTrack[] = [
             explanation:
               '2. Kc7 unmasks the pawn and directly threatens promotion to Queen on d8.',
             arrowHint: { from: 'b8', to: 'c7' },
+          },
+        ],
+      },
+      {
+        id: 'lesson-opposition',
+        trackId: 'track-advanced',
+        title: 'King Opposition & Outflanking',
+        subtitle: 'Direct Opposition in Critical King & Pawn Endgames',
+        difficulty: 'advanced',
+        durationMinutes: 10,
+        coachIntro:
+          "The Opposition is a duel between two kings separated by one square. Whoever does NOT have to move holds the opposition and can force the enemy king to give way!",
+        steps: [
+          {
+            stepId: 1,
+            title: 'Seize the Direct Opposition',
+            instruction: 'Step your king to e5 directly opposite Black’s king with an odd number of squares between you.',
+            fen: '8/4k3/8/8/4K3/8/8/8 w - - 0 1',
+            solutionMoves: ['Ke5'],
+            hint: 'Advance your king to e5 directly in front of Black’s king.',
+            explanation:
+              'Ke5 seizes the opposition! Black must now step aside to either d7 or f7, granting White access to key forward squares.',
+            arrowHint: { from: 'e4', to: 'e5' },
           },
         ],
       },

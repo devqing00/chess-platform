@@ -63,6 +63,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [orientation, setOrientation] = useState<PieceColor>('w');
   const [variant, setVariant] = useState<ChessVariant>('standard');
   const [timeControl, setTimeControl] = useState<number>(600);
+  const [incrementSeconds, setIncrementSeconds] = useState<number>(0);
 
   // Players
   const [whitePlayer, setWhitePlayer] = useState<GamePlayer>({
@@ -104,6 +105,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
       setWhitePlayer(session.whitePlayer);
       setBlackPlayer(session.blackPlayer);
       setTimeControl(session.timeControl);
+      setIncrementSeconds(session.incrementSeconds || 0);
       setVariant(session.variant);
       setWhiteTime(session.timeControl);
       setBlackTime(session.timeControl);
@@ -269,6 +271,15 @@ export default function GameRoomPage({ params }: GamePageProps) {
         setEvalScore(evalAfter);
         setChess(new Chess(fenAfter));
 
+        // Add increment to the moving player
+        if (incrementSeconds > 0) {
+          if (turnBefore === 'w') {
+            setWhiteTime((t) => t + incrementSeconds);
+          } else {
+            setBlackTime((t) => t + incrementSeconds);
+          }
+        }
+
         // Bot response
         if (blackPlayer.isBot && !chess.isGameOver()) {
           setTimeout(() => {
@@ -279,7 +290,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
         //
       }
     },
-    [chess, gameResult, moveHistory, blackPlayer.isBot, triggerGameOver]
+    [chess, gameResult, moveHistory, blackPlayer.isBot, incrementSeconds, triggerGameOver]
   );
 
   // Bot Turn
@@ -331,6 +342,11 @@ export default function GameRoomPage({ params }: GamePageProps) {
       setCurrentMoveIndex(nextMoves.length - 1);
       setEvalScore(evalAfter);
       setChess(new Chess(fenAfter));
+
+      // Add increment to bot clock
+      if (incrementSeconds > 0) {
+        setBlackTime((t) => t + incrementSeconds);
+      }
     } catch {
       //
     }

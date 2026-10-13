@@ -698,7 +698,7 @@ export default function ChessPlatformPage() {
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
-                142,890 Players Online
+                Live Arena
               </span>
               <span className="text-zinc-600">|</span>
               <span className="text-xs font-semibold text-zinc-400 capitalize">

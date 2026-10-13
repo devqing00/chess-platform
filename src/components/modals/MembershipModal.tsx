@@ -95,7 +95,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
           <div className="flex items-center gap-2.5">
             <Crown className="w-6 h-6 text-amber-400" />
             <span className="text-lg font-black text-white">
-              Upgrade Your Chess.com Experience
+              Upgrade Your Check.mate Experience
             </span>
           </div>
           <button
@@ -170,7 +170,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
             <Shield className="w-4 h-4 text-[#81b64c]" />
             <span>Switch or cancel membership anytime. 100% money-back guarantee.</span>
           </div>
-          <span className="text-[11px] text-zinc-500">Official Chess.com VIP Tiers</span>
+          <span className="text-[11px] text-zinc-500">Official Check.mate VIP Tiers</span>
         </div>
       </div>
     </div>

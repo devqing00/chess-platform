@@ -112,23 +112,11 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
           </div>
         </div>
 
-        {/* Streak, Chess.com Sync & League Badges */}
+        {/* Arena League Badge */}
         <div className="flex items-center gap-2">
-          {onOpenSyncModal && (
-            <button
-              onClick={onOpenSyncModal}
-              className="flex items-center gap-1.5 bg-[#81b64c]/15 border border-[#81b64c]/40 hover:bg-[#81b64c] text-[#81b64c] hover:text-white px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm cursor-pointer"
-            >
-              <span>♟️ Sync Chess.com</span>
-            </button>
-          )}
-          <div className="flex items-center gap-2 bg-[#21201d] border border-[#35322c] px-3.5 py-1.5 rounded-full shadow-sm">
-            <Flame className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span className="text-xs font-black text-amber-300 font-mono">12 Day Streak</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-1.5 bg-[#21201d] border border-[#35322c] px-3 py-1.5 rounded-full text-xs text-zinc-300">
+          <div className="flex items-center gap-1.5 bg-[#21201d] border border-[#35322c] px-3.5 py-1.5 rounded-full text-xs text-zinc-300 shadow-sm">
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-bold">Elite League</span>
+            <span className="font-bold">Grandmaster Suite</span>
           </div>
         </div>
       </div>
