@@ -6,6 +6,7 @@ import { GameReviewSummaryView } from '@/components/analysis/GameReviewSummaryVi
 import { GameReviewView } from '@/components/analysis/GameReviewView';
 import { GameReviewReport, BoardTheme, PieceTheme } from '@/types/chess';
 import { useRouter } from 'next/navigation';
+import { useShell } from '@/context/ShellContext';
 import { Loader2, Cpu, Sparkles } from 'lucide-react';
 
 interface ReviewPageProps {
@@ -14,13 +15,12 @@ interface ReviewPageProps {
 
 export default function GameReviewPage({ params }: ReviewPageProps) {
   const router = useRouter();
+  const { boardTheme, pieceTheme } = useShell();
   const resolvedParams = use(params);
   const gameId = resolvedParams.id;
 
   const [report, setReport] = useState<GameReviewReport | null>(null);
   const [reviewStage, setReviewStage] = useState<'summary' | 'stepper'>('summary');
-  const [boardTheme, setBoardTheme] = useState<BoardTheme>('green');
-  const [pieceTheme, setPieceTheme] = useState<PieceTheme>('neo');
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState('Initializing Engine Fleet...');
 
@@ -129,7 +129,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
   }
 
   return (
-    <div className="h-screen w-screen bg-[#161512] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#161512] overflow-hidden min-w-0">
       {reviewStage === 'summary' ? (
         <GameReviewSummaryView
           report={report}

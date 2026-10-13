@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Flame,
   Clock,
@@ -21,6 +21,7 @@ import {
 import { ChessBoard } from '@/components/board/ChessBoard';
 import { Chess } from 'chess.js';
 import { GameSessionStore } from '@/lib/gameSessionStore';
+import { GameSession } from '@/types/chess';
 import { CHESS_BOTS } from '@/lib/botsData';
 import { useAuth } from '@/context/AuthContext';
 
@@ -44,7 +45,6 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
   onOpenSyncModal,
 }) => {
   const [selectedTimeControl, setSelectedTimeControl] = useState<number>(600); // 10 min default
-  const { user, profile } = useAuth();
 
   // Mini-board sample positions
   const puzzleSampleChess = useMemo(
@@ -64,9 +64,10 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
     []
   );
 
-  // Retrieve actual player sessions or fallback to initial demonstration game
-  const recentSessions = useMemo(() => {
-    return GameSessionStore.listRecentSessions();
+  // Retrieve actual player sessions or fallback to initial demonstration game after client mount
+  const [recentSessions, setRecentSessions] = useState<GameSession[]>([]);
+  useEffect(() => {
+    setRecentSessions(GameSessionStore.listRecentSessions());
   }, []);
 
   // Spotlight Bot for quick challenge
@@ -79,8 +80,9 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
     playStyle: 'Friendly',
   };
 
-  const displayName = profile?.displayName || user?.displayName || 'rapid_qing';
-  const rapidRating = profile?.ratings?.rapid || 429;
+  const { user, profile, effectiveDisplayName, effectiveRating, effectiveAvatar, effectiveCountry } = useAuth();
+  const displayName = effectiveDisplayName;
+  const rapidRating = effectiveRating;
   const blitzRating = profile?.ratings?.blitz || 370;
 
   return (
@@ -88,10 +90,10 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
       {/* Top Player Welcome & Status Banner */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#2d2a26]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#282521] border border-[#3d3830] flex items-center justify-center text-xl shadow">
-            {profile?.avatar && profile.avatar.startsWith('http') ? (
+          <div className="w-10 h-10 rounded-xl bg-[#282521] border border-[#3d3830] flex items-center justify-center text-xl shadow overflow-hidden">
+            {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatar} alt={displayName} className="w-full h-full object-cover rounded-xl" />
+              <img src={effectiveAvatar} alt={displayName} className="w-full h-full object-cover rounded-xl" />
             ) : (
               <span>♟️</span>
             )}
@@ -99,7 +101,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="text-base font-black text-white">{displayName}</span>
-              <span className="text-sm">🇳🇬</span>
+              <span className="text-sm">{effectiveCountry === 'ng' ? '🇳🇬' : '🌐'}</span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#312e29] text-zinc-300">
                 Rapid {rapidRating}
               </span>

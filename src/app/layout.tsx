@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { ShellProvider } from '@/context/ShellContext';
+import { AppShell } from '@/components/layout/AppShell';
 import { AuthModal } from '@/components/auth/AuthModal';
 
 const fontSans = Plus_Jakarta_Sans({
@@ -35,8 +37,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#161512] text-zinc-100 font-sans">
         <AuthProvider>
-          {children}
-          <AuthModal />
+          <ShellProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+            <AuthModal />
+          </ShellProvider>
         </AuthProvider>
       </body>
     </html>

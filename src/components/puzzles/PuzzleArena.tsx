@@ -266,10 +266,10 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="flex flex-col xl:flex-row gap-5 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none max-h-full">
-      {/* Tactical Board Column - Bound cleanly by screen height */}
-      <div className="flex flex-col items-center gap-2 shrink-0">
-        <div className="w-[min(100%,calc(100vh-210px),480px)] aspect-square">
+    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center p-2 sm:p-4 select-none">
+      {/* Tactical Board Column - Bound cleanly by screen height & width */}
+      <div className="w-[min(100%,calc(100vh-220px),480px)] shrink-0 flex flex-col items-center gap-2.5">
+        <div className="w-full aspect-square">
           <ChessBoard
             chess={chess}
             orientation={puzzleTurn}
@@ -281,7 +281,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         </div>
 
         {/* Turn indicator card */}
-        <div className="w-full max-w-[min(100%,calc(100vh-210px),480px)] bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between text-xs">
+        <div className="w-full bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <span
               className={`w-3 h-3 rounded-full border ${
@@ -302,7 +302,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
       </div>
 
       {/* Control Hub & Tactical Rating Sidebar */}
-      <div className="w-full max-w-md flex flex-col gap-4">
+      <div className="w-full lg:w-[360px] xl:w-[380px] shrink-0 min-w-0 flex flex-col gap-4">
         {/* Rating & Mode Header Card */}
         <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
           <div className="flex items-center justify-between">

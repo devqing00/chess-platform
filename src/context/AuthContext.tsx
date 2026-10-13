@@ -1,19 +1,41 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { AuthService } from '@/lib/firebase/authService';
 import { UserProfile } from '@/lib/firebase/types';
 import { MembershipTier } from '@/types/chess';
 
+export interface SyncedChessComAccount {
+  username: string;
+  avatar?: string;
+  country?: string;
+  countryCode?: string;
+  name?: string;
+  status?: string;
+  ratings?: {
+    rapid: number;
+    blitz: number;
+    bullet: number;
+  };
+  stats?: any;
+}
+
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
+  syncedChessCom: SyncedChessComAccount | null;
+  effectiveDisplayName: string;
+  effectiveRating: number;
+  effectiveAvatar: string;
+  effectiveCountry: string;
   tier: MembershipTier;
   loading: boolean;
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
+  saveSyncedChessCom: (profileData: any, statsData?: any) => void;
+  clearSyncedChessCom: () => void;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -26,8 +48,78 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [syncedChessCom, setSyncedChessCom] = useState<SyncedChessComAccount | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  // Initialize synced Chess.com profile from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('chess_com_profile');
+      const storedStats = localStorage.getItem('chess_com_stats');
+      if (stored) {
+        const parsedProfile = JSON.parse(stored);
+        const parsedStats = storedStats ? JSON.parse(storedStats) : null;
+        setSyncedChessCom({
+          ...parsedProfile,
+          countryCode: parsedProfile.countryCode || parsedProfile.country?.toLowerCase() || 'ng',
+          ratings: {
+            rapid: parsedStats?.rapid?.rating || 429,
+            blitz: parsedStats?.blitz?.rating || 370,
+            bullet: parsedStats?.bullet?.rating || 300,
+          },
+          stats: parsedStats,
+        });
+      } else {
+        // Default to rapid_qing if no profile has been synced yet
+        setSyncedChessCom({
+          username: 'rapid_qing',
+          name: 'Qing',
+          country: 'NG',
+          countryCode: 'ng',
+          ratings: {
+            rapid: 429,
+            blitz: 370,
+            bullet: 300,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to parse stored Chess.com profile:', e);
+    }
+  }, []);
+
+  const saveSyncedChessCom = useCallback((profileData: any, statsData?: any) => {
+    try {
+      localStorage.setItem('chess_com_profile', JSON.stringify(profileData));
+      if (statsData) {
+        localStorage.setItem('chess_com_stats', JSON.stringify(statsData));
+      }
+      setSyncedChessCom({
+        ...profileData,
+        countryCode: profileData.countryCode || profileData.country?.toLowerCase() || 'ng',
+        ratings: {
+          rapid: statsData?.rapid?.rating || 429,
+          blitz: statsData?.blitz?.rating || 370,
+          bullet: statsData?.bullet?.rating || 300,
+        },
+        stats: statsData,
+      });
+    } catch (e) {
+      console.warn('Failed to save synced Chess.com profile:', e);
+    }
+  }, []);
+
+  const clearSyncedChessCom = useCallback(() => {
+    try {
+      localStorage.removeItem('chess_com_profile');
+      localStorage.removeItem('chess_com_stats');
+      localStorage.removeItem('chess_com_imported_games');
+      setSyncedChessCom(null);
+    } catch (e) {
+      console.warn('Failed to clear synced profile:', e);
+    }
+  }, []);
 
   // Sync with Firebase Auth state on mount
   useEffect(() => {
@@ -88,16 +180,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const tier: MembershipTier = profile?.tier || 'diamond';
 
+  // Compute effective global values
+  const effectiveDisplayName =
+    syncedChessCom?.username ||
+    profile?.displayName ||
+    user?.displayName ||
+    'rapid_qing';
+
+  const effectiveRating =
+    syncedChessCom?.ratings?.rapid ||
+    profile?.ratings?.rapid ||
+    429;
+
+  const effectiveAvatar =
+    syncedChessCom?.avatar ||
+    profile?.avatar ||
+    user?.photoURL ||
+    '♟️';
+
+  const effectiveCountry =
+    syncedChessCom?.countryCode ||
+    'ng';
+
   return (
     <AuthContext.Provider
       value={{
         user,
         profile,
+        syncedChessCom,
+        effectiveDisplayName,
+        effectiveRating,
+        effectiveAvatar,
+        effectiveCountry,
         tier,
         loading,
         isAuthModalOpen,
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
+        saveSyncedChessCom,
+        clearSyncedChessCom,
         loginWithEmail,
         registerWithEmail,
         loginWithGoogle,

@@ -1,31 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { PuzzleArena } from '@/components/puzzles/PuzzleArena';
-import { BoardTheme, PieceTheme } from '@/types/chess';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { useShell } from '@/context/ShellContext';
+import { Puzzle, Flame } from 'lucide-react';
 
 export default function PuzzlesPage() {
-  const router = useRouter();
-  const [boardTheme] = useState<BoardTheme>('green');
-  const [pieceTheme] = useState<PieceTheme>('neo');
+  const { boardTheme, pieceTheme } = useShell();
 
   return (
-    <div className="flex-1 p-6 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto">
-      <div className="w-full max-w-6xl flex items-center justify-between mb-4 pb-3 border-b border-[#282522]">
-        <button
-          onClick={() => router.push('/')}
-          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Home</span>
-        </button>
-        <span className="text-xs font-black uppercase tracking-wider text-zinc-400">
-          Tactical Puzzles & Puzzle Rush
-        </span>
+    <div className="flex-1 p-3 sm:p-5 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto select-none">
+      <div className="w-full max-w-6xl flex items-center justify-between mb-2 pb-2.5 border-b border-[#282522]">
+        <div className="flex items-center gap-2.5">
+          <Puzzle className="w-5 h-5 text-[#81b64c]" />
+          <h1 className="text-base font-black uppercase tracking-wider text-white">
+            Tactical Puzzles & Puzzle Rush
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+          <Flame className="w-4 h-4 text-orange-400" />
+          <span>Glicko-2 Rated &bull; Daily Tactics &bull; 3-Minute Rush</span>
+        </div>
       </div>
-      <div className="w-full max-w-6xl">
+      <div className="w-full max-w-6xl flex-1 flex items-center justify-center">
         <PuzzleArena boardTheme={boardTheme} pieceTheme={pieceTheme} />
       </div>
     </div>

@@ -30,6 +30,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { soundService } from '@/lib/audioService';
+import { useShell } from '@/context/ShellContext';
 
 interface MultiPvLine {
   rank: number;
@@ -52,9 +53,8 @@ interface TablebaseInfo {
 
 export default function AnalysisPage() {
   const router = useRouter();
+  const { boardTheme, pieceTheme } = useShell();
   const [chess, setChess] = useState<Chess>(() => new Chess());
-  const [boardTheme] = useState<BoardTheme>('green');
-  const [pieceTheme] = useState<PieceTheme>('neo');
   const [orientation, setOrientation] = useState<PieceColor>('w');
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
 
@@ -248,18 +248,10 @@ export default function AnalysisPage() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#161512] text-zinc-100 overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 overflow-hidden select-none min-w-0">
       {/* Top Navbar */}
       <header className="h-14 border-b border-[#282522] bg-[#1a1916] px-6 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/')}
-            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Home</span>
-          </button>
-          <div className="h-4 w-[1px] bg-[#282522]" />
           <div className="flex items-center gap-2">
             <Award className="w-5 h-5 text-[#81b64c]" />
             <h1 className="text-sm font-black tracking-wide text-white">

@@ -364,7 +364,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
   }, [currentMoveIndex, moveHistory]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#161512] text-zinc-100 select-none overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 select-none overflow-hidden min-w-0">
       {/* Top Header Bar */}
       <header className="h-14 px-4 lg:px-6 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">

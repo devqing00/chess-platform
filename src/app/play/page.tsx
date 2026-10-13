@@ -26,7 +26,7 @@ import {
 
 export default function PlayLobbyPage() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, effectiveDisplayName, effectiveRating, effectiveAvatar, effectiveCountry } = useAuth();
   const [selectedTimeControl, setSelectedTimeControl] = useState<number>(600);
   const [selectedVariant, setSelectedVariant] = useState<ChessVariant>('standard');
   const [selectedMode, setSelectedMode] = useState<'online_pvp' | 'bot' | 'pass_and_play'>('online_pvp');
@@ -90,13 +90,13 @@ export default function PlayLobbyPage() {
     const currentUserProfile = profile || {
       uid: user.uid,
       email: user.email,
-      displayName: user.displayName || 'Player',
-      avatar: '♟️',
+      displayName: effectiveDisplayName,
+      avatar: effectiveAvatar,
       tier: 'free',
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
       isAnonymous: user.isAnonymous,
-      ratings: { rapid: 1200, blitz: 1200, bullet: 1200, daily: 1200, puzzles: 1500, puzzleRush: 0 },
+      ratings: { rapid: effectiveRating, blitz: 1200, bullet: 1200, daily: 1200, puzzles: 1500, puzzleRush: 0 },
       stats: { gamesPlayed: 0, wins: 0, losses: 0, draws: 0, winStreak: 0 },
     };
 
@@ -138,10 +138,10 @@ export default function PlayLobbyPage() {
   const handleStartLocalGame = () => {
     const whitePlayer: GamePlayer = {
       id: user?.uid || 'player-you',
-      name: profile?.displayName || user?.displayName || 'You',
-      rating: profile?.ratings.blitz || 1250,
-      avatar: profile?.avatar || '🧑‍💻',
-      country: 'US',
+      name: effectiveDisplayName,
+      rating: effectiveRating,
+      avatar: effectiveAvatar,
+      country: effectiveCountry.toUpperCase(),
     };
 
     const chosenBot = CHESS_BOTS.find((b) => b.id === selectedBotId) || CHESS_BOTS[0];

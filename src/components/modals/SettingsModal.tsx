@@ -20,7 +20,12 @@ import {
   Eye,
   VolumeX,
   Sparkles,
+  RefreshCw,
+  Globe,
+  UserCheck,
+  Unlink,
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -33,6 +38,7 @@ interface SettingsModalProps {
   onChangeSoundTheme: (theme: SoundTheme) => void;
   soundEnabled: boolean;
   onToggleSound: (enabled: boolean) => void;
+  onOpenChessComSync?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -46,8 +52,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onChangeSoundTheme,
   soundEnabled,
   onToggleSound,
+  onOpenChessComSync,
 }) => {
-  const [activeTab, setActiveTab] = useState<'board' | 'audio' | 'accessibility'>('audio');
+  const { syncedChessCom, clearSyncedChessCom } = useAuth();
+  const [activeTab, setActiveTab] = useState<'board' | 'audio' | 'accessibility' | 'accounts'>('accounts');
   const [audioSettings, setAudioSettings] = useState<AudioSettings>(() =>
     soundService.getSettings()
   );
@@ -115,6 +123,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="flex bg-[#191815] border-b border-[#33302b] px-4 text-xs font-bold">
           <button
+            onClick={() => setActiveTab('accounts')}
+            className={`px-4 py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+              activeTab === 'accounts'
+                ? 'border-[#81b64c] text-white bg-[#22201d]'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-[#81b64c]" />
+            <span>Connected Accounts</span>
+          </button>
+          <button
             onClick={() => setActiveTab('audio')}
             className={`px-4 py-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
               activeTab === 'audio'
@@ -123,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Volume2 className="w-4 h-4 text-[#81b64c]" />
-            <span>Audio & Low-Time Warning (R1 & R7)</span>
+            <span>Audio & Sound</span>
           </button>
           <button
             onClick={() => setActiveTab('board')}
@@ -134,7 +153,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Palette className="w-4 h-4 text-[#81b64c]" />
-            <span>Board Themes & Contrast</span>
+            <span>Board Themes</span>
           </button>
           <button
             onClick={() => setActiveTab('accessibility')}
@@ -145,7 +164,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Eye className="w-4 h-4 text-[#81b64c]" />
-            <span>Accessibility (R3)</span>
+            <span>Accessibility</span>
           </button>
         </div>
 
@@ -437,6 +456,84 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'accounts' && (
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="bg-[#24221e] border border-[#33302b] rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-[#81b64c]/20 text-[#81b64c] flex items-center justify-center font-bold text-lg">
+                      ♟️
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white flex items-center gap-2">
+                        Chess.com Profile Sync
+                        {syncedChessCom && (
+                          <span className="text-[10px] bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded-full font-bold">
+                            Connected
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        Sync your Chess.com rating, avatar, game archives, and match history.
+                      </span>
+                    </div>
+                  </div>
+
+                  {onOpenChessComSync && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenChessComSync();
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {syncedChessCom && (
+                  <div className="mt-2 p-3 bg-[#1a1815] rounded-xl border border-[#2b2824] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#272522] border border-[#383530] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0">
+                        {syncedChessCom.avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={syncedChessCom.avatar}
+                            alt={syncedChessCom.username}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span>♟️</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          {syncedChessCom.username}
+                          <span>{syncedChessCom.countryCode === 'ng' ? '🇳🇬' : '🌐'}</span>
+                        </span>
+                        <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400 mt-0.5">
+                          <span>Rapid: <strong className="text-white">{syncedChessCom.ratings?.rapid || 429}</strong></span>
+                          <span>Blitz: <strong className="text-white">{syncedChessCom.ratings?.blitz || 370}</strong></span>
+                          <span>Bullet: <strong className="text-white">{syncedChessCom.ratings?.bullet || 300}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={clearSyncedChessCom}
+                      className="p-2 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition cursor-pointer"
+                      title="Disconnect Account"
+                    >
+                      <Unlink className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Home,
   Gamepad2,
@@ -40,47 +41,71 @@ export type ActiveTab =
   | 'bots'
   | 'historical'
   | 'variants'
-  | 'pubapi';
+  | 'players';
 
 interface SidebarNavProps {
-  activeTab: ActiveTab;
-  onTabChange: (tab: ActiveTab) => void;
-  membership: MembershipTier;
-  onOpenMembershipModal: () => void;
-  onOpenSettingsModal: () => void;
+  activeTab?: ActiveTab;
+  onTabChange?: (tab: ActiveTab) => void;
+  membership?: MembershipTier;
+  onOpenMembershipModal?: () => void;
+  onOpenSettingsModal?: () => void;
   onOpenChessComSync?: () => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   activeTab,
   onTabChange,
-  membership,
+  membership = 'diamond',
   onOpenMembershipModal,
   onOpenSettingsModal,
   onOpenChessComSync,
 }) => {
-  const { user, profile, openAuthModal, logout } = useAuth();
-  const effectiveTier = profile?.tier || membership;
+  const router = useRouter();
+  const pathname = usePathname();
+  const {
+    user,
+    profile,
+    tier,
+    effectiveDisplayName,
+    effectiveRating,
+    effectiveAvatar,
+    effectiveCountry,
+    openAuthModal,
+    logout,
+  } = useAuth();
+
+  const effectiveTier = profile?.tier || tier || membership;
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
-  const navItems = [
-    { id: 'home' as ActiveTab, label: 'Home', icon: Home, badge: 'Lobby' },
-    { id: 'play' as ActiveTab, label: 'Play', icon: Gamepad2, badge: 'Live' },
-    { id: 'puzzles' as ActiveTab, label: 'Puzzles', icon: Puzzle, badge: 'Rush' },
-    { id: 'lessons' as ActiveTab, label: 'Lessons', icon: GraduationCap, badge: 'Master' },
-    { id: 'analysis' as ActiveTab, label: 'Analysis & Review', icon: Microscope, badge: 'AI' },
-    { id: 'bots' as ActiveTab, label: 'Computer Bots', icon: Bot, badge: '20+' },
-    { id: 'openings' as ActiveTab, label: 'Openings', icon: Compass, badge: 'ECO' },
-    { id: 'insights' as ActiveTab, label: 'Diamond Insights', icon: Flame, badge: 'PRO' },
-    { id: 'historical' as ActiveTab, label: 'Master Games', icon: History, badge: 'GM' },
-    { id: 'variants' as ActiveTab, label: 'Chess Variants', icon: Sparkles, badge: '960' },
+  const navItems: { id: ActiveTab; label: string; icon: any; badge?: string; href: string }[] = [
+    { id: 'home', label: 'Home', icon: Home, badge: 'Lobby', href: '/' },
+    { id: 'play', label: 'Play', icon: Gamepad2, badge: 'Live', href: '/play' },
+    { id: 'puzzles', label: 'Puzzles', icon: Puzzle, badge: 'Rush', href: '/puzzles' },
+    { id: 'lessons', label: 'Lessons', icon: GraduationCap, badge: 'Master', href: '/lessons' },
+    { id: 'analysis', label: 'Analysis & Review', icon: Microscope, badge: 'AI', href: '/analysis' },
+    { id: 'bots', label: 'Computer Bots', icon: Bot, badge: '20+', href: '/bots' },
+    { id: 'openings', label: 'Openings', icon: Compass, badge: 'ECO', href: '/openings' },
+    { id: 'insights', label: 'Diamond Insights', icon: Flame, badge: 'PRO', href: '/insights' },
+    { id: 'historical', label: 'Master Games', icon: History, badge: 'GM', href: '/games' },
+    { id: 'variants', label: 'Chess Variants', icon: Sparkles, badge: '960', href: '/variants' },
+    { id: 'players', label: 'Players Explorer', icon: Users, badge: 'PUB', href: '/players' },
   ];
 
+  const handleNavClick = (item: typeof navItems[0]) => {
+    if (onTabChange) {
+      onTabChange(item.id);
+    }
+    router.push(item.href);
+  };
+
   return (
-    <aside className="w-64 h-full bg-[#1b1917] border-r border-[#2d2a26] flex flex-col justify-between select-none">
+    <aside className="w-64 h-full bg-[#1b1917] border-r border-[#2d2a26] flex flex-col justify-between select-none shrink-0 z-30">
       {/* Platform Header */}
       <div className="flex flex-col">
-        <div className="h-16 px-5 flex items-center gap-3 border-b border-[#2d2a26] bg-[#161512]">
+        <div
+          onClick={() => router.push('/')}
+          className="h-16 px-5 flex items-center gap-3 border-b border-[#2d2a26] bg-[#161512] cursor-pointer hover:bg-[#1a1916] transition-colors"
+        >
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#81b64c] to-[#5d8b32] flex items-center justify-center shadow-lg shadow-[#81b64c]/20">
             <span className="text-xl">♟️</span>
           </div>
@@ -98,11 +123,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         <nav className="p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isPathActive =
+              item.href === '/'
+                ? pathname === '/'
+                : pathname === item.href || pathname?.startsWith(item.href);
+            const isActive = isPathActive || activeTab === item.id;
+
             return (
               <button
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => handleNavClick(item)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                   isActive
                     ? 'bg-[#81b64c] text-white shadow-md shadow-[#81b64c]/20 font-bold'
@@ -130,19 +160,18 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Section: User Auth, Membership Tier Card & Settings */}
       {/* Bottom Section: Search, User Account, Tier Banner, and Social/Settings Toolbar */}
       <div className="p-3 border-t border-[#2d2a26] space-y-2 bg-[#161512]">
-        {/* Search button (Image 5 Parity) */}
+        {/* Search button navigating to /players */}
         <button
-          onClick={() => {}}
+          onClick={() => router.push('/players')}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white hover:bg-[#272522] transition-colors cursor-pointer"
         >
           <Search className="w-4 h-4 text-zinc-400" />
-          <span>Search</span>
+          <span>Search Players...</span>
         </button>
 
-        {/* User Account / Profile Card (Displays rapid_qing 🇳🇬 429 by default) */}
+        {/* User Account / Profile Card (Displays synced rapid_qing 🇳🇬 429 globally) */}
         <div className="p-2.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between">
           <div
             onClick={() => (user ? setIsAvatarModalOpen(true) : openAuthModal())}
@@ -150,11 +179,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             title={user ? 'Click to change avatar' : 'Click to Log In'}
           >
             <div className="relative w-8 h-8 rounded-lg bg-[#2b2824] border border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 group-hover:border-[#81b64c] transition-colors shadow">
-              {profile?.avatar && profile.avatar.startsWith('http') ? (
+              {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={profile.avatar}
-                  alt={profile.displayName}
+                  src={effectiveAvatar}
+                  alt={effectiveDisplayName}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -168,11 +197,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-white truncate group-hover:text-[#81b64c] transition-colors">
-                {profile?.displayName || user?.displayName || 'rapid_qing'}
+                {effectiveDisplayName}
               </span>
               <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
-                <span>({profile?.ratings?.rapid || 429})</span>
-                <span>🇳🇬</span>
+                <span>({effectiveRating})</span>
+                <span>{effectiveCountry === 'ng' ? '🇳🇬' : effectiveCountry.toUpperCase()}</span>
               </span>
             </div>
           </div>
@@ -182,7 +211,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               <button
                 onClick={onOpenChessComSync}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-[#81b64c] hover:bg-zinc-800 transition cursor-pointer"
-                title="Sync Chess.com Profile & Games"
+                title="Sync Chess.com Profile / Connect Account"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
@@ -208,7 +237,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
         {/* Tier Banner */}
         <div
-          onClick={onOpenMembershipModal}
+          onClick={onOpenMembershipModal || (() => {})}
           className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-transparent border border-amber-500/30 hover:border-amber-500/60 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
@@ -224,12 +253,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           </div>
         </div>
 
-        {/* Bottom 4 Social/Tool Action Icons (Image 3 & 5 Parity: Friends, Mail, Bell, Settings) */}
+        {/* Bottom Social/Tool Action Icons */}
         <div className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400">
           <button
-            onClick={() => {}}
+            onClick={() => router.push('/players')}
             className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
-            title="Friends"
+            title="Players Explorer"
           >
             <Users className="w-4 h-4" />
           </button>
@@ -248,9 +277,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <Bell className="w-4 h-4" />
           </button>
           <button
-            onClick={onOpenSettingsModal}
+            onClick={onOpenSettingsModal || (() => {})}
             className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
-            title="Board & Sound Settings"
+            title="Board, Sound & Account Settings"
           >
             <Settings className="w-4 h-4" />
           </button>

@@ -1,37 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import { InsightsDashboard } from '@/components/insights/InsightsDashboard';
-import { BoardTheme, PieceTheme } from '@/types/chess';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { useShell } from '@/context/ShellContext';
+import { Flame, Sparkles } from 'lucide-react';
 
 export default function InsightsPage() {
-  const router = useRouter();
-  const [boardTheme] = useState<BoardTheme>('green');
-  const [pieceTheme] = useState<PieceTheme>('neo');
+  const { boardTheme, pieceTheme } = useShell();
 
   return (
-    <div className="flex-1 p-4 sm:p-6 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto">
-      {/* Top Header & Breadcrumb */}
-      <div className="w-full max-w-7xl flex items-center justify-between mb-4 pb-3 border-b border-[#282522]">
-        <button
-          onClick={() => router.push('/')}
-          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Home</span>
-        </button>
-        <div className="flex items-center gap-2">
+    <div className="flex-1 p-3 sm:p-5 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto select-none">
+      <div className="w-full max-w-7xl flex items-center justify-between mb-3 pb-3 border-b border-[#282522]">
+        <div className="flex items-center gap-2.5">
+          <Flame className="w-5 h-5 text-amber-400" />
+          <h1 className="text-base font-black uppercase tracking-wider text-white">
+            Diamond Insights & Weakness Heatmap
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
           <Sparkles className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
-            Diamond Insights & Weakness Heatmap Engine
-          </span>
+          <span>Interactive 64-Square Blunder Heatmap &bull; Time vs Accuracy Analysis</span>
         </div>
       </div>
 
-      {/* Main Dashboard */}
-      <InsightsDashboard boardTheme={boardTheme} pieceTheme={pieceTheme} />
+      <div className="w-full max-w-7xl">
+        <InsightsDashboard boardTheme={boardTheme} pieceTheme={pieceTheme} />
+      </div>
     </div>
   );
 }

@@ -24,12 +24,22 @@ interface ChessComGameRaw {
   };
 }
 
+// In-memory cache to prevent hitting Chess.com rate limits (TTL: 60 seconds)
+const playerCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const username = searchParams.get('username')?.trim().toLowerCase() || 'rapid_qing';
 
   if (!username) {
     return NextResponse.json({ success: false, error: 'Username is required' }, { status: 400 });
+  }
+
+  // Check in-memory cache first
+  const cached = playerCache.get(username);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return NextResponse.json(cached.data);
   }
 
   const customHeaders = {
@@ -49,6 +59,17 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
           { success: false, error: `Chess.com user "${username}" was not found.` },
           { status: 404 }
+        );
+      }
+      if (profileRes.status === 429) {
+        return NextResponse.json(
+          {
+            success: false,
+            rateLimited: true,
+            retryAfterSeconds: 5,
+            error: 'Chess.com API rate limit reached. Please wait a few seconds before requesting again.',
+          },
+          { status: 429 }
         );
       }
       return NextResponse.json(
@@ -154,7 +175,7 @@ export async function GET(request: NextRequest) {
       countryCode = cParts[cParts.length - 1] || 'NG';
     }
 
-    return NextResponse.json({
+    const payload = {
       success: true,
       profile: {
         username: profileData.username,
@@ -188,7 +209,10 @@ export async function GET(request: NextRequest) {
         },
       },
       games: recentGames,
-    });
+    };
+
+    playerCache.set(username, { data: payload, timestamp: Date.now() });
+    return NextResponse.json(payload);
   } catch (error: any) {
     console.error('Error syncing Chess.com account:', error);
     return NextResponse.json(

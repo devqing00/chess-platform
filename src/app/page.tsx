@@ -56,6 +56,8 @@ import { MembershipModal } from '@/components/modals/MembershipModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { ChessComSyncModal } from '@/components/modals/ChessComSyncModal';
 import { useAuth } from '@/context/AuthContext';
+import { useShell } from '@/context/ShellContext';
+import { useRouter } from 'next/navigation';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 
 import {
@@ -77,13 +79,21 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function ChessPlatformPage() {
+  const router = useRouter();
+  const {
+    boardTheme,
+    pieceTheme,
+    soundTheme,
+    soundEnabled,
+    membershipTier,
+    openSettings,
+    openMembership,
+    openChessComSync,
+  } = useShell();
+
   // Navigation & User State
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
-  const [membership, setMembership] = useState<MembershipTier>('diamond'); // Diamond unlocks full AI coach & review
-  const [boardTheme, setBoardTheme] = useState<BoardTheme>('green');
-  const [pieceTheme, setPieceTheme] = useState<PieceTheme>('neo');
-  const [soundTheme, setSoundTheme] = useState<SoundTheme>('classic');
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const membership = membershipTier;
 
   // Dedicated Game Review View Mode (Screenshots 1, 2, 3, 4, 5)
   const [isReviewViewActive, setIsReviewViewActive] = useState(false);
@@ -93,8 +103,6 @@ export default function ChessPlatformPage() {
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [gameResultDetails, setGameResultDetails] = useState<GameResultDetails | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Game Settings & Modes
   const [gameMode, setGameMode] = useState<'vs_bot' | 'pass_and_play' | 'analysis'>('vs_bot');
@@ -129,21 +137,26 @@ export default function ChessPlatformPage() {
   // In-Game Bot Banter
   const [botMessage, setBotMessage] = useState<string>('');
 
-  // Chess.com Sync Modal
-  const [isChessComSyncModalOpen, setIsChessComSyncModalOpen] = useState<boolean>(false);
+  const {
+    user,
+    profile,
+    effectiveDisplayName,
+    effectiveRating,
+    effectiveAvatar,
+    effectiveCountry,
+    openAuthModal,
+  } = useAuth();
 
-  const { user, profile, openAuthModal } = useAuth();
-
-  // Players Profile (Screenshot 3 & 5 Parity: rapid_qing 🇳🇬 (429))
+  // Players Profile (Synced rapid_qing 🇳🇬 (429) globally)
   const whitePlayer: GamePlayer = useMemo(
     () => ({
       id: 'player-1',
-      name: profile?.displayName || user?.displayName || 'rapid_qing',
-      rating: profile?.ratings?.rapid || 429,
-      avatar: profile?.avatar || '🧑‍💻',
-      country: 'NG',
+      name: effectiveDisplayName,
+      rating: effectiveRating,
+      avatar: effectiveAvatar,
+      country: effectiveCountry.toUpperCase(),
     }),
-    [profile, user]
+    [effectiveDisplayName, effectiveRating, effectiveAvatar, effectiveCountry]
   );
 
   const blackPlayer: GamePlayer = useMemo(() => {
@@ -650,135 +663,108 @@ export default function ChessPlatformPage() {
   }, [currentMoveIndex, moveHistory, gameResult, gameMode]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#161512] text-zinc-100 font-sans">
-      {/* Iconic Left Navigation Sidebar */}
-      <SidebarNav
-        activeTab={activeTab}
-        onTabChange={(tab) => {
-          setIsReviewViewActive(false);
-          setActiveTab(tab);
-          if (tab === 'analysis') {
-            setGameMode('analysis');
-          }
-        }}
-        membership={membership}
-        onOpenMembershipModal={() => setIsMembershipModalOpen(true)}
-        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
-        onOpenChessComSync={() => setIsChessComSyncModalOpen(true)}
-      />
-
-      {/* Main Center Area */}
-      <main className="flex-1 h-full overflow-y-auto bg-[#161512] flex flex-col">
-        {/* If in Dedicated Game Review Mode (Stage 1 Summary & Stage 2 Stepper) */}
-        {isReviewViewActive ? (
-          reviewStage === 'summary' ? (
-            <GameReviewSummaryView
-              report={activeReviewReport}
-              boardTheme={boardTheme}
-              pieceTheme={pieceTheme}
-              onStartInteractiveReview={() => setReviewStage('stepper')}
-              onBackToGame={() => {
-                setIsReviewViewActive(false);
-                setReviewOverrideReport(null);
-              }}
-            />
-          ) : (
-            <GameReviewView
-              moves={activeReviewReport.moves}
-              whitePlayer={activeReviewReport.whitePlayer}
-              blackPlayer={activeReviewReport.blackPlayer}
-              boardTheme={boardTheme}
-              pieceTheme={pieceTheme}
-              onBackToGame={() => {
-                setIsReviewViewActive(false);
-                setReviewOverrideReport(null);
-              }}
-              onBackToSummary={() => setReviewStage('summary')}
-            />
-          )
+    <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 font-sans min-w-0">
+      {/* If in Dedicated Game Review Mode (Stage 1 Summary & Stage 2 Stepper) */}
+      {isReviewViewActive ? (
+        reviewStage === 'summary' ? (
+          <GameReviewSummaryView
+            report={activeReviewReport}
+            boardTheme={boardTheme}
+            pieceTheme={pieceTheme}
+            onStartInteractiveReview={() => setReviewStage('stepper')}
+            onBackToGame={() => {
+              setIsReviewViewActive(false);
+              setReviewOverrideReport(null);
+            }}
+          />
         ) : (
-          <>
-            {/* Top Header Bar */}
-            <header className="h-14 px-6 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
-                  142,890 Players Online
+          <GameReviewView
+            moves={activeReviewReport.moves}
+            whitePlayer={activeReviewReport.whitePlayer}
+            blackPlayer={activeReviewReport.blackPlayer}
+            boardTheme={boardTheme}
+            pieceTheme={pieceTheme}
+            onBackToGame={() => {
+              setIsReviewViewActive(false);
+              setReviewOverrideReport(null);
+            }}
+            onBackToSummary={() => setReviewStage('summary')}
+          />
+        )
+      ) : (
+        <>
+          {/* Top Header Bar */}
+          <header className="h-14 px-6 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
+                142,890 Players Online
+              </span>
+              <span className="text-zinc-600">|</span>
+              <span className="text-xs font-semibold text-zinc-400 capitalize">
+                Mode: <strong className="text-white">{gameMode.replace('_', ' ')}</strong>
+              </span>
+              {variant !== 'standard' && (
+                <span className="px-2 py-0.5 rounded-full bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
+                  {variant}
                 </span>
-                <span className="text-zinc-600">|</span>
-                <span className="text-xs font-semibold text-zinc-400 capitalize">
-                  Mode: <strong className="text-white">{gameMode.replace('_', ' ')}</strong>
-                </span>
-                {variant !== 'standard' && (
-                  <span className="px-2 py-0.5 rounded-full bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
-                    {variant}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsChessComSyncModalOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-[#272522] hover:bg-[#33302b] text-xs font-bold text-[#81b64c] border border-[#3b3833] flex items-center gap-1.5 transition-colors cursor-pointer"
-                  title="Sync Chess.com Profile & Games"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Sync Chess.com</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setReviewStage('summary');
-                    setIsReviewViewActive(true);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-[#272522] hover:bg-[#33302b] text-xs font-bold text-zinc-200 border border-[#3b3833] flex items-center gap-1.5 transition-colors cursor-pointer"
-                  title="Open Game Review with Coach Danny Rensch"
-                >
-                  <Award className="w-4 h-4 text-[#81b64c]" />
-                  <span>Game Review</span>
-                </button>
-
-                <button
-                  onClick={() => setIsMembershipModalOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span className="capitalize">{membership} VIP</span>
-                </button>
-              </div>
-            </header>
-
-            {/* View Switcher based on active tab */}
-            <div className="flex-1 p-3 sm:p-4 lg:p-6 flex items-center justify-center">
-              {/* Home Dashboard */}
-              {activeTab === 'home' && (
-                <ChessHomeDashboard
-                  onStartGame={(tc) => {
-                    if (tc > 0) {
-                      setTimeControl(tc);
-                      setWhiteTime(tc);
-                      setBlackTime(tc);
-                    }
-                    setActiveTab('play');
-                    startNewGame();
-                  }}
-                  onOpenBots={(botId) => {
-                    if (botId) {
-                      const b = CHESS_BOTS.find((x) => x.id === botId);
-                      if (b) setSelectedBot(b);
-                    }
-                    setActiveTab('bots');
-                  }}
-                  onOpenLessons={() => setActiveTab('lessons')}
-                  onOpenPuzzles={() => setActiveTab('puzzles')}
-                  onOpenReview={() => {
-                    setIsReviewViewActive(true);
-                    setReviewStage('summary');
-                  }}
-                  onOpenInsights={() => setActiveTab('insights')}
-                  onOpenSyncModal={() => setIsChessComSyncModalOpen(true)}
-                />
               )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setReviewStage('summary');
+                  setIsReviewViewActive(true);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#272522] hover:bg-[#33302b] text-xs font-bold text-zinc-200 border border-[#3b3833] flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Open Game Review with Coach Danny Rensch"
+              >
+                <Award className="w-4 h-4 text-[#81b64c]" />
+                <span>Game Review</span>
+              </button>
+
+              <button
+                onClick={openMembership}
+                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span className="capitalize">{membership} VIP</span>
+              </button>
+            </div>
+          </header>
+
+          {/* View Switcher based on active tab */}
+          <div className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col items-center justify-start overflow-y-auto w-full">
+            {/* Home Dashboard */}
+            {activeTab === 'home' && (
+              <ChessHomeDashboard
+                onStartGame={(tc) => {
+                  if (tc > 0) {
+                    setTimeControl(tc);
+                    setWhiteTime(tc);
+                    setBlackTime(tc);
+                  }
+                  setActiveTab('play');
+                  startNewGame();
+                }}
+                onOpenBots={(botId) => {
+                  if (botId) {
+                    const b = CHESS_BOTS.find((x) => x.id === botId);
+                    if (b) setSelectedBot(b);
+                  }
+                  router.push('/bots');
+                }}
+                onOpenLessons={() => router.push('/lessons')}
+                onOpenPuzzles={() => router.push('/puzzles')}
+                onOpenReview={() => {
+                  setIsReviewViewActive(true);
+                  setReviewStage('summary');
+                }}
+                onOpenInsights={() => router.push('/insights')}
+                onOpenSyncModal={openChessComSync}
+              />
+            )}
 
               {activeTab === 'play' && (
                 <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 w-full max-w-6xl items-center justify-center p-1 sm:p-2.5 overflow-hidden">
@@ -982,11 +968,10 @@ export default function ChessPlatformPage() {
                 <VariantsArena boardTheme={boardTheme} pieceTheme={pieceTheme} />
               )}
 
-              {activeTab === 'pubapi' && <PubApiExplorer />}
+              {activeTab === 'players' && <PubApiExplorer />}
             </div>
           </>
         )}
-      </main>
 
       {/* Game Over Results Modal (Matches Screenshot 3) */}
       {gameResultDetails && (
@@ -1013,80 +998,6 @@ export default function ChessPlatformPage() {
         moves={moveHistory}
         whitePlayerName={whitePlayer.name}
         blackPlayerName={blackPlayer.name}
-      />
-
-      {/* Membership Upgrade Modal */}
-      <MembershipModal
-        isOpen={isMembershipModalOpen}
-        onClose={() => setIsMembershipModalOpen(false)}
-        currentTier={membership}
-        onSelectTier={(tier) => setMembership(tier)}
-      />
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        boardTheme={boardTheme}
-        onChangeBoardTheme={(t) => setBoardTheme(t)}
-        pieceTheme={pieceTheme}
-        onChangePieceTheme={(t) => setPieceTheme(t)}
-        soundTheme={soundTheme}
-        onChangeSoundTheme={(t) => setSoundTheme(t)}
-        soundEnabled={soundEnabled}
-        onToggleSound={(en) => {
-          setSoundEnabled(en);
-          soundService.setEnabled(en);
-        }}
-      />
-
-      {/* Chess.com Profile & Games Sync Modal */}
-      <ChessComSyncModal
-        isOpen={isChessComSyncModalOpen}
-        onClose={() => setIsChessComSyncModalOpen(false)}
-        onSelectGameForReview={(gameId, pgn) => {
-          if (pgn) {
-            try {
-              const analyzedMoves = ChessEvaluator.analyzeGameHistory(pgn);
-              if (analyzedMoves.length > 0) {
-                setMoveHistory(analyzedMoves);
-                setCurrentMoveIndex(analyzedMoves.length - 1);
-                setEvalScore(analyzedMoves[analyzedMoves.length - 1].evalAfter);
-
-                const existingSession = GameSessionStore.getSession(gameId);
-                const wPlayer = existingSession ? existingSession.whitePlayer : whitePlayer;
-                const bPlayer = existingSession ? existingSession.blackPlayer : blackPlayer;
-
-                const report = generateGameReviewReport(
-                  gameId,
-                  wPlayer,
-                  bPlayer,
-                  analyzedMoves
-                );
-
-                if (existingSession) {
-                  existingSession.moves = analyzedMoves;
-                  existingSession.reviewReport = report;
-                  GameSessionStore.saveSession(existingSession);
-                }
-                setReviewOverrideReport(report);
-              }
-            } catch (err) {
-              console.warn('Could not analyze imported PGN:', err);
-            }
-          }
-          setIsReviewViewActive(true);
-          setReviewStage('summary');
-        }}
-        onProfileSynced={(syncedProfile) => {
-          if (syncedProfile) {
-            try {
-              localStorage.setItem('chess_synced_profile', JSON.stringify(syncedProfile));
-            } catch (e) {
-              // ignore
-            }
-          }
-        }}
       />
     </div>
   );

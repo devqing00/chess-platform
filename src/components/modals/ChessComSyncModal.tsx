@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { GameSessionStore } from '@/lib/gameSessionStore';
 import { soundService } from '@/lib/audioService';
+import { useAuth } from '@/context/AuthContext';
 
 interface ChessComSyncModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
   onSelectGameForReview,
   onProfileSynced,
 }) => {
+  const { saveSyncedChessCom } = useAuth();
   const [username, setUsername] = useState<string>('rapid_qing');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [syncData, setSyncData] = useState<any>(null);
@@ -55,7 +57,8 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
       setSyncData(json);
       soundService.playPuzzleSuccess();
 
-      // Save to localStorage
+      // Save to AuthContext and localStorage
+      saveSyncedChessCom(json.profile, json.stats);
       try {
         localStorage.setItem('chess_com_profile', JSON.stringify(json.profile));
         localStorage.setItem('chess_com_stats', JSON.stringify(json.stats));
