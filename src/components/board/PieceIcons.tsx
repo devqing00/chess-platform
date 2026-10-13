@@ -11,20 +11,21 @@ interface PieceIconProps {
 }
 
 /**
- * Authentic, pixel-perfect Staunton / Neo vector chess pieces.
- * Clean, standard proportions matching modern chess platforms:
- * - White pieces: Pristine white fills (#ffffff) with crisp dark outlines (#1b1917) and subtle interior accent strokes.
- * - Black pieces: Rich obsidian fills (#2b2724) with refined interior contour lines (#eceae6) and zero halo distortion.
+ * Authentic, pixel-perfect Staunton vector chess pieces.
+ * King and Bishop preserved with original geometry.
+ * Queen, Rook, Knight, and Pawn redesigned with Cburnett master Staunton vectors.
+ * - White pieces: Crisp white fills (#ffffff) with refined dark outlines (#1b1917).
+ * - Black pieces: Rich obsidian fills (#262421) with refined light outlines (#eceae6) and crisp contours.
  */
 export const PieceIcon: React.FC<PieceIconProps> = ({
   type,
   color,
-  className = 'w-full h-full drop-shadow-[0_2px_3px_rgba(0,0,0,0.4)]',
+  className = 'w-full h-full drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.25)]',
 }) => {
   const isWhite = color === 'w';
 
   switch (type) {
-    case 'k': // King
+    case 'k': // King (Preserved)
       return isWhite ? (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <g fill="none" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -72,87 +73,92 @@ export const PieceIcon: React.FC<PieceIconProps> = ({
         </svg>
       );
 
-    case 'q': // Queen
+    case 'q': // Queen (Authentic Staunton Coronet)
       return isWhite ? (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <g fill="none" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <g fill="#ffffff" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             {/* Coronet Jewels */}
-            <circle cx="6" cy="12" r="2" fill="#1b1917" stroke="none" />
-            <circle cx="14" cy="9" r="2" fill="#1b1917" stroke="none" />
-            <circle cx="22.5" cy="7.5" r="2" fill="#1b1917" stroke="none" />
-            <circle cx="31" cy="9" r="2" fill="#1b1917" stroke="none" />
-            <circle cx="39" cy="12" r="2" fill="#1b1917" stroke="none" />
-            {/* Crown Body */}
+            <circle cx="6" cy="12" r="2.75" />
+            <circle cx="14" cy="9" r="2.75" />
+            <circle cx="22.5" cy="8" r="2.75" />
+            <circle cx="31" cy="9" r="2.75" />
+            <circle cx="39" cy="12" r="2.75" />
+            {/* Crown Peaks */}
             <path
-              d="M9 26c8.5-1.5 18.5-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15L14 11v14l-7-11 2 12z"
-              fill="#ffffff"
+              d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14l2 12z"
               strokeLinecap="butt"
             />
-            {/* Base */}
+            {/* Base & Flared Pedestal */}
             <path
-              d="M9 26c0 2 1.5 2 2.5 4 2.5 4 1 5.5 2 8.5 4.5 1.5 13.5 1.5 18 0 1-3-.5-4.5 2-8.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"
-              fill="#ffffff"
+              d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"
+              strokeLinecap="butt"
             />
-            <path d="M11 38.5a35 35 0 0 0 23 0" fill="none" stroke="#1b1917" />
-            <path d="M11 29a35 35 0 0 0 23 0m-21.5 3a35 35 0 0 0 20 0m-19 3a35 35 0 0 0 18 0" />
+            {/* Graceful waist accent rings */}
+            <path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0" fill="none" />
           </g>
         </svg>
       ) : (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <g fill="none" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <g fill="#262421" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             {/* Coronet Jewels */}
-            <circle cx="6" cy="12" r="2" fill="#eceae6" stroke="none" />
-            <circle cx="14" cy="9" r="2" fill="#eceae6" stroke="none" />
-            <circle cx="22.5" cy="7.5" r="2" fill="#eceae6" stroke="none" />
-            <circle cx="31" cy="9" r="2" fill="#eceae6" stroke="none" />
-            <circle cx="39" cy="12" r="2" fill="#eceae6" stroke="none" />
-            {/* Crown Body */}
+            <g fill="#eceae6" stroke="none">
+              <circle cx="6" cy="12" r="2.75" />
+              <circle cx="14" cy="9" r="2.75" />
+              <circle cx="22.5" cy="8" r="2.75" />
+              <circle cx="31" cy="9" r="2.75" />
+              <circle cx="39" cy="12" r="2.75" />
+            </g>
+            {/* Crown Peaks */}
             <path
-              d="M9 26c8.5-1.5 18.5-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15L14 11v14l-7-11 2 12z"
-              fill="#262421"
+              d="M9 26c8.5-1.5 21-1.5 27 0l2.5-12.5L31 25l-.3-14.1-5.2 13.6-3-14.5-3 14.5-5.2-13.6L14 25 6.5 13.5 9 26z"
               strokeLinecap="butt"
             />
-            {/* Base */}
+            {/* Base & Flared Pedestal */}
             <path
-              d="M9 26c0 2 1.5 2 2.5 4 2.5 4 1 5.5 2 8.5 4.5 1.5 13.5 1.5 18 0 1-3-.5-4.5 2-8.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"
-              fill="#262421"
+              d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"
+              strokeLinecap="butt"
             />
-            <path d="M11 38.5a35 35 0 0 0 23 0" fill="none" stroke="#eceae6" />
-            <path d="M11 29a35 35 0 0 0 23 0m-21.5 3a35 35 0 0 0 20 0m-19 3a35 35 0 0 0 18 0" stroke="#eceae6" />
+            {/* Base arc */}
+            <path d="M11 38.5a35 35 1 0 0 23 0" fill="none" strokeLinecap="butt" stroke="#eceae6" />
+            {/* Refined waist contour accents */}
+            <path d="M11 29a35 35 1 0 1 23 0M12.5 31.5h20M11.5 34.5a35 35 1 0 0 22 0M10.5 37.5a35 35 1 0 0 24 0" fill="none" stroke="#eceae6" />
           </g>
         </svg>
       );
 
-    case 'r': // Rook
+    case 'r': // Rook (Staunton Fortress Tower)
       return isWhite ? (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <g fill="none" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            {/* Crenellations & Tower */}
-            <path
-              d="M9 39h27v-3H9v3zm3-3v-4h21v4H12zm2-4.5l1.5-12.5h14l1.5 12.5H14zm-3-13.5h23v-5h-3.5v2h-4v-2h-8v2h-4v-2H11v5z"
-              fill="#ffffff"
-            />
-            <path d="M12 36v-4h21v4H12zm2-4.5l1.5-12.5h14l1.5 12.5H14z" />
-            <path d="M14 29.5a18 18 0 0 0 17 0m-16-5a18 18 0 0 0 15 0" stroke="#1b1917" />
-            <path d="M9 39h27v-3H9v3zm0-20.5h27" />
+          <g fill="#ffffff" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            {/* Base plinth */}
+            <path d="M9 39h27v-3H9v3zM12 36v-4h21v4H12z" />
+            {/* Battlement crenellations */}
+            <path d="M11 14V9h4v2h5V9h5v2h5V9h4v5" strokeLinecap="butt" />
+            {/* Cornice bevel */}
+            <path d="M34 14l-3 3H14l-3-3" />
+            {/* Tower shaft */}
+            <path d="M31 17v12.5H14V17" strokeLinecap="butt" strokeLinejoin="miter" />
+            {/* Base bevel */}
+            <path d="M31 29.5l1.5 2.5h-20l1.5-2.5" />
+            <path d="M11 14h23" fill="none" strokeLinejoin="miter" />
           </g>
         </svg>
       ) : (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <g fill="none" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path
-              d="M9 39h27v-3H9v3zm3-3v-4h21v4H12zm2-4.5l1.5-12.5h14l1.5 12.5H14zm-3-13.5h23v-5h-3.5v2h-4v-2h-8v2h-4v-2H11v5z"
-              fill="#262421"
-              stroke="#eceae6"
-            />
-            <path d="M12 36v-4h21v4H12zm2-4.5l1.5-12.5h14l1.5 12.5H14z" stroke="#eceae6" />
-            <path d="M14 29.5a18 18 0 0 0 17 0m-16-5a18 18 0 0 0 15 0" stroke="#eceae6" />
-            <path d="M9 39h27v-3H9v3zm0-20.5h27" stroke="#eceae6" />
+          <g fill="#262421" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            {/* Base plinth */}
+            <path d="M9 39h27v-3H9v3zM12.5 32l1.5-2.5h17l1.5 2.5h-20zM12 36v-4h21v4H12z" strokeLinecap="butt" />
+            {/* Tower shaft */}
+            <path d="M14 29.5v-13h17v13H14z" strokeLinecap="butt" strokeLinejoin="miter" />
+            {/* Battlements & Cornice */}
+            <path d="M14 16.5L11 14h23l-3 2.5H14zM11 14V9h4v2h5V9h5v2h5V9h4v5H11z" strokeLinecap="butt" />
+            {/* Crisp contour accents */}
+            <path d="M12 35.5h21M13 31.5h19M14 29.5h17M14 16.5h17M11 14h23" fill="none" stroke="#eceae6" strokeWidth="1" strokeLinejoin="miter" />
           </g>
         </svg>
       );
 
-    case 'b': // Bishop
+    case 'b': // Bishop (Preserved)
       return isWhite ? (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <g fill="none" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -191,75 +197,74 @@ export const PieceIcon: React.FC<PieceIconProps> = ({
         </svg>
       );
 
-    case 'n': // Knight (Standard Staunton Vector Shape)
+    case 'n': // Knight (Staunton Classical Steed)
       return isWhite ? (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <g fill="none" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            {/* Knight Silhouette */}
+            {/* Body and arched neck */}
+            <path d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18" fill="#ffffff" stroke="#1b1917" />
+            {/* Head, snout, ears, and chest */}
             <path
-              d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"
+              d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10"
               fill="#ffffff"
+              stroke="#1b1917"
             />
-            {/* Mane & Snout Curve */}
-            <path
-              d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.163-.377-2.705.5-4 1.37-2.05 4.54-3.53 4.5-5.5-.04-1.97-4.48-1.5-5.5-4-1-2.5 1.5-4 3-5 3.5-2.5 7.5-.5 10.5 5.5z"
-              fill="#ffffff"
-            />
-            {/* Eye */}
-            <circle cx="15.5" cy="18" r="1.5" fill="#1b1917" stroke="none" />
             {/* Nostril */}
-            <path d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0z" fill="#1b1917" stroke="#1b1917" />
-            {/* Mane Accent */}
-            <path d="M24.5 14c2.5.5 4 2 4 4m-3.5-7c3 1 5 3.5 5 7" stroke="#1b1917" />
+            <circle cx="9.5" cy="25.5" r="0.5" fill="#1b1917" stroke="#1b1917" />
+            {/* Slanted eye */}
+            <path
+              d="M 15 15.5 A 0.5 1.5 0 1 1 14,15.5 A 0.5 1.5 0 1 1 15 15.5 z"
+              transform="matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)"
+              fill="#1b1917"
+              stroke="#1b1917"
+            />
           </g>
         </svg>
       ) : (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
           <g fill="none" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            {/* Knight Silhouette */}
+            {/* Body and arched neck */}
+            <path d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18" fill="#262421" stroke="#eceae6" />
+            {/* Head, snout, ears, and chest */}
             <path
-              d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"
+              d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10"
               fill="#262421"
               stroke="#eceae6"
             />
-            {/* Mane & Snout Curve */}
-            <path
-              d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.163-.377-2.705.5-4 1.37-2.05 4.54-3.53 4.5-5.5-.04-1.97-4.48-1.5-5.5-4-1-2.5 1.5-4 3-5 3.5-2.5 7.5-.5 10.5 5.5z"
-              fill="#262421"
-              stroke="#eceae6"
-            />
-            {/* Eye */}
-            <circle cx="15.5" cy="18" r="1.5" fill="#eceae6" stroke="none" />
             {/* Nostril */}
-            <path d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0z" fill="#eceae6" stroke="#eceae6" />
-            {/* Mane Accent */}
-            <path d="M24.5 14c2.5.5 4 2 4 4m-3.5-7c3 1 5 3.5 5 7" stroke="#eceae6" />
+            <circle cx="9.5" cy="25.5" r="0.5" fill="#eceae6" stroke="#eceae6" />
+            {/* Slanted eye */}
+            <path
+              d="M 15 15.5 A 0.5 1.5 0 1 1 14,15.5 A 0.5 1.5 0 1 1 15 15.5 z"
+              transform="matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)"
+              fill="#eceae6"
+              stroke="#eceae6"
+            />
+            {/* Mane contour accent line */}
+            <path
+              d="M 24.55,10.4 L 24.1,11.85 L 24.6,12 C 27.75,13 30.25,14.49 32.5,18.75 C 34.75,23.01 35.75,29.06 35.25,39 L 35.2,39.5 L 37.45,39.5 L 37.5,39 C 38,28.94 36.62,22.15 34.25,17.66 C 31.88,13.17 28.46,11.02 25.06,10.5 L 24.55,10.4 z"
+              fill="#eceae6"
+              stroke="none"
+            />
           </g>
         </svg>
       );
 
-    case 'p': // Pawn
+    case 'p': // Pawn (Iconic Staunton Pedestal)
       return isWhite ? (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <g fill="none" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <g fill="#ffffff" fillRule="evenodd" stroke="#1b1917" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path
-              d="M22 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38-1.95 1.12-3.28 3.21-3.28 5.62 0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"
-              fill="#ffffff"
+              d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"
             />
-            <path d="M12 36a25 25 0 0 0 21 0" stroke="#1b1917" />
-            <path d="M15 27a18 18 0 0 0 15 0" stroke="#1b1917" />
           </g>
         </svg>
       ) : (
         <svg viewBox="0 0 45 45" className={className} xmlns="http://www.w3.org/2000/svg">
-          <g fill="none" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <g fill="#262421" fillRule="evenodd" stroke="#eceae6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path
-              d="M22 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38-1.95 1.12-3.28 3.21-3.28 5.62 0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"
-              fill="#262421"
-              stroke="#eceae6"
+              d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"
             />
-            <path d="M12 36a25 25 0 0 0 21 0" stroke="#eceae6" />
-            <path d="M15 27a18 18 0 0 0 15 0" stroke="#eceae6" />
           </g>
         </svg>
       );

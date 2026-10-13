@@ -363,12 +363,21 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                       {ratingDelta >= 0 ? `+${ratingDelta}` : ratingDelta}
                     </span>
                   )}
+                  {/* Smart Streak Badge in performance stat row */}
+                  <div
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shadow-sm"
+                    title={`Current puzzle streak: ${streak}`}
+                  >
+                    <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20 shrink-0" />
+                    <span className="text-xs font-mono font-black">{streak}</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300/80">streak</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Mode Toggle Pills */}
-            <div className="flex items-center gap-1.5 bg-[#161512] p-1 rounded-xl border border-[#2b2824]">
+            <div className="flex items-center gap-1.5 bg-[#161512] p-1 rounded-xl border border-[#2b2824] shrink-0">
               <button
                 onClick={() => {
                   setIsDailyMode(false);
@@ -417,9 +426,17 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </div>
           </div>
 
-          {/* Level Filter & Streak Banner */}
-          <div className="flex items-center justify-between pt-1 border-t border-[#2d2a26]">
-            <div className="flex items-center gap-1">
+          {/* Level Filter Bar (Full width 5-column grid, completely immune to overflow) */}
+          <div className="pt-2 border-t border-[#2d2a26] flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                Difficulty Level
+              </span>
+              <span className="text-[10px] font-semibold text-zinc-500 capitalize">
+                {selectedLevel === 'all' ? 'All ELO Ratings' : `${selectedLevel} Tier`}
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5 w-full">
               {(['all', 'beginner', 'club', 'advanced', 'master'] as const).map((lvl) => (
                 <button
                   key={lvl}
@@ -427,20 +444,15 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                     setSelectedLevel(lvl);
                     handleNextPuzzle();
                   }}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                  className={`py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-center cursor-pointer ${
                     selectedLevel === lvl
-                      ? 'bg-[#81b64c] text-white'
-                      : 'bg-[#161512] text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#81b64c] text-white shadow-md shadow-[#81b64c]/20 ring-1 ring-[#81b64c]'
+                      : 'bg-[#161512] text-zinc-400 hover:text-white hover:bg-[#262420] border border-[#272522]'
                   }`}
                 >
                   {lvl}
                 </button>
               ))}
-            </div>
-
-            <div className="flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20">
-              <Flame className="w-3.5 h-3.5 text-amber-500" />
-              <span>{streak} Streak</span>
             </div>
           </div>
 

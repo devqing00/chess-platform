@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Home,
@@ -108,6 +108,23 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     }
     router.push(item.href);
   };
+
+  // Click outside listener to dismiss notifications and messages dropdowns
+  const popoversRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (popoversRef.current && !popoversRef.current.contains(e.target as Node)) {
+        setIsMessagesOpen(false);
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, []);
 
   return (
     <aside className="w-64 h-full bg-[#1b1917] border-r border-[#2d2a26] flex flex-col justify-between select-none shrink-0 z-30">
@@ -256,7 +273,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         </div>
 
         {/* Bottom Social/Tool Action Icons */}
-        <div className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400 relative">
+        <div ref={popoversRef} className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400 relative">
           <button
             onClick={() => router.push('/players')}
             className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
@@ -265,7 +282,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <Users className="w-4 h-4" />
           </button>
 
-          {/* Messages Button with Unread Badge & Flyout */}
+          {/* Messages Button with Unread Badge & Flyout (opens to the right of sidebar) */}
           <div className="relative">
             <button
               onClick={() => {
@@ -284,20 +301,20 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </button>
 
             {isMessagesOpen && (
-              <div className="absolute bottom-10 left-0 w-72 bg-[#1e1c19] border border-[#33302b] rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+              <div className="fixed sm:absolute bottom-16 sm:bottom-0 left-4 sm:left-full sm:ml-3 w-80 max-w-[calc(100vw-2rem)] bg-[#1e1c19] border border-[#33302b] rounded-2xl shadow-2xl p-3.5 z-[999] animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#2d2a26]">
                   <span className="text-xs font-bold text-white flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-[#81b64c]" />
                     <span>Inbox & Coaching</span>
                   </span>
                   <button
                     onClick={() => setMessages((prev) => prev.map((m) => ({ ...m, unread: false })))}
-                    className="text-[10px] text-[#81b64c] hover:underline cursor-pointer"
+                    className="text-[10px] text-[#81b64c] hover:underline cursor-pointer font-semibold"
                   >
                     Mark read
                   </button>
                 </div>
-                <div className="divide-y divide-[#282622] max-h-60 overflow-y-auto mt-2">
+                <div className="divide-y divide-[#282622] max-h-64 overflow-y-auto mt-2">
                   {messages.map((msg) => (
                     <div key={msg.id} className="py-2.5 flex flex-col gap-1">
                       <div className="flex items-center justify-between">
@@ -313,7 +330,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             )}
           </div>
 
-          {/* Notifications Button with Unread Badge & Flyout */}
+          {/* Notifications Button with Unread Badge & Flyout (opens to the right of sidebar) */}
           <div className="relative">
             <button
               onClick={() => {
@@ -332,20 +349,20 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </button>
 
             {isNotificationsOpen && (
-              <div className="absolute bottom-10 -right-8 w-72 bg-[#1e1c19] border border-[#33302b] rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+              <div className="fixed sm:absolute bottom-16 sm:bottom-0 left-4 sm:left-full sm:ml-3 w-80 max-w-[calc(100vw-2rem)] bg-[#1e1c19] border border-[#33302b] rounded-2xl shadow-2xl p-3.5 z-[999] animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#2d2a26]">
                   <span className="text-xs font-bold text-white flex items-center gap-1.5">
                     <Bell className="w-3.5 h-3.5 text-amber-400" />
                     <span>Notifications</span>
                   </span>
                   <button
                     onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))}
-                    className="text-[10px] text-[#81b64c] hover:underline cursor-pointer"
+                    className="text-[10px] text-[#81b64c] hover:underline cursor-pointer font-semibold"
                   >
                     Clear all
                   </button>
                 </div>
-                <div className="divide-y divide-[#282622] max-h-60 overflow-y-auto mt-2">
+                <div className="divide-y divide-[#282622] max-h-64 overflow-y-auto mt-2">
                   {notifications.map((item) => (
                     <div
                       key={item.id}
@@ -353,7 +370,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                         setIsNotificationsOpen(false);
                         if (item.link) router.push(item.link);
                       }}
-                      className="py-2.5 flex flex-col gap-1 cursor-pointer hover:bg-[#262420] px-1.5 rounded transition"
+                      className="py-2.5 flex flex-col gap-1 cursor-pointer hover:bg-[#262420] px-2 rounded-lg transition"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-zinc-200">{item.title}</span>
