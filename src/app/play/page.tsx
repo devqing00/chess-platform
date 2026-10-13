@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { GameSessionStore } from '@/lib/gameSessionStore';
 import { MatchmakingService } from '@/lib/firebase/matchmakingService';
 import { useAuth } from '@/context/AuthContext';
-import { ChessVariant, GamePlayer } from '@/types/chess';
+import { ChessVariant, GamePlayer, GameSession } from '@/types/chess';
 import { CHESS_BOTS } from '@/lib/botsData';
 import {
   Zap,
@@ -172,7 +172,10 @@ export default function PlayLobbyPage() {
     router.push(`/game/${session.id}`);
   };
 
-  const recentGames = GameSessionStore.listRecentSessions();
+  const [recentGames, setRecentGames] = useState<GameSession[]>([]);
+  useEffect(() => {
+    setRecentGames(GameSessionStore.listRecentSessions());
+  }, []);
 
   return (
     <div className="flex-1 p-6 lg:p-10 flex flex-col items-center justify-start bg-[#161512] text-zinc-100 overflow-y-auto select-none">
@@ -383,12 +386,22 @@ export default function PlayLobbyPage() {
                 key={game.id}
                 className="p-4 flex items-center justify-between hover:bg-[#201e1a] transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#262421] border border-[#383530] flex items-center justify-center text-lg">
-                    {game.whitePlayer.avatar}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#262421] border border-[#383530] flex items-center justify-center text-lg overflow-hidden shrink-0">
+                    {game.whitePlayer.avatar &&
+                    (game.whitePlayer.avatar.startsWith('http') || game.whitePlayer.avatar.startsWith('/')) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={game.whitePlayer.avatar}
+                        alt={game.whitePlayer.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm select-none">{game.whitePlayer.avatar || '♟️'}</span>
+                    )}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-white truncate">
                       {game.whitePlayer.name} ({game.whitePlayer.rating}) vs{' '}
                       {game.blackPlayer.name} ({game.blackPlayer.rating})
                     </span>
