@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Chess, Square } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
 import { ClassificationBadge } from '../board/ClassificationBadge';
+import { CoachDannyAvatar } from './CoachDannyAvatar';
 import {
   MoveRecord,
   MoveClassification,
@@ -233,6 +234,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             boardTheme={boardTheme}
             pieceTheme={pieceTheme}
             activeClassification={activeSquareHighlight}
+            lastMove={activeMove ? { from: activeMove.from, to: activeMove.to } : null}
             bestMoveArrow={bestMoveArrow}
             onMove={isRetryMode ? handleRetryMove : undefined}
             disabled={!isRetryMode}
@@ -243,11 +245,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
         <div className="w-full max-w-[480px] flex flex-col gap-4">
           {/* Coach Speech Bubble with Avatar */}
           <div className="flex items-start gap-3">
-            {/* Coach Danny Portrait Avatar */}
+            {/* Coach Danny Portrait Avatar (Screenshot 3 & 4) */}
             <div className="relative shrink-0">
-              <div className="w-14 h-14 rounded-2xl bg-[#2a2723] border-2 border-[#3d3934] flex items-center justify-center text-3xl shadow-lg overflow-hidden">
-                🧔‍♂️
-              </div>
+              <CoachDannyAvatar size={56} />
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#81b64c] text-white flex items-center justify-center text-[10px] font-black border border-[#2a2723]">
                 AI
               </span>

@@ -83,7 +83,12 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <div className="flex items-center justify-center gap-4 w-full">
             {/* White Player */}
             <div className="w-20 h-20 rounded-2xl bg-zinc-100 border-2 border-zinc-200 flex items-center justify-center text-3xl shadow-sm overflow-hidden">
-              {whitePlayer.avatar || '🧑‍💻'}
+              {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover" />
+              ) : (
+                <span>{whitePlayer.avatar || '🧑‍💻'}</span>
+              )}
             </div>
 
             {/* Lightning bolt indicator */}
@@ -93,7 +98,12 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
             {/* Black Player */}
             <div className="w-20 h-20 rounded-2xl bg-zinc-100 border-2 border-zinc-200 flex items-center justify-center text-3xl shadow-sm overflow-hidden">
-              {blackPlayer.avatar || '♟️'}
+              {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover" />
+              ) : (
+                <span>{blackPlayer.avatar || '♟️'}</span>
+              )}
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
 import { ClassificationBadge } from '../board/ClassificationBadge';
+import { CoachDannyAvatar } from './CoachDannyAvatar';
 import {
   GameReviewReport,
   BoardTheme,
@@ -208,6 +209,17 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
               orientation="w"
               boardTheme={boardTheme}
               pieceTheme={pieceTheme}
+              activeClassification={
+                keyMove
+                  ? { square: keyMove.to, classification: keyMove.classification || 'brilliant' }
+                  : null
+              }
+              lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
+              customArrows={
+                keyMove
+                  ? [{ from: keyMove.from, to: keyMove.to, color: '#f59e0b' }]
+                  : []
+              }
               disabled={true}
             />
 
@@ -237,11 +249,22 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
           {/* Right Column: CAPS Accuracies, Phases, Matrix, and Actions */}
           <div className="w-full max-w-md flex flex-col gap-4">
-            {/* Accuracy Comparison Card */}
+            {/* Coach Danny Header Bubble (Screenshot 5) */}
+            <div className="flex items-start gap-3 bg-[#1e1c18] border border-[#2e2a24] rounded-2xl p-3.5 shadow-xl">
+              <CoachDannyAvatar size={48} className="shrink-0" />
+              <div className="flex-1 bg-white text-zinc-900 rounded-xl p-3 text-xs font-semibold shadow relative">
+                <div className="absolute top-3 -left-2 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-white border-b-[6px] border-b-transparent" />
+                <p>
+                  Right, let's go through this game and find some key moments.
+                </p>
+              </div>
+            </div>
+
+            {/* Accuracy Comparison Card (Screenshot 5) */}
             <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-zinc-400">
-                  Computer Accuracy (CAPS 2.0)
+                  Partieanalyse / Computer Accuracy
                 </span>
                 {report.opening && (
                   <span className="text-[11px] font-bold text-[#81b64c] bg-[#161512] px-2 py-0.5 rounded border border-[#2d2a26]">
@@ -250,31 +273,42 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 )}
               </div>
 
+              {/* Accuracy Pills (Screenshot 5) */}
               <div className="grid grid-cols-2 gap-3">
                 {/* White Player Acc */}
-                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex flex-col">
-                  <span className="text-xs font-bold text-zinc-200 truncate">{whitePlayer.name}</span>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mt-1">Accuracy</span>
-                  <span className="text-2xl font-black text-white font-mono mt-0.5">{whiteAccuracy}%</span>
-                  <div className="flex items-center gap-2 mt-1.5 text-[10px] font-mono text-zinc-400">
-                    <span>Est. Elo: <strong className="text-[#81b64c]">{report.whiteEstimatedElo || 1500}</strong></span>
-                    {report.whiteAcpl !== undefined && (
-                      <span>ACPL: <strong className="text-zinc-300">{report.whiteAcpl}</strong></span>
-                    )}
+                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-[#3b3833] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0">
+                      {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{whitePlayer.avatar || '⚪'}</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold text-zinc-200 truncate">{whitePlayer.name}</span>
                   </div>
+                  <span className="text-base font-black text-black bg-white px-2.5 py-1 rounded-lg font-mono shrink-0 shadow-sm">
+                    {whiteAccuracy}%
+                  </span>
                 </div>
 
                 {/* Black Player Acc */}
-                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex flex-col">
-                  <span className="text-xs font-bold text-zinc-200 truncate">{blackPlayer.name}</span>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mt-1">Accuracy</span>
-                  <span className="text-2xl font-black text-white font-mono mt-0.5">{blackAccuracy}%</span>
-                  <div className="flex items-center gap-2 mt-1.5 text-[10px] font-mono text-zinc-400">
-                    <span>Est. Elo: <strong className="text-[#81b64c]">{report.blackEstimatedElo || 1500}</strong></span>
-                    {report.blackAcpl !== undefined && (
-                      <span>ACPL: <strong className="text-zinc-300">{report.blackAcpl}</strong></span>
-                    )}
+                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-[#3b3833] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0">
+                      {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{blackPlayer.avatar || '⚫'}</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold text-zinc-200 truncate">{blackPlayer.name}</span>
                   </div>
+                  <span className="text-base font-black text-white bg-[#81b64c] px-2.5 py-1 rounded-lg font-mono shrink-0 shadow-sm">
+                    {blackAccuracy}%
+                  </span>
                 </div>
               </div>
 
