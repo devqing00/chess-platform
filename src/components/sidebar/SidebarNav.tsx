@@ -13,14 +13,18 @@ import {
   Sparkles,
   Search,
   Volume2,
+  Flame,
+  Compass,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
 
 export type ActiveTab =
   | 'play'
   | 'puzzles'
+  | 'lessons'
   | 'openings'
   | 'analysis'
+  | 'insights'
   | 'bots'
   | 'historical'
   | 'variants'
@@ -44,11 +48,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const navItems = [
     { id: 'play' as ActiveTab, label: 'Play', icon: Gamepad2, badge: 'Live' },
     { id: 'puzzles' as ActiveTab, label: 'Puzzles', icon: Puzzle, badge: 'Rush' },
-    { id: 'openings' as ActiveTab, label: 'Openings', icon: GraduationCap, badge: 'ECO' },
+    { id: 'lessons' as ActiveTab, label: 'Lessons', icon: GraduationCap, badge: 'Master' },
+    { id: 'openings' as ActiveTab, label: 'Openings', icon: Compass, badge: 'ECO' },
     { id: 'analysis' as ActiveTab, label: 'Analysis & Review', icon: Microscope, badge: 'AI' },
+    { id: 'insights' as ActiveTab, label: 'Diamond Insights', icon: Flame, badge: 'PRO' },
     { id: 'bots' as ActiveTab, label: 'Computer Bots', icon: Bot, badge: '20+' },
     { id: 'historical' as ActiveTab, label: 'Master Games', icon: History, badge: 'GM' },
-    { id: 'variants' as ActiveTab, label: 'Variants & Solo', icon: Sparkles },
+    { id: 'variants' as ActiveTab, label: 'Chess Variants', icon: Sparkles, badge: '960' },
     { id: 'pubapi' as ActiveTab, label: 'Chess.com API', icon: Search, badge: 'Live' },
   ];
 

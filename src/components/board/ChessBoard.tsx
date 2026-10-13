@@ -25,6 +25,8 @@ interface ChessBoardProps {
   bestMoveArrow?: { from: Square; to: Square } | null;
   premoves?: Premove[];
   customArrows?: ArrowAnnotation[];
+  customSquareHighlights?: { square: Square; color?: string; label?: string; border?: string }[];
+  onCustomSquareClick?: (sq: Square) => boolean | void;
   onAddCustomArrow?: (arrow: ArrowAnnotation) => void;
   onClearCustomArrows?: () => void;
   disabled?: boolean;
@@ -57,6 +59,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   bestMoveArrow = null,
   premoves = [],
   customArrows = [],
+  customSquareHighlights = [],
+  onCustomSquareClick,
   onAddCustomArrow,
   onClearCustomArrows,
   disabled = false,
@@ -119,6 +123,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
   // Handle left click on a square
   const handleSquareClick = (sq: Square) => {
     if (disabled) return;
+
+    if (onCustomSquareClick) {
+      const handled = onCustomSquareClick(sq);
+      if (handled) return;
+    }
 
     // Check if selecting destination for pending move
     if (selectedSquare) {
@@ -283,6 +292,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
                 }`
               : 'Empty square';
 
+            const customHighlight = customSquareHighlights.find((h) => h.square === sq);
+
             return (
               <div
                 key={sq}
@@ -301,6 +312,20 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({
                 style={{ backgroundColor: bgSquareColor }}
                 className={`relative w-full h-full flex items-center justify-center cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-[#81b64c] ${isHighlightedSquare}`}
               >
+                {/* Custom Square Highlight (Variants Hill, Crazyhouse Drops, Blunder Heatmaps) */}
+                {customHighlight && (
+                  <div
+                    className={`absolute inset-0 pointer-events-none transition-all z-10 ${customHighlight.border || ''}`}
+                    style={{ backgroundColor: customHighlight.color }}
+                  >
+                    {customHighlight.label && (
+                      <div className="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white/90 drop-shadow pointer-events-none select-none">
+                        {customHighlight.label}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* King in Check Red Glow & Badge (Image 2) */}
                 {isCheckSquare && (
                   <>

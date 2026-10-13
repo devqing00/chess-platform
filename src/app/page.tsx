@@ -42,8 +42,11 @@ import { GameSessionStore, generateGameReviewReport } from '@/lib/gameSessionSto
 import { BotChatBubble } from '@/components/bots/BotChatBubble';
 import { BotSelector } from '@/components/bots/BotSelector';
 import { PuzzleArena } from '@/components/puzzles/PuzzleArena';
+import { LessonArena } from '@/components/lessons/LessonArena';
 import { OpeningExplorer } from '@/components/openings/OpeningExplorer';
+import { InsightsDashboard } from '@/components/insights/InsightsDashboard';
 import { HistoricalGamesViewer } from '@/components/historical/HistoricalGamesViewer';
+import { VariantsArena } from '@/components/variants/VariantsArena';
 import { SoloChessArena } from '@/components/variants/SoloChessArena';
 import { PubApiExplorer } from '@/components/pubapi/PubApiExplorer';
 import { MembershipModal } from '@/components/modals/MembershipModal';
@@ -962,6 +965,10 @@ export default function ChessPlatformPage() {
                 <PuzzleArena boardTheme={boardTheme} pieceTheme={pieceTheme} />
               )}
 
+              {activeTab === 'lessons' && (
+                <LessonArena boardTheme={boardTheme} pieceTheme={pieceTheme} tier={membership} />
+              )}
+
               {activeTab === 'openings' && (
                 <OpeningExplorer boardTheme={boardTheme} pieceTheme={pieceTheme} />
               )}
@@ -994,6 +1001,10 @@ export default function ChessPlatformPage() {
                 </div>
               )}
 
+              {activeTab === 'insights' && (
+                <InsightsDashboard boardTheme={boardTheme} pieceTheme={pieceTheme} />
+              )}
+
               {activeTab === 'bots' && (
                 <div className="w-full max-w-4xl h-[700px]">
                   <BotSelector
@@ -1014,7 +1025,7 @@ export default function ChessPlatformPage() {
               )}
 
               {activeTab === 'variants' && (
-                <SoloChessArena boardTheme={boardTheme} pieceTheme={pieceTheme} />
+                <VariantsArena boardTheme={boardTheme} pieceTheme={pieceTheme} />
               )}
 
               {activeTab === 'pubapi' && <PubApiExplorer />}
