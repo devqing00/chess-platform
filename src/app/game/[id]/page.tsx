@@ -351,10 +351,11 @@ export default function GameRoomPage({ params }: GamePageProps) {
   };
 
   const activeClassificationPin = useMemo(() => {
+    if (!gameResult) return null;
     if (currentMoveIndex < 0 || currentMoveIndex >= moveHistory.length) return null;
     const m = moveHistory[currentMoveIndex];
     return m.classification ? { square: m.to, classification: m.classification } : null;
-  }, [currentMoveIndex, moveHistory]);
+  }, [currentMoveIndex, moveHistory, gameResult]);
 
   const lastMoveHighlight = useMemo(() => {
     if (currentMoveIndex < 0 || currentMoveIndex >= moveHistory.length) return null;
@@ -390,17 +391,19 @@ export default function GameRoomPage({ params }: GamePageProps) {
       </header>
 
       {/* Main Playing Area */}
-      <div className="flex-1 p-4 flex items-center justify-center overflow-y-auto">
-        <div className="flex flex-col xl:flex-row gap-6 w-full max-w-6xl items-center xl:items-start justify-center">
+      <div className="flex-1 p-2 sm:p-4 flex items-center justify-center overflow-hidden">
+        <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 w-full max-w-6xl items-center justify-center overflow-hidden">
           {/* Board Column */}
-          <div className="flex flex-col gap-2 w-full max-w-[600px] items-center">
-            <NotationRibbon
-              moves={moveHistory}
-              currentMoveIndex={currentMoveIndex}
-              onSelectMove={handleSelectHistoricalMove}
-            />
+          <div className="flex flex-col gap-1.5 items-center shrink-0">
+            <div className="w-[min(100%,calc(100vh-175px),480px)]">
+              <NotationRibbon
+                moves={moveHistory}
+                currentMoveIndex={currentMoveIndex}
+                onSelectMove={handleSelectHistoricalMove}
+              />
+            </div>
 
-            <div className="w-full max-w-[580px]">
+            <div className="w-[min(100%,calc(100vh-175px),480px)]">
               <PlayerCard
                 player={blackPlayer}
                 color="b"
@@ -409,9 +412,11 @@ export default function GameRoomPage({ params }: GamePageProps) {
               />
             </div>
 
-            <div className="flex gap-2 w-full justify-center items-center">
-              <EvalBar score={evalScore} orientation={orientation} isGameOver={Boolean(gameResult)} />
-              <div className="flex-1 max-w-[580px]">
+            <div className="flex gap-2 justify-center items-center">
+              <div className="h-[min(100%,calc(100vh-175px),480px)] flex items-stretch">
+                <EvalBar score={gameResult ? evalScore : 0} orientation={orientation} isGameOver={Boolean(gameResult)} />
+              </div>
+              <div className="w-[min(100%,calc(100vh-175px),480px)] aspect-square shrink-0">
                 <ChessBoard
                   chess={chess}
                   orientation={orientation}
@@ -425,7 +430,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
               </div>
             </div>
 
-            <div className="w-full max-w-[580px]">
+            <div className="w-[min(100%,calc(100vh-175px),480px)]">
               <PlayerCard
                 player={whitePlayer}
                 color="w"
@@ -446,8 +451,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
           </div>
 
           {/* Right Move List & Controls */}
-          <div className="w-full max-w-[400px] flex flex-col gap-3 h-[700px]">
-            <div className="flex-1 min-h-[220px]">
+          <div className="w-full max-w-[380px] flex flex-col gap-2.5 max-h-[calc(100vh-50px)] overflow-hidden shrink-0">
+            <div className="flex-1 min-h-[140px] max-h-[260px] overflow-y-auto">
               <MoveHistory
                 moves={moveHistory}
                 currentMoveIndex={currentMoveIndex}
@@ -455,10 +460,14 @@ export default function GameRoomPage({ params }: GamePageProps) {
               />
             </div>
 
-            <CoachCommentaryCard
-              move={currentMoveIndex >= 0 ? moveHistory[currentMoveIndex] : null}
-              turnColor={chess.turn()}
-            />
+            {Boolean(gameResult) && (
+              <div className="shrink-0 max-h-[160px] overflow-y-auto">
+                <CoachCommentaryCard
+                  move={currentMoveIndex >= 0 ? moveHistory[currentMoveIndex] : null}
+                  turnColor={chess.turn()}
+                />
+              </div>
+            )}
 
             <div className="p-3 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between gap-2">
               <button

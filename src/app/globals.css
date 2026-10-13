@@ -9,7 +9,14 @@ body {
   background-color: #161512;
   color: #ffffff;
   overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans), 'Plus Jakarta Sans', 'Segoe UI Variable Display', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-feature-settings: 'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
+  letter-spacing: -0.011em;
+}
+
+code, kbd, samp, pre, .font-mono {
+  font-family: var(--font-mono), 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-feature-settings: 'tnum' 1;
 }
 
 /* Custom Chess.com themed scrollbars */

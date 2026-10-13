@@ -35,11 +35,11 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const isTimeZero = timeRemainingSeconds === 0;
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 bg-[#21201d] rounded-xl border border-[#302e2b] select-none shadow-sm">
+    <div className="flex items-center justify-between px-2.5 py-1.5 bg-[#21201d] rounded-xl border border-[#302e2b] select-none shadow-sm">
       {/* Player Profile & Captures */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
         <div className="relative shrink-0">
-          <div className="w-10 h-10 rounded-lg bg-[#2d2a26] border border-[#403c37] overflow-hidden flex items-center justify-center text-xl shadow">
+          <div className="w-8 h-8 rounded-lg bg-[#2d2a26] border border-[#403c37] overflow-hidden flex items-center justify-center text-lg shadow">
             {player.avatar && player.avatar.startsWith('http') ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />

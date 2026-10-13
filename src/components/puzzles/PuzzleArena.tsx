@@ -51,6 +51,12 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   // Active puzzle: fallback to static array if remote not loaded
   const currentPuzzle = remotePuzzle || TACTICAL_PUZZLES[puzzleIndex % TACTICAL_PUZZLES.length];
 
+  // Normalized solution sequence from either remote API or local data
+  const solutionSequence: string[] = useMemo(() => {
+    const raw = (currentPuzzle as any).solutionMoves || (currentPuzzle as any).moves || [];
+    return Array.isArray(raw) ? raw : [];
+  }, [currentPuzzle]);
+
   // Chess instance for current puzzle
   const [chess, setChess] = useState(() => new Chess(currentPuzzle.fen));
   const [moveStepIndex, setMoveStepIndex] = useState(0);
@@ -116,26 +122,39 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   }, [rushActive, rushTimeRemaining]);
 
   const handleMove = async (from: Square, to: Square, promotion?: PieceSymbol) => {
-    if (statusMessage === 'solved') return;
+    if (statusMessage === 'solved' || statusMessage === 'incorrect') return;
 
     try {
-      const uciMove = `${from}${to}${promotion || ''}`;
-      const expectedUci = currentPuzzle.moves[moveStepIndex];
-
-      const moveResult = chess.move({ from, to, promotion });
+      const originalFen = chess.fen();
+      const clone = new Chess(originalFen);
+      const moveResult = clone.move({ from, to, promotion: promotion || 'q' });
       if (!moveResult) return;
+
+      const uciMove = `${from}${to}${moveResult.promotion || ''}`.toLowerCase();
+      const expected = solutionSequence[moveStepIndex] || '';
+
+      const cleanExpected = expected.toLowerCase().replace(/[+#x]/g, '');
+      const cleanSan = moveResult.san.toLowerCase().replace(/[+#x]/g, '');
+      const isExpected =
+        uciMove === expected.toLowerCase() ||
+        `${from}${to}` === expected.toLowerCase() ||
+        cleanSan === cleanExpected ||
+        moveResult.san === expected;
+
+      // Update board state immediately so the piece visually moves!
+      setChess(clone);
 
       const newPlayed = [...playedMoves, uciMove];
       setPlayedMoves(newPlayed);
 
       // Check if move matches puzzle solution
-      if (uciMove === expectedUci || moveResult.san === expectedUci) {
+      if (isExpected) {
         soundService.playMove();
         const nextStep = moveStepIndex + 1;
         setMoveStepIndex(nextStep);
 
         // Check if entire puzzle is solved
-        if (nextStep >= currentPuzzle.moves.length) {
+        if (nextStep >= solutionSequence.length) {
           setStatusMessage('solved');
           setScore((s) => s + 1);
           soundService.playPuzzleSuccess();
@@ -170,26 +189,41 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           }
         } else {
           // Play opponent response move automatically
-          const opponentUci = currentPuzzle.moves[nextStep];
+          const opponentMoveSpec = solutionSequence[nextStep];
           setTimeout(() => {
-            if (opponentUci.length >= 4) {
-              const oppFrom = opponentUci.slice(0, 2) as Square;
-              const oppTo = opponentUci.slice(2, 4) as Square;
-              const oppPromo = opponentUci.length > 4 ? (opponentUci[4] as PieceSymbol) : undefined;
-              chess.move({ from: oppFrom, to: oppTo, promotion: oppPromo });
-              soundService.playCapture();
-              setMoveStepIndex(nextStep + 1);
-              setPlayedMoves((prev) => [...prev, opponentUci]);
-              setChess(new Chess(chess.fen()));
+            try {
+              const oppClone = new Chess(clone.fen());
+              let oppMove = null;
+              if (opponentMoveSpec.length >= 4 && /^[a-h][1-8][a-h][1-8]/.test(opponentMoveSpec)) {
+                oppMove = oppClone.move({
+                  from: opponentMoveSpec.slice(0, 2) as Square,
+                  to: opponentMoveSpec.slice(2, 4) as Square,
+                  promotion: opponentMoveSpec.length > 4 ? (opponentMoveSpec[4] as PieceSymbol) : undefined,
+                });
+              } else {
+                oppMove = oppClone.move(opponentMoveSpec);
+              }
+
+              if (oppMove) {
+                soundService.playCapture();
+                setMoveStepIndex(nextStep + 1);
+                setPlayedMoves((prev) => [...prev, opponentMoveSpec]);
+                setChess(oppClone);
+              }
+            } catch (err) {
+              console.error('Error applying opponent puzzle move:', err);
             }
-          }, 400);
+          }, 450);
         }
       } else {
-        // Blunder/Mistake in puzzle
+        // Blunder/Mistake in puzzle: play fail sound & revert after brief pause
         soundService.playPuzzleFail();
         setStatusMessage('incorrect');
-        chess.undo();
-        setChess(new Chess(chess.fen()));
+
+        setTimeout(() => {
+          setChess(new Chess(originalFen));
+          setStatusMessage('idle');
+        }, 850);
 
         // Submit failure to Glicko-2 engine if not in rush mode
         if (!rushActive) {
@@ -225,17 +259,17 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         }
       }
     } catch {
-      // Invalid move
+      // Invalid move attempt
     }
   };
 
   const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none">
-      {/* Tactical Board Column */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative">
+    <div className="flex flex-col xl:flex-row gap-5 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none max-h-full">
+      {/* Tactical Board Column - Bound cleanly by screen height */}
+      <div className="flex flex-col items-center gap-2 shrink-0">
+        <div className="w-[min(100%,calc(100vh-210px),480px)] aspect-square">
           <ChessBoard
             chess={chess}
             orientation={puzzleTurn}
@@ -247,7 +281,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         </div>
 
         {/* Turn indicator card */}
-        <div className="w-full max-w-[560px] bg-[#1a1815] border border-[#2b2824] rounded-xl p-3 flex items-center justify-between text-xs">
+        <div className="w-full max-w-[min(100%,calc(100vh-210px),480px)] bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <span
               className={`w-3 h-3 rounded-full border ${

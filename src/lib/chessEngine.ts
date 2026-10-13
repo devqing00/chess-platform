@@ -264,73 +264,82 @@ export class ChessEvaluator {
     const evalDelta = isWhite ? evalAfter - evalBefore : evalBefore - evalAfter;
 
     // Check for Book Move in the opening
-    if (plyIndex <= 8 && COMMON_BOOK_MOVES.has(moveSan)) {
+    if (plyIndex <= 10 && COMMON_BOOK_MOVES.has(moveSan)) {
       return {
         classification: 'book',
         comment: `${moveSan} is a standard theoretical book move, adhering to classical opening principles.`,
       };
     }
 
-    // Check for Brilliant move (Piece sacrifice that retains advantage)
-    const isPieceSacrifice =
-      (pieceType === 'q' || pieceType === 'r' || pieceType === 'b' || pieceType === 'n') &&
-      ((isWhite && evalAfter >= 150) || (!isWhite && evalAfter <= -150));
+    // Centipawn loss (positive value representing loss)
+    const centipawnLoss = Math.max(0, -evalDelta);
 
-    if (moveSan === bestMoveSan || evalDelta >= 0) {
-      if (isPieceSacrifice && Math.abs(evalDelta) <= 50) {
-        return {
-          classification: 'brilliant',
-          comment: `Brilliant move! You offered material sacrifice to blow open your opponent's king safety and secure decisive tactical advantage!`,
-        };
-      }
+    // Check for Brilliant move:
+    // Requires genuine piece sacrifice, maintaining winning position, and being the best move
+    const hasDecisiveWinningEval = (isWhite && evalAfter >= 250) || (!isWhite && evalAfter <= -250);
+    const isBrilliantSacrifice =
+      Boolean((pieceType === 'q' || pieceType === 'r' || pieceType === 'b' || pieceType === 'n') &&
+      isCapture &&
+      hasDecisiveWinningEval &&
+      (moveSan === bestMoveSan || centipawnLoss <= 10) &&
+      plyIndex > 8);
 
-      if (moveSan === bestMoveSan) {
-        return {
-          classification: 'best',
-          comment: `Best move! That was the engine's highest-depth recommendation in this position.`,
-        };
-      }
-
+    if (isBrilliantSacrifice) {
       return {
-        classification: 'great',
-        comment: `Great move! An inventive and dynamic solution finding sharp initiative.`,
+        classification: 'brilliant',
+        comment: `Brilliant move! You offered material sacrifice to blow open your opponent's position and maintain a decisive winning attack!`,
       };
     }
 
-    // Centipawn loss
-    const centipawnLoss = Math.max(0, -evalDelta);
+    // Engine top choice
+    if (moveSan === bestMoveSan) {
+      return {
+        classification: 'best',
+        comment: `Best move! That was Stockfish's top engine recommendation in this position.`,
+      };
+    }
 
-    if (centipawnLoss <= 18) {
+    // Alternative winning move finding sharp advantage
+    if (evalDelta >= 0 || centipawnLoss <= 8) {
+      return {
+        classification: 'great',
+        comment: `Great move! An inventive and dynamic continuation maintaining maximum pressure.`,
+      };
+    }
+
+    if (centipawnLoss <= 25) {
       return {
         classification: 'excellent',
-        comment: `Excellent move! Keeps maximum pressure and solid positional advantage.`,
+        comment: `Excellent move! Keeps maximum pressure and solid positional control.`,
       };
-    } else if (centipawnLoss <= 55) {
+    } else if (centipawnLoss <= 65) {
       return {
         classification: 'good',
-        comment: `Good move. A totally sound and playable choice.`,
+        comment: `Good move. A completely sound and playable choice.`,
       };
-    } else if (centipawnLoss <= 130) {
+    } else if (centipawnLoss <= 140) {
       return {
         classification: 'inaccuracy',
-        comment: `Inaccuracy. ${bestMoveSan ? `Playing ${bestMoveSan} was slightly sharper.` : 'This concedes minor counterplay.'}`,
+        comment: `Inaccuracy. ${bestMoveSan ? `Playing ${bestMoveSan} was slightly sharper.` : 'This allows the opponent minor counterplay.'}`,
       };
     } else if (centipawnLoss <= 280) {
       return {
         classification: 'mistake',
-        comment: `Mistake! This surrenders momentum to your opponent. You should have calculated ${bestMoveSan || 'a more defensive square'}.`,
+        comment: `Mistake! This surrenders momentum. ${bestMoveSan ? `Stockfish recommended ${bestMoveSan}.` : 'A more defensive setup was required.'}`,
       };
     } else {
-      // Check if player missed mate or huge advantage
-      if (Math.abs(evalBefore) >= 400 && Math.sign(evalBefore) !== Math.sign(evalAfter)) {
+      // Check if player missed a winning tactic or mate
+      const hadWinningAdvantage = isWhite ? evalBefore >= 250 : evalBefore <= -250;
+      const lostAdvantage = isWhite ? evalAfter < 50 : evalAfter > -50;
+      if (hadWinningAdvantage && lostAdvantage) {
         return {
           classification: 'miss',
-          comment: `Miss! You missed a decisive tactical blow here! ${bestMoveSan} was winning on the spot!`,
+          comment: `Miss! You missed a decisive tactical win here! ${bestMoveSan ? `${bestMoveSan} was winning on the spot.` : 'A winning sequence was overlooked.'}`,
         };
       }
       return {
         classification: 'blunder',
-        comment: `Blunder! This leaves a critical weakness or hangs material. ${bestMoveSan} was necessary.`,
+        comment: `Blunder! This leaves a critical weakness or hangs material. ${bestMoveSan ? `${bestMoveSan} was necessary.` : 'Immediate defense was required.'}`,
       };
     }
   }

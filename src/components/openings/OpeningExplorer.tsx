@@ -229,10 +229,10 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
   }, [searchQuery]);
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none">
+    <div className="flex flex-col xl:flex-row gap-5 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none">
       {/* Interactive Chessboard Column */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative">
+      <div className="flex flex-col items-center gap-2.5 shrink-0">
+        <div className="w-[min(100%,calc(100vh-210px),480px)] aspect-square">
           <ChessBoard
             chess={chess}
             orientation={orientation}

@@ -53,11 +53,13 @@ import { SoloChessArena } from '@/components/variants/SoloChessArena';
 import { PubApiExplorer } from '@/components/pubapi/PubApiExplorer';
 import { MembershipModal } from '@/components/modals/MembershipModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
+import { ChessComSyncModal } from '@/components/modals/ChessComSyncModal';
 import { useAuth } from '@/context/AuthContext';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 
 import {
   RotateCcw,
+  RefreshCw,
   Flag,
   Handshake,
   ArrowUpDown,
@@ -125,6 +127,9 @@ export default function ChessPlatformPage() {
 
   // In-Game Bot Banter
   const [botMessage, setBotMessage] = useState<string>('');
+
+  // Chess.com Sync Modal
+  const [isChessComSyncModalOpen, setIsChessComSyncModalOpen] = useState<boolean>(false);
 
   const { user, profile, openAuthModal } = useAuth();
 
@@ -627,12 +632,13 @@ export default function ChessPlatformPage() {
 
   const activeCommentaryMove = currentMoveIndex >= 0 ? moveHistory[currentMoveIndex] : null;
 
-  // Active classification badge to pin to the board square (Matches Screenshot 1 & 4)
+  // Active classification badge to pin to the board square (Only shown after game ends or in analysis mode)
   const activeClassificationPin = useMemo(() => {
+    if (!gameResult && gameMode !== 'analysis') return null;
     if (currentMoveIndex < 0 || currentMoveIndex >= moveHistory.length) return null;
     const m = moveHistory[currentMoveIndex];
     return m.classification ? { square: m.to, classification: m.classification } : null;
-  }, [currentMoveIndex, moveHistory]);
+  }, [currentMoveIndex, moveHistory, gameResult, gameMode]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#161512] text-zinc-100 font-sans">
@@ -649,6 +655,7 @@ export default function ChessPlatformPage() {
         membership={membership}
         onOpenMembershipModal={() => setIsMembershipModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+        onOpenChessComSync={() => setIsChessComSyncModalOpen(true)}
       />
 
       {/* Main Center Area */}
@@ -695,6 +702,15 @@ export default function ChessPlatformPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsChessComSyncModalOpen(true)}
+                  className="px-3 py-1.5 rounded-lg bg-[#272522] hover:bg-[#33302b] text-xs font-bold text-[#81b64c] border border-[#3b3833] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Sync Chess.com Profile & Games"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Sync Chess.com</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setReviewStage('summary');
@@ -745,22 +761,25 @@ export default function ChessPlatformPage() {
                     setReviewStage('summary');
                   }}
                   onOpenInsights={() => setActiveTab('insights')}
+                  onOpenSyncModal={() => setIsChessComSyncModalOpen(true)}
                 />
               )}
 
               {activeTab === 'play' && (
-                <div className="flex flex-col xl:flex-row gap-5 w-full max-w-6xl items-center xl:items-start justify-center">
+                <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 w-full max-w-6xl items-center justify-center p-1 sm:p-2.5 overflow-hidden">
                   {/* Left Column: Top Notation Ribbon + Players + Eval Bar + Board + Mobile Bottom Bar */}
-                  <div className="flex flex-col gap-2 w-full max-w-[620px] items-center">
-                    {/* Top Notation Ribbon (Matches Screenshot 2) */}
-                    <NotationRibbon
-                      moves={moveHistory}
-                      currentMoveIndex={currentMoveIndex}
-                      onSelectMove={handleSelectHistoricalMove}
-                    />
+                  <div className="flex flex-col gap-1.5 items-center shrink-0 w-full xl:w-auto">
+                    {/* Top Notation Ribbon (Compact) */}
+                    <div className="w-[min(100%,calc(100vh-165px),480px)]">
+                      <NotationRibbon
+                        moves={moveHistory}
+                        currentMoveIndex={currentMoveIndex}
+                        onSelectMove={handleSelectHistoricalMove}
+                      />
+                    </div>
 
                     {/* Top Player Card (Black by default) */}
-                    <div className="w-full max-w-[580px]">
+                    <div className="w-[min(100%,calc(100vh-165px),480px)]">
                       <PlayerCard
                         player={orientation === 'w' ? blackPlayer : whitePlayer}
                         color={orientation === 'w' ? 'b' : 'w'}
@@ -772,16 +791,18 @@ export default function ChessPlatformPage() {
                     </div>
 
                     {/* Board Area with Eval Bar on Left */}
-                    <div className="flex gap-2 w-full justify-center items-center">
-                      {/* Dynamic Eval Bar */}
-                      <EvalBar
-                        score={evalScore}
-                        orientation={orientation}
-                        isGameOver={Boolean(gameResult)}
-                      />
+                    <div className="flex gap-2 justify-center items-center">
+                      {/* Dynamic Eval Bar - Only show eval score if game is finished or in analysis mode */}
+                      <div className="h-[min(100%,calc(100vh-165px),480px)] flex items-stretch">
+                        <EvalBar
+                          score={Boolean(gameResult) || gameMode === 'analysis' ? evalScore : 0}
+                          orientation={orientation}
+                          isGameOver={Boolean(gameResult)}
+                        />
+                      </div>
 
-                      {/* ChessBoard with pinned badges & pre-moves */}
-                      <div className="flex-1 max-w-[580px]">
+                      {/* ChessBoard with pinned badges & pre-moves - Strict height bound */}
+                      <div className="w-[min(100%,calc(100vh-165px),480px)] aspect-square shrink-0">
                         <ChessBoard
                           chess={chess}
                           orientation={orientation}
@@ -801,7 +822,7 @@ export default function ChessPlatformPage() {
                     </div>
 
                     {/* Bottom Player Card (White by default) */}
-                    <div className="w-full max-w-[580px]">
+                    <div className="w-[min(100%,calc(100vh-165px),480px)]">
                       <PlayerCard
                         player={orientation === 'w' ? whitePlayer : blackPlayer}
                         color={orientation === 'w' ? 'w' : 'b'}
@@ -812,7 +833,7 @@ export default function ChessPlatformPage() {
                       />
                     </div>
 
-                    {/* Mobile Bottom Action Bar (Matches Screenshot 2) */}
+                    {/* Mobile Bottom Action Bar */}
                     <MobileBottomBar
                       onToggleMoves={() => setShowMovesPanel((p) => !p)}
                       onToggleChat={() => setShowChatPanel((p) => !p)}
@@ -830,8 +851,8 @@ export default function ChessPlatformPage() {
                     />
                   </div>
 
-                  {/* Right Game Controls & Notation Column (Image 4 & 5 Parity) */}
-                  <div className="w-full max-w-[420px] flex flex-col gap-3">
+                  {/* Right Game Controls & Notation Column */}
+                  <div className="w-full max-w-[380px] flex flex-col gap-2.5 shrink-0 max-h-[calc(100vh-40px)] overflow-hidden">
                     <DesktopPlayPanel
                       timeControl={timeControl}
                       onSelectTimeControl={(sec) => {
@@ -857,7 +878,7 @@ export default function ChessPlatformPage() {
 
                     {/* Move History Table */}
                     {showMovesPanel && moveHistory.length > 0 && (
-                      <div className="flex-1 min-h-[160px]">
+                      <div className="flex-1 min-h-[140px] max-h-[220px] overflow-y-auto">
                         <MoveHistory
                           moves={moveHistory}
                           currentMoveIndex={currentMoveIndex}
@@ -866,12 +887,14 @@ export default function ChessPlatformPage() {
                       </div>
                     )}
 
-                    {/* Coach Danny AI Commentary Card */}
-                    {moveHistory.length > 0 && (
-                      <CoachCommentaryCard
-                        move={activeCommentaryMove}
-                        turnColor={chess.turn()}
-                      />
+                    {/* Coach Danny AI Commentary Card - Only displayed after game ends or in analysis mode */}
+                    {moveHistory.length > 0 && (Boolean(gameResult) || gameMode === 'analysis') && (
+                      <div className="shrink-0 max-h-[160px] overflow-y-auto">
+                        <CoachCommentaryCard
+                          move={activeCommentaryMove}
+                          turnColor={chess.turn()}
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -999,6 +1022,53 @@ export default function ChessPlatformPage() {
         onToggleSound={(en) => {
           setSoundEnabled(en);
           soundService.setEnabled(en);
+        }}
+      />
+
+      {/* Chess.com Profile & Games Sync Modal */}
+      <ChessComSyncModal
+        isOpen={isChessComSyncModalOpen}
+        onClose={() => setIsChessComSyncModalOpen(false)}
+        onSelectGameForReview={(gameId, pgn) => {
+          if (pgn) {
+            try {
+              const pgnChess = new Chess();
+              pgnChess.loadPgn(pgn);
+              const history = pgnChess.history({ verbose: true });
+              if (history.length > 0) {
+                const tempMoves: MoveRecord[] = [];
+                const sim = new Chess();
+                history.forEach((m) => {
+                  const fenBefore = sim.fen();
+                  sim.move(m);
+                  tempMoves.push({
+                    san: m.san,
+                    from: m.from,
+                    to: m.to,
+                    fenBefore,
+                    fenAfter: sim.fen(),
+                    evalBefore: 0,
+                    evalAfter: 0,
+                  });
+                });
+                setMoveHistory(tempMoves);
+                setCurrentMoveIndex(tempMoves.length - 1);
+              }
+            } catch (err) {
+              console.warn('Could not parse imported PGN:', err);
+            }
+          }
+          setIsReviewViewActive(true);
+          setReviewStage('summary');
+        }}
+        onProfileSynced={(syncedProfile) => {
+          if (syncedProfile) {
+            try {
+              localStorage.setItem('chess_synced_profile', JSON.stringify(syncedProfile));
+            } catch (e) {
+              // ignore
+            }
+          }
         }}
       />
     </div>

@@ -23,6 +23,7 @@ import {
   Users,
   Mail,
   Bell,
+  RefreshCw,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
@@ -47,6 +48,7 @@ interface SidebarNavProps {
   membership: MembershipTier;
   onOpenMembershipModal: () => void;
   onOpenSettingsModal: () => void;
+  onOpenChessComSync?: () => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -55,6 +57,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   membership,
   onOpenMembershipModal,
   onOpenSettingsModal,
+  onOpenChessComSync,
 }) => {
   const { user, profile, openAuthModal, logout } = useAuth();
   const effectiveTier = profile?.tier || membership;
@@ -174,22 +177,33 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </div>
           </div>
 
-          {user ? (
-            <button
-              onClick={logout}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition cursor-pointer"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={openAuthModal}
-              className="px-2 py-1 rounded bg-[#81b64c]/20 hover:bg-[#81b64c] text-[#81b64c] hover:text-white text-[10px] font-bold transition cursor-pointer"
-            >
-              Log In
-            </button>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {onOpenChessComSync && (
+              <button
+                onClick={onOpenChessComSync}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-[#81b64c] hover:bg-zinc-800 transition cursor-pointer"
+                title="Sync Chess.com Profile & Games"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {user ? (
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition cursor-pointer"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={openAuthModal}
+                className="px-2 py-1 rounded bg-[#81b64c]/20 hover:bg-[#81b64c] text-[#81b64c] hover:text-white text-[10px] font-bold transition cursor-pointer"
+              >
+                Log In
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tier Banner */}

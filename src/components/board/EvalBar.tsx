@@ -33,7 +33,7 @@ export const EvalBar: React.FC<EvalBarProps> = ({
   const isWhiteWinning = score >= 0;
 
   return (
-    <div className="relative flex flex-col w-7 h-full min-h-[480px] max-h-[640px] bg-[#21201d] rounded-sm overflow-hidden select-none border border-[#302e2b] shadow-inner">
+    <div className="relative flex flex-col w-6 sm:w-7 h-full bg-[#21201d] rounded-sm overflow-hidden select-none border border-[#302e2b] shadow-inner shrink-0">
       {/* Black evaluation section (top if White is on bottom) */}
       <div
         className="w-full bg-[#1b1917] transition-all duration-300 ease-out flex items-start justify-center pt-1.5"

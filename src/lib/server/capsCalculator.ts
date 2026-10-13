@@ -97,13 +97,13 @@ export function isTacticalSacrifice(
   isWhite: boolean,
   winProbLoss: number
 ): boolean {
-  // Minor or Major piece sacrificed
+  // Minor or Major piece sacrificed in an active tactical situation
   const isHighValue = pieceType === 'n' || pieceType === 'b' || pieceType === 'r' || pieceType === 'q';
-  if (!isHighValue) return false;
+  if (!isHighValue || !isCapture) return false;
 
-  // The move maintains high winning expectancy
-  const isWinning = isWhite ? evalAfterCp >= 150 : evalAfterCp <= -150;
-  return isWinning && winProbLoss <= 3.0;
+  // The move maintains decisive winning expectancy with negligible loss
+  const isWinning = isWhite ? evalAfterCp >= 250 : evalAfterCp <= -250;
+  return isWinning && winProbLoss <= 0.8;
 }
 
 /**
