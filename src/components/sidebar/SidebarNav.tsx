@@ -15,8 +15,12 @@ import {
   Volume2,
   Flame,
   Compass,
+  LogIn,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
+import { useAuth } from '@/context/AuthContext';
 
 export type ActiveTab =
   | 'play'
@@ -45,6 +49,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   onOpenMembershipModal,
   onOpenSettingsModal,
 }) => {
+  const { user, profile, openAuthModal, logout } = useAuth();
+  const effectiveTier = profile?.tier || membership;
+
   const navItems = [
     { id: 'play' as ActiveTab, label: 'Play', icon: Gamepad2, badge: 'Live' },
     { id: 'puzzles' as ActiveTab, label: 'Puzzles', icon: Puzzle, badge: 'Rush' },
@@ -112,8 +119,42 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Section: Membership Tier Card & Settings */}
+      {/* Bottom Section: User Auth, Membership Tier Card & Settings */}
       <div className="p-3 border-t border-[#2d2a26] space-y-2 bg-[#161512]">
+        {/* User Account / Auth Card */}
+        {user ? (
+          <div className="p-2.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
+                {profile?.avatar || '♟️'}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-white truncate">
+                  {profile?.displayName || user.displayName || 'Player'}
+                </span>
+                <span className="text-[10px] text-zinc-400">
+                  Blitz {profile?.ratings.blitz || 1200}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition cursor-pointer"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={openAuthModal}
+            className="w-full py-2 px-3 bg-[#81b64c] hover:bg-[#92c855] text-black font-black text-xs rounded-xl transition shadow flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Sign In / Register</span>
+          </button>
+        )}
+
         {/* Tier Banner */}
         <div
           onClick={onOpenMembershipModal}
@@ -123,15 +164,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <div className="flex items-center gap-2">
               <Crown className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
               <span className="text-xs font-bold text-amber-300 capitalize">
-                {membership === 'free' ? 'Free Member' : `${membership} VIP`}
+                {effectiveTier === 'free' ? 'Free Member' : `${effectiveTier} VIP`}
               </span>
             </div>
             <span className="text-[10px] text-amber-400 font-semibold uppercase bg-amber-400/20 px-1.5 py-0.5 rounded">
-              {membership === 'diamond' ? 'Active' : 'Upgrade'}
+              {effectiveTier === 'diamond' ? 'Active' : 'Upgrade'}
             </span>
           </div>
           <p className="text-[11px] text-zinc-400 mt-1 line-clamp-1">
-            {membership === 'diamond'
+            {effectiveTier === 'diamond'
               ? 'Unlimited Game Review & AI Coach active'
               : 'Unlock Diamond AI Coach, Game Review & Bots'}
           </p>

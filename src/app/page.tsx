@@ -51,6 +51,8 @@ import { SoloChessArena } from '@/components/variants/SoloChessArena';
 import { PubApiExplorer } from '@/components/pubapi/PubApiExplorer';
 import { MembershipModal } from '@/components/modals/MembershipModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
+import { useAuth } from '@/context/AuthContext';
+import { FirestoreService } from '@/lib/firebase/firestoreService';
 
 import {
   RotateCcw,
@@ -189,6 +191,8 @@ export default function ChessPlatformPage() {
     return GameSessionStore.createDemoGameSession().reviewReport!;
   }, [moveHistory, whitePlayer, blackPlayer]);
 
+  const { user, profile } = useAuth();
+
   // Handle Game Conclusion with Detailed Results Modal
   const triggerGameOver = useCallback(
     (
@@ -201,7 +205,8 @@ export default function ChessPlatformPage() {
 
       const isUserWin = winner === 'w';
       const ratingDelta = winner === 'w' ? 8 : winner === 'b' ? -8 : 0;
-      const newRating = 1250 + ratingDelta;
+      const currentRating = profile?.ratings.blitz || 1250;
+      const newRating = currentRating + ratingDelta;
 
       const details: GameResultDetails = {
         winner,
@@ -222,6 +227,37 @@ export default function ChessPlatformPage() {
       setGameResultDetails(details);
       setIsGameOverModalOpen(true);
 
+      // Persist completed game to Cloud Firestore
+      try {
+        FirestoreService.saveGame({
+          id: `game-${Date.now()}`,
+          white: {
+            uid: user?.uid || 'player-you',
+            name: profile?.displayName || user?.displayName || whitePlayer.name,
+            rating: currentRating,
+            avatar: profile?.avatar || whitePlayer.avatar,
+          },
+          black: {
+            uid: selectedBot ? `bot-${selectedBot.id}` : 'opponent',
+            name: blackPlayer.name,
+            rating: blackPlayer.rating,
+            avatar: blackPlayer.avatar,
+            title: blackPlayer.title,
+          },
+          timeControl,
+          timeClass: timeControl <= 180 ? 'bullet' : timeControl <= 600 ? 'blitz' : 'rapid',
+          variant,
+          pgn: chess.pgn() || moveHistory.map((m) => m.san).join(' '),
+          finalFen: chess.fen(),
+          moves: moveHistory,
+          result: winner === 'w' ? '1-0' : winner === 'b' ? '0-1' : '1/2-1/2',
+          winReason: reason,
+          createdAt: new Date().toISOString(),
+        });
+      } catch {
+        // ignore
+      }
+
       if (isUserWin) {
         soundService.playGameEndWin();
         confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
@@ -231,7 +267,7 @@ export default function ChessPlatformPage() {
         soundService.playGameEndLoss();
       }
     },
-    []
+    [profile, user, whitePlayer, blackPlayer, selectedBot, timeControl, variant, chess, moveHistory]
   );
 
   // Clocks countdown ticker

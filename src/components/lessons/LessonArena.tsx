@@ -7,6 +7,8 @@ import { LESSON_TRACKS, ChessLesson, LessonStep } from '@/lib/lessonsData';
 import { BoardTheme, PieceTheme, ArrowAnnotation, MembershipTier } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
+import { useAuth } from '@/context/AuthContext';
+import { FirestoreService } from '@/lib/firebase/firestoreService';
 import {
   GraduationCap,
   Sparkles,
@@ -32,6 +34,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
   pieceTheme,
   tier = 'diamond',
 }) => {
+  const { user } = useAuth();
   const [selectedTrack, setSelectedTrack] = useState(LESSON_TRACKS[0]);
   const [selectedLesson, setSelectedLesson] = useState<ChessLesson>(LESSON_TRACKS[0].lessons[0]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -93,6 +96,9 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
               tier,
             }),
           });
+          if (user) {
+            FirestoreService.saveLessonProgress(user.uid, selectedLesson.id, step.stepId);
+          }
         } catch {
           // ignore error
         }
