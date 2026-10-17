@@ -126,9 +126,17 @@ export type XpAction =
   | 'complete_opening_lesson'
   | 'complete_game_review'
   | 'win_bot_match'
+  | 'win_online_match'
+  | 'draw_match'
+  | 'play_match'
   | 'puzzle_rush_bonus'
   | 'daily_streak_bonus'
-  | 'claim_unit_chest';
+  | 'claim_unit_chest'
+  | 'repair_blunder_first_try'
+  | 'repair_blunder_retry'
+  | 'complete_cognitive_mission'
+  | 'perfect_accuracy_bonus'
+  | 'tactical_streak_milestone';
 
 export const XP_ACTION_VALUES: Record<XpAction, number> = {
   solve_puzzle_first_try: 15,
@@ -137,9 +145,17 @@ export const XP_ACTION_VALUES: Record<XpAction, number> = {
   complete_opening_lesson: 25,
   complete_game_review: 35,
   win_bot_match: 40,
+  win_online_match: 50,
+  draw_match: 20,
+  play_match: 10,
   puzzle_rush_bonus: 30,
   daily_streak_bonus: 20,
   claim_unit_chest: 100,
+  repair_blunder_first_try: 35,
+  repair_blunder_retry: 15,
+  complete_cognitive_mission: 40,
+  perfect_accuracy_bonus: 25,
+  tactical_streak_milestone: 50,
 };
 
 const STORAGE_KEY = 'chess_xp_profile';

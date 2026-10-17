@@ -163,17 +163,18 @@ export default function PlayLobbyPage() {
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
       isAnonymous: Boolean(user?.isAnonymous),
-      ratings: { rapid: effectiveRating, blitz: 1200, bullet: 1200, daily: 1200, puzzles: 1500, puzzleRush: 0 },
+      ratings: { rapid: effectiveRating ?? 1200, blitz: 1200, bullet: 1200, daily: 1200, puzzles: 1500, puzzleRush: 0 },
       stats: { gamesPlayed: 0, wins: 0, losses: 0, draws: 0, winStreak: 0 },
     };
 
+    const baseOpponentRating = effectiveRating ?? 1200;
     const onlineOpponents = [
-      { name: 'Magnus_Disciple', rating: effectiveRating + 18, avatar: '🦅', country: 'NO' },
-      { name: 'Vishy_Knight', rating: effectiveRating - 12, avatar: '🐯', country: 'IN' },
-      { name: 'Tactics_Storm99', rating: effectiveRating + 35, avatar: '⚡', country: 'US' },
-      { name: 'HikaruStream_Fan', rating: effectiveRating - 24, avatar: '🍍', country: 'JP' },
-      { name: 'Endgame_Wizard', rating: effectiveRating + 5, avatar: '🧙', country: 'DE' },
-      { name: 'CheckMate_Pro', rating: effectiveRating + 14, avatar: '👑', country: 'GB' },
+      { name: 'Magnus_Disciple', rating: baseOpponentRating + 18, avatar: '🦅', country: 'NO' },
+      { name: 'Vishy_Knight', rating: baseOpponentRating - 12, avatar: '🐯', country: 'IN' },
+      { name: 'Tactics_Storm99', rating: baseOpponentRating + 35, avatar: '⚡', country: 'US' },
+      { name: 'HikaruStream_Fan', rating: baseOpponentRating - 24, avatar: '🍍', country: 'JP' },
+      { name: 'Endgame_Wizard', rating: baseOpponentRating + 5, avatar: '🧙', country: 'DE' },
+      { name: 'CheckMate_Pro', rating: baseOpponentRating + 14, avatar: '👑', country: 'GB' },
     ];
 
     if (user) {
@@ -206,7 +207,7 @@ export default function PlayLobbyPage() {
       const whitePlayer: GamePlayer = {
         id: user?.uid || 'player-you',
         name: effectiveDisplayName,
-        rating: effectiveRating,
+        rating: effectiveRating || 1200,
         avatar: effectiveAvatar,
         country: effectiveCountry.toUpperCase(),
       };
@@ -264,7 +265,7 @@ export default function PlayLobbyPage() {
     const youPlayer: GamePlayer = {
       id: user?.uid || 'player-host',
       name: effectiveDisplayName,
-      rating: effectiveRating,
+      rating: effectiveRating || 1200,
       avatar: effectiveAvatar,
       country: effectiveCountry.toUpperCase(),
     };
@@ -272,7 +273,7 @@ export default function PlayLobbyPage() {
     const opponentPlayer: GamePlayer = {
       id: `challenger-${challengeRoomCode}`,
       name: `Challenger (${challengeRoomCode})`,
-      rating: effectiveRating,
+      rating: effectiveRating || 1200,
       avatar: '⚔️',
       country: 'GLOBAL',
     };
@@ -297,7 +298,7 @@ export default function PlayLobbyPage() {
     const humanPlayer: GamePlayer = {
       id: user?.uid || 'player-you',
       name: effectiveDisplayName,
-      rating: effectiveRating,
+      rating: effectiveRating || 1200,
       avatar: effectiveAvatar,
       country: effectiveCountry.toUpperCase(),
     };

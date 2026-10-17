@@ -372,7 +372,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
             setMoveHistory([res.san]);
             setHistoryIndex(0);
             setDrillStepIdx(1);
-            setDrillFeedback(`Your turn as Black: Find Black's theoretical move ${Math.floor(1 / 2) + 1}...`);
+            setDrillFeedback(`Your turn as Black: Find Black's best opening move ${Math.floor(1 / 2) + 1}...`);
             soundService.playMove();
           }
         } catch {}
@@ -391,7 +391,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
 
     if (!expectedSan) {
       setDrillStatus('completed');
-      setDrillFeedback('🎉 Opening theoretical line completed!');
+      setDrillFeedback('🎉 Opening moves completed successfully!');
       return;
     }
 

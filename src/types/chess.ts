@@ -338,7 +338,7 @@ export interface GameReviewReport {
 
 export interface GameSession {
   id: string;
-  source?: 'checkmate' | 'chesscom';
+  source?: 'checkmate' | 'chesscom' | 'lichess';
   pgn?: string;
   movesCount?: number;
   engineMode?: AnalysisEngineMode;

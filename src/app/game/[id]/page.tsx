@@ -19,6 +19,7 @@ import { FirestoreService } from '@/lib/firebase/firestoreService';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
 import { useRouter } from 'next/navigation';
+import { XpSystem, type XpAction } from '@/lib/xpSystem';
 
 // Components
 import { ChessBoard } from '@/components/board/ChessBoard';
@@ -280,11 +281,23 @@ export default function GameRoomPage({ params }: GamePageProps) {
         }
       }
 
+      // Award XP based on match outcome rather than fake in-app Elo
+      try {
+        const action: XpAction = isHumanWinner
+          ? (botPlayer ? 'win_bot_match' : 'win_online_match')
+          : isDraw
+          ? 'draw_match'
+          : 'play_match';
+        XpSystem.awardXp(action, isHumanWinner ? 'Match Victory' : isDraw ? 'Match Drawn' : 'Match Completed');
+      } catch (e) {
+        console.warn('Could not award match XP:', e);
+      }
+
       const details: GameResultDetails = {
         winner: winnerColor,
         reason,
-        ratingDelta: isHumanWinner ? 12 : isDraw ? 0 : -10,
-        newRating: (userColor === 'w' ? whitePlayer.rating : blackPlayer.rating) + (isHumanWinner ? 12 : -10),
+        ratingDelta: 0,
+        newRating: (userColor === 'w' ? whitePlayer.rating : blackPlayer.rating),
         league: 'Bronze III',
         trophiesDelta: isHumanWinner ? 25 : 0,
       };

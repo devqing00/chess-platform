@@ -12,11 +12,16 @@ import { MobileNavigation } from '@/components/navigation/MobileNavigation';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const isGameScreen =
+  const isArenaScreen =
     pathname?.startsWith('/game/') ||
     pathname === '/play' ||
     pathname?.startsWith('/play/') ||
-    pathname === '/analysis';
+    pathname === '/analysis' ||
+    pathname === '/puzzles' ||
+    pathname === '/bots' ||
+    pathname === '/endgames' ||
+    pathname === '/variants' ||
+    pathname === '/lessons';
   const {
     boardTheme,
     setBoardTheme,
@@ -56,7 +61,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       />
 
       {/* Main Page Content Area */}
-      <div className={`flex-1 flex flex-col h-full min-w-0 bg-[#161512] relative ${isGameScreen ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden pb-16 md:pb-0'}`}>
+      <div className={`flex-1 flex flex-col h-full min-w-0 bg-[#161512] relative ${isArenaScreen ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden pb-16 md:pb-0'}`}>
         {children}
       </div>
 

@@ -1,6 +1,38 @@
 import { MembershipTier, ChessVariant, MoveRecord } from '@/types/chess';
 import { Square } from 'chess.js';
 
+export interface SyncedChessComAccount {
+  username: string;
+  avatar?: string;
+  country?: string;
+  countryCode?: string;
+  name?: string;
+  status?: string;
+  ratings?: {
+    rapid: number;
+    blitz: number;
+    bullet: number;
+  };
+  stats?: any;
+  lastSyncedAt?: string;
+}
+
+export interface SyncedLichessAccount {
+  username: string;
+  avatar?: string;
+  country?: string;
+  title?: string;
+  ratings?: {
+    rapid: number;
+    blitz: number;
+    bullet: number;
+    classical?: number;
+    puzzles?: number;
+  };
+  stats?: any;
+  lastSyncedAt?: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -27,6 +59,10 @@ export interface UserProfile {
     losses: number;
     draws: number;
     winStreak: number;
+  };
+  syncedAccounts?: {
+    chessCom?: SyncedChessComAccount;
+    lichess?: SyncedLichessAccount;
   };
 }
 

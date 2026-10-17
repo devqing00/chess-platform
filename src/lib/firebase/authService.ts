@@ -111,11 +111,11 @@ export class AuthService {
       lastLoginAt: new Date().toISOString(),
       isAnonymous,
       ratings: {
-        rapid: 1200,
-        blitz: 1200,
-        bullet: 1200,
-        daily: 1200,
-        puzzles: 1200,
+        rapid: 800,
+        blitz: 800,
+        bullet: 800,
+        daily: 800,
+        puzzles: 800,
         puzzleRush: 0,
       },
       stats: {

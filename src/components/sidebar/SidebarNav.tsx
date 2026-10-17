@@ -33,6 +33,7 @@ import {
 import { MembershipTier } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
 import { AvatarUploader } from '@/components/profile/AvatarUploader';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 
 export type ActiveTab =
   | 'home'
@@ -127,14 +128,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const navItems: { id: ActiveTab; label: string; icon: any; href: string }[] = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'play', label: 'Play', icon: Gamepad2, href: '/play' },
-    { id: 'training', label: 'Training', icon: Target, href: '/training' },
+    { id: 'training', label: 'Training Academy', icon: Target, href: '/training' },
     { id: 'lessons', label: 'Lessons', icon: GraduationCap, href: '/lessons' },
     { id: 'analysis', label: 'Analysis Studio', icon: Microscope, href: '/analysis' },
     { id: 'bots', label: 'Computer Bots', icon: Bot, href: '/bots' },
-    { id: 'insights', label: 'Insights', icon: Flame, href: '/insights' },
+    { id: 'players', label: 'Players Explorer', icon: Users, href: '/players' },
     { id: 'historical', label: 'Master Games', icon: History, href: '/games' },
     { id: 'variants', label: 'Chess Variants', icon: Sparkles, href: '/variants' },
-    { id: 'players', label: 'Players Explorer', icon: Users, href: '/players' },
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {
@@ -182,52 +182,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           title={collapsed ? (isTabletOrSmallLaptop ? 'Expand Menu' : 'Check·mate Home') : undefined}
         >
           <div className="flex items-center gap-3 min-w-0">
-            {/* Minimalist Geometric Checkmate Emblem */}
-            <div className="relative w-9 h-9 rounded-xl bg-[#201e1a] border border-[#35312b] group-hover:border-[#81b64c]/60 flex items-center justify-center shadow-md transition-all duration-200 shrink-0">
-              <svg
-                viewBox="0 0 28 28"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-5 h-5 relative z-10"
-              >
-                {/* Minimalist Crown in Brand Green */}
-                <path
-                  d="M5 21L7 10L10.5 13.5L14 7L17.5 13.5L21 10L23 21H5Z"
-                  fill="#81b64c"
-                />
-                {/* Checkmark Silhouette Cut */}
-                <path
-                  d="M9 16.5L12.5 20L19.5 13"
-                  stroke="#201e1a"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                {/* Crown Apex Point */}
-                <circle cx="14" cy="5" r="1.25" fill="#ffffff" />
-              </svg>
-            </div>
-
-            {/* Combinatory Typography Lockup */}
-            {!collapsed && (
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-[13px] font-medium tracking-[0.2em] text-zinc-300 uppercase">
-                    check
-                  </span>
-                  <span className="text-[#81b64c] font-black text-xs leading-none">·</span>
-                  <span className="text-[16px] font-black tracking-tight text-white uppercase group-hover:text-[#81b64c] transition-colors">
-                    mate
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 -mt-0.5">
-                  <span className="w-1 h-1 rounded-full bg-[#81b64c] shrink-0" />
-                  <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-zinc-500 font-medium">
-                    chess platform
-                  </span>
-                </div>
-              </div>
-            )}
+            <BrandLogo size="md" showText={!collapsed} />
           </div>
 
           {/* If Drawer Overlay on Tablet/Laptop, show an explicit close Chevron button */}
@@ -331,7 +286,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     {effectiveDisplayName}
                   </span>
                   <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
-                    <span>({effectiveRating})</span>
+                    <span>({effectiveRating !== null ? effectiveRating : 'Unranked'})</span>
                     <span>{effectiveCountry === 'ng' ? '🇳🇬' : effectiveCountry.toUpperCase()}</span>
                   </span>
                 </div>

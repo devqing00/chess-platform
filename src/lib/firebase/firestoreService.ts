@@ -12,7 +12,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from './config';
-import { FirebaseGameRecord, UserProfile } from './types';
+import { FirebaseGameRecord, UserProfile, SyncedChessComAccount, SyncedLichessAccount } from './types';
 
 /**
  * Recursively strips `undefined` values from an object before Firestore write.
@@ -447,6 +447,44 @@ export class FirestoreService {
       return null;
     } catch (e) {
       console.warn('Error fetching curriculum progress from Firestore:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Persist connected external accounts (Chess.com, Lichess) to Firestore on the user's document.
+   */
+  public static async saveUserSyncedAccounts(
+    uid: string,
+    syncedAccounts: { chessCom?: SyncedChessComAccount | null; lichess?: SyncedLichessAccount | null }
+  ): Promise<void> {
+    try {
+      if (!uid || uid.startsWith('guest-')) return;
+      const userRef = doc(db, 'users', uid);
+      const sanitized = sanitizeForFirestore({ syncedAccounts });
+      await setDoc(userRef, sanitized, { merge: true });
+    } catch (e) {
+      console.warn('Error saving synced accounts to Firestore:', e);
+    }
+  }
+
+  /**
+   * Fetch connected external accounts (Chess.com, Lichess) from the user's document in Firestore.
+   */
+  public static async getUserSyncedAccounts(
+    uid: string
+  ): Promise<{ chessCom?: SyncedChessComAccount; lichess?: SyncedLichessAccount } | null> {
+    try {
+      if (!uid || uid.startsWith('guest-')) return null;
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        return data?.syncedAccounts || null;
+      }
+      return null;
+    } catch (e) {
+      console.warn('Error retrieving synced accounts from Firestore:', e);
       return null;
     }
   }

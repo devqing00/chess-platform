@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { GameResultDetails, GamePlayer } from '@/types/chess';
-import { X, Share2, Zap, Award, RotateCcw, Plus } from 'lucide-react';
+import { X, Share2, Zap, Award, RotateCcw, Plus, Flame } from 'lucide-react';
+import { useXpSystem } from '@/hooks/useXpSystem';
 
 interface GameOverModalProps {
   isOpen: boolean;
@@ -62,6 +63,17 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     (result.ratingDelta > 0 && (result.winner as string) !== 'draw');
   const isDraw = (result.winner as string) === 'draw' || (result.ratingDelta === 0 && (result.winner as string) !== 'w' && (result.winner as string) !== 'b');
   const isLoss = !isWin && !isDraw;
+
+  const { profile: xpProfile, awardXp } = useXpSystem();
+  const xpAwardedRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !xpAwardedRef.current) {
+      xpAwardedRef.current = true;
+      const xpAmount = isWin ? 40 : isDraw ? 20 : 15;
+      awardXp(xpAmount, isWin ? 'Game Won' : isDraw ? 'Game Drawn' : 'Game Completed');
+    }
+  }, [isOpen, isWin, isDraw, awardXp]);
 
   const titleText = isWin ? 'You Won!' : isDraw ? 'Game Drawn' : 'You Lost';
   const subtitleReason = `by ${result.reason ? (result.reason.charAt(0).toUpperCase() + result.reason.slice(1)) : 'Game Concluded'}`;
@@ -204,22 +216,28 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             </div>
           )}
 
-          {/* Rating Change */}
-          <div className="mt-3.5 sm:mt-4 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
-              {result.newRating}
-            </span>
-            <span
-              className={`text-base sm:text-lg font-black font-mono ${
-                result.ratingDelta > 0
-                  ? 'text-[#81b64c]'
-                  : result.ratingDelta < 0
-                  ? 'text-rose-400'
-                  : 'text-zinc-500'
-              }`}
-            >
-              {result.ratingDelta > 0 ? `+${result.ratingDelta}` : result.ratingDelta}
-            </span>
+          {/* In-App Progression: XP Reward & League Status (Scrapped fake in-app Elo) */}
+          <div className="mt-3.5 sm:mt-4 p-3 rounded-2xl bg-[#141311] border-2 border-[#2b2722] flex items-center justify-between w-full shadow-inner">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Zap className="w-4 h-4 fill-emerald-400" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] uppercase font-black tracking-wider text-zinc-400">XP Earned</span>
+                <span className="text-base font-black text-emerald-400 font-mono">
+                  +{isWin ? 40 : 15} XP
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col text-right">
+              <span className="text-[10px] uppercase font-black tracking-wider text-amber-400">
+                {xpProfile.league.name}
+              </span>
+              <span className="text-xs font-mono font-bold text-zinc-300">
+                Level {xpProfile.level} ({xpProfile.levelProgressPercent}%)
+              </span>
+            </div>
           </div>
 
           {/* Big Green Tactile Game Review CTA */}

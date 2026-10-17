@@ -32,7 +32,7 @@ export default function BotsPage() {
     const userPlayer: GamePlayer = {
       id: 'local-user',
       name: effectiveDisplayName,
-      rating: effectiveRating,
+      rating: effectiveRating || 1200,
       avatar: effectiveAvatar,
       country: effectiveCountry.toUpperCase(),
     };

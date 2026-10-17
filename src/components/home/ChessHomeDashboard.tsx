@@ -545,7 +545,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                     }`}
                   >
                     <Swords className="w-3 h-3" />
-                    <span>Check.mate ({checkmateSessions.length})</span>
+                    <span>My Games ({checkmateSessions.length})</span>
                   </button>
 
                   <button
@@ -556,8 +556,8 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                         : 'text-zinc-400 hover:text-white border-2 border-transparent'
                     }`}
                   >
-                    <span>♟️</span>
-                    <span>Chess.com ({chesscomSessions.length})</span>
+                    <span>🌐</span>
+                    <span>Connected ({chesscomSessions.length})</span>
                   </button>
                 </div>
 
@@ -565,7 +565,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                 <button
                   onClick={() => handleRefreshArchive(false)}
                   disabled={isRefreshingArchive}
-                  title="Force refresh match archive from Chess.com"
+                  title="Refresh connected games"
                   className="px-2.5 py-1 rounded-full bg-[#272420] hover:bg-[#343029] text-zinc-300 hover:text-[#81b64c] border-2 border-[#3b3730] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider disabled:opacity-50 shrink-0"
                 >
                   <RotateCw className={`w-3 h-3 ${isRefreshingArchive ? 'animate-spin text-[#81b64c]' : ''}`} />
@@ -577,7 +577,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
               <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                 <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-black uppercase tracking-wider bg-[#161513] px-2.5 py-1 rounded-full border-2 border-[#2b2823]">
                   <RotateCw className="w-3 h-3 text-[#81b64c]" />
-                  <span>Auto-Sync</span>
+                  <span>Synced</span>
                 </div>
 
                 {/* View Full Game Archive Button */}
@@ -585,7 +585,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                   onClick={() => setIsArchiveModalOpen(true)}
                   className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-[#2b2824] hover:bg-[#38342e] text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-200 border-2 border-[#3d3831] hover:border-[#81b64c] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  <span>Full Archive</span>
+                  <span>Full History</span>
                   <ChevronRight className="w-3.5 h-3.5 text-[#81b64c]" />
                 </button>
               </div>
@@ -598,20 +598,20 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                   <span className="text-2xl">♟️</span>
                   <span className="font-extrabold text-white text-sm">
                     {historyTab === 'checkmate'
-                      ? 'No Check.mate platform matches played yet.'
-                      : 'No Chess.com games synced yet.'}
+                      ? 'No games played yet'
+                      : 'No connected games found'}
                   </span>
                   <span className="text-xs text-zinc-400 max-w-sm">
                     {historyTab === 'checkmate'
-                      ? 'Play a live game against friends or challenge one of our 20+ Grandmaster bots above!'
-                      : 'Link your Chess.com account to import your past matches, verified ELO ratings, and avatars.'}
+                      ? 'Play a game with friends or test your skills against a computer bot above!'
+                      : 'Optionally link your Chess.com or Lichess account to import past games for game review.'}
                   </span>
                   {historyTab === 'chesscom' && onOpenSyncModal && (
                     <button
                       onClick={onOpenSyncModal}
                       className="mt-2 px-4 py-2 bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider rounded-full border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer"
                     >
-                      Connect Chess.com Account
+                      Connect Account (Optional)
                     </button>
                   )}
                 </div>
