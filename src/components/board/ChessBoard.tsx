@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Chess, Square, PieceSymbol, Move } from 'chess.js';
 import { PieceIcon } from './PieceIcons';
 import {
@@ -312,6 +313,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
     piece: { type: PieceSymbol; color: PieceColor };
     startX: number;
     startY: number;
+    grabOffsetX: number;
+    grabOffsetY: number;
     isDragging: boolean;
   } | null>(null);
 
@@ -481,7 +484,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
     [disabled, selectedSquare, legalSquaresMap, executeMove, chess, onPremove, onCustomSquareClick]
   );
 
-  // Pointer Down (Records initial position; does NOT start drag until threshold is exceeded)
+  // Pointer Down (Records initial position with exact grab offset; does NOT start drag until threshold is exceeded)
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, sq: Square) => {
       if (disabled || e.button !== 0) return;
@@ -492,21 +495,36 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
       if (piece.color !== chess.turn() && !onPremove) return;
 
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      const pieceCenterX = rect.left + rect.width / 2;
+      const pieceCenterY = rect.top + rect.height / 2;
+
+      // Exact pixel difference between cursor contact point and piece visual center
+      const grabOffsetX = e.clientX - pieceCenterX;
+      const grabOffsetY = e.clientY - pieceCenterY;
+
       dragOriginRef.current = {
         square: sq,
         piece: { type: piece.type, color: piece.color },
         startX: e.clientX,
         startY: e.clientY,
+        grabOffsetX,
+        grabOffsetY,
         isDragging: false,
       };
     },
     [disabled, moveInputMode, chess, onPremove]
   );
 
-  // Position the floating piece with 60fps GPU acceleration via requestAnimationFrame
+  // Position the floating piece with 60fps/120fps GPU acceleration via requestAnimationFrame
   const updateFloatingPos = useCallback(() => {
     if (floatingPieceRef.current) {
-      floatingPieceRef.current.style.transform = `translate3d(${dragCoordsRef.current.x}px, ${dragCoordsRef.current.y}px, 0) translate(-50%, -50%)`;
+      const offsetX = dragOriginRef.current?.grabOffsetX || 0;
+      const offsetY = dragOriginRef.current?.grabOffsetY || 0;
+      const posX = dragCoordsRef.current.x - offsetX;
+      const posY = dragCoordsRef.current.y - offsetY;
+      floatingPieceRef.current.style.transform = `translate3d(${posX}px, ${posY}px, 0) translate(-50%, -50%)`;
     }
   }, []);
 
@@ -522,8 +540,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
           e.clientX - dragOriginRef.current.startX,
           e.clientY - dragOriginRef.current.startY
         );
-        // 5px movement threshold before initiating drag
-        if (dist >= 5) {
+        // 4px movement threshold before initiating drag
+        if (dist >= 4) {
           dragOriginRef.current.isDragging = true;
           setActiveDrag({
             square: dragOriginRef.current.square,
@@ -545,6 +563,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
       const wasDragging = dragOriginRef.current.isDragging;
       const originSquare = dragOriginRef.current.square;
+      const grabOffsetX = dragOriginRef.current.grabOffsetX || 0;
+      const grabOffsetY = dragOriginRef.current.grabOffsetY || 0;
       dragOriginRef.current = null;
 
       if (rafIdRef.current) {
@@ -560,8 +580,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
         if (boardRef.current) {
           const rect = boardRef.current.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
+          // Drop where the piece visually is centered, not where cursor was
+          const pieceX = e.clientX - grabOffsetX;
+          const pieceY = e.clientY - grabOffsetY;
+          const x = pieceX - rect.left;
+          const y = pieceY - rect.top;
 
           if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
             const squareWidth = rect.width / 8;
@@ -747,26 +770,29 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
         )}
       </div>
 
-      {/* Hardware-accelerated floating piece element during active drag */}
-      {activeDrag && (
-        <div
-          ref={floatingPieceRef}
-          style={{
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            transform: `translate3d(${dragCoordsRef.current.x}px, ${dragCoordsRef.current.y}px, 0) translate(-50%, -50%)`,
-            willChange: 'transform',
-            pointerEvents: 'none',
-            zIndex: 99999,
-            width: boardRef.current ? boardRef.current.clientWidth / 8 : 56,
-            height: boardRef.current ? boardRef.current.clientHeight / 8 : 56,
-          }}
-          className="flex items-center justify-center scale-110 drop-shadow-2xl select-none"
-        >
-          <PieceIcon type={activeDrag.type} color={activeDrag.color} theme={pieceTheme} />
-        </div>
-      )}
+      {/* Hardware-accelerated floating piece element during active drag rendered in Portal */}
+      {activeDrag &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={floatingPieceRef}
+            style={{
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              transform: `translate3d(${dragCoordsRef.current.x - (dragOriginRef.current?.grabOffsetX || 0)}px, ${dragCoordsRef.current.y - (dragOriginRef.current?.grabOffsetY || 0)}px, 0) translate(-50%, -50%)`,
+              willChange: 'transform',
+              pointerEvents: 'none',
+              zIndex: 999999,
+              width: boardRef.current ? boardRef.current.clientWidth / 8 : 56,
+              height: boardRef.current ? boardRef.current.clientHeight / 8 : 56,
+            }}
+            className="flex items-center justify-center scale-105 drop-shadow-2xl select-none"
+          >
+            <PieceIcon type={activeDrag.type} color={activeDrag.color} theme={pieceTheme} />
+          </div>,
+          document.body
+        )}
 
       {/* SVG Arrow Annotations Overlay */}
       {arrowsToRender.length > 0 && (

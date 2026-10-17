@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Chess } from 'chess.js';
-import { ChessBoard } from '@/components/board/ChessBoard';
 import { useShell } from '@/context/ShellContext';
 import { GameSessionStore } from '@/lib/gameSessionStore';
 import { MatchmakingService } from '@/lib/firebase/matchmakingService';
@@ -67,7 +65,7 @@ export default function PlayLobbyPage() {
   const { boardTheme, pieceTheme } = useShell();
   const { user, profile, effectiveDisplayName, effectiveRating, effectiveAvatar, effectiveCountry } = useAuth();
 
-  const previewChess = useMemo(() => new Chess(), []);
+
 
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControlOption>(QUICK_TIME_CONTROLS[4]); // Default 10m
   const [selectedMode, setSelectedMode] = useState<'online_pvp' | 'bot' | 'pass_and_play'>('online_pvp');
@@ -384,49 +382,86 @@ export default function PlayLobbyPage() {
       <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col lg:flex-row justify-start lg:justify-center">
         {/* DESKTOP SPLIT VIEW */}
         <div className="hidden lg:flex flex-row w-full h-full max-w-6xl mx-auto items-center justify-center gap-6 p-4 min-h-0">
-          {/* Left Column: Opponent info + Chessboard preview + User info */}
-          <div className="flex flex-col items-center justify-center gap-2 max-w-[min(54vh,540px)] w-full">
-            {/* Opponent Preview Bar */}
-            <div className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#1b1917] border border-[#2d2a26] rounded-xl text-xs">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base">
-                  {selectedMode === 'bot' ? chosenBot.avatar : selectedMode === 'online_pvp' ? '🌐' : '👥'}
-                </span>
-                <span className="font-black text-zinc-200 truncate">
-                  {selectedMode === 'bot'
-                    ? `${chosenBot.name} (${chosenBot.rating})`
-                    : selectedMode === 'online_pvp'
-                    ? '1v1 Online Opponent'
-                    : 'Player 2 (Local)'}
-                </span>
-              </div>
-              <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase">
-                {selectedTimeControl.label}
-              </span>
-            </div>
-
-            {/* Chessboard Preview */}
-            <div className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-[#35322b] shadow-2xl bg-[#1a1816]">
-              <ChessBoard
-                chess={previewChess}
-                orientation={playAsColor === 'b' ? 'b' : 'w'}
-                boardTheme={boardTheme}
-                pieceTheme={pieceTheme}
-                disabled={true}
-              />
-            </div>
-
-            {/* User Preview Bar */}
-            <div className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#1b1917] border border-[#2d2a26] rounded-xl text-xs">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base">{effectiveAvatar || '♟️'}</span>
-                <span className="font-black text-white truncate">
-                  {effectiveDisplayName} ({effectiveRating})
-                </span>
-              </div>
-              <span className="text-[10px] font-mono font-bold text-[#81b64c] uppercase">
-                {playAsColor === 'w' ? 'Playing White ♔' : playAsColor === 'b' ? 'Playing Black ♚' : 'Random Color ☯'}
-              </span>
+          {/* Left Column: Match & Opponent Showcase Card (No dummy board) */}
+          <div className="flex flex-col items-center justify-center gap-4 max-w-md w-full h-full max-h-[calc(100dvh-60px)]">
+            <div className="w-full bg-[#1b1916] border-2 border-[#2d2a26] rounded-3xl p-6 flex flex-col items-center text-center gap-4 shadow-xl relative overflow-hidden">
+              {selectedMode === 'bot' ? (
+                <>
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-3xl bg-[#26231e] border-2 border-[#3c372f] flex items-center justify-center text-5xl shadow-lg">
+                      {chosenBot.avatar}
+                    </div>
+                    <span className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-amber-500 text-black font-mono font-black text-xs uppercase shadow">
+                      {chosenBot.rating}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-black text-white">{chosenBot.name}</h2>
+                      <span className="px-2 py-0.5 rounded bg-[#81b64c]/20 text-[#81b64c] font-black text-[10px] uppercase border border-[#81b64c]/30">
+                        {chosenBot.rating <= 500 ? 'Beginner' : chosenBot.rating <= 1400 ? 'Intermediate' : 'Master'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 max-w-xs">{chosenBot.bio}</p>
+                  </div>
+                  {/* Earned Stars */}
+                  <div className="flex items-center gap-1.5 p-2 bg-[#141311] rounded-xl border border-[#262420]">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase mr-1">Best Score:</span>
+                    {[1, 2, 3].map((s) => (
+                      <span
+                        key={s}
+                        className={`text-base ${
+                          s <= (botStarsMap[chosenBot.id] || 0) ? 'text-amber-400' : 'text-zinc-700'
+                        }`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setIsBotModalOpen(true)}
+                    className="w-full py-2 rounded-xl bg-[#282520] hover:bg-[#343029] border border-[#3e3931] text-[#81b64c] hover:text-[#95d15a] text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Select Different Bot ▾
+                  </button>
+                </>
+              ) : selectedMode === 'online_pvp' ? (
+                <>
+                  <div className="w-24 h-24 rounded-3xl bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center text-5xl shadow-lg text-amber-400">
+                    🌐
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <h2 className="text-xl font-black text-white">1v1 Online PvP</h2>
+                    <p className="text-xs text-zinc-400 max-w-xs">
+                      Pair instantly against players in your skill division ({effectiveRating} rating).
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1 w-full bg-[#141311] p-3 rounded-2xl border border-[#262420] text-left text-xs">
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Time Control:</span>
+                      <span className="font-mono font-bold text-white">{selectedTimeControl.label} ({selectedTimeControl.sub})</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Color Preference:</span>
+                      <span className="font-bold text-[#81b64c]">
+                        {playAsColor === 'w' ? 'White ♔' : playAsColor === 'b' ? 'Black ♚' : 'Random ☯'}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-24 h-24 rounded-3xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-center text-5xl shadow-lg text-purple-400">
+                    👥
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <h2 className="text-xl font-black text-white">Pass & Play</h2>
+                    <p className="text-xs text-zinc-400 max-w-xs">
+                      Two players on the same device. Perfect for tabletop analysis or casual over-the-board games.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -692,16 +727,71 @@ export default function PlayLobbyPage() {
             )}
           </div>
 
-          {/* Full Bleed Mobile Chessboard (Zero Margins) */}
-          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-            <div className="w-[min(100vw,calc(100dvh-230px))] aspect-square overflow-hidden border-0 bg-[#1a1816]">
-              <ChessBoard
-                chess={previewChess}
-                orientation={playAsColor === 'b' ? 'b' : 'w'}
-                boardTheme={boardTheme}
-                pieceTheme={pieceTheme}
-                disabled={true}
-              />
+          {/* Mobile Matchup Showcase Card (No dummy board) */}
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 py-2">
+            <div className="w-full max-w-sm bg-[#1e1c19] border-2 border-[#2d2a26] rounded-2xl p-4 flex flex-col items-center text-center gap-2.5 shadow-xl">
+              {selectedMode === 'bot' ? (
+                <>
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-[#26231e] border-2 border-[#3c372f] flex items-center justify-center text-3xl shadow">
+                      {chosenBot.avatar}
+                    </div>
+                    <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black font-mono font-black text-[10px] uppercase shadow">
+                      {chosenBot.rating}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-base font-black text-white">{chosenBot.name}</span>
+                      <span className="px-1.5 py-0.2 rounded bg-[#81b64c]/20 text-[#81b64c] font-black text-[9px] uppercase border border-[#81b64c]/30">
+                        {chosenBot.rating <= 500 ? 'Beginner' : chosenBot.rating <= 1400 ? 'Intermediate' : 'Master'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 line-clamp-2 mt-0.5">{chosenBot.bio}</p>
+                  </div>
+                  {/* Stars */}
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-[#141311] rounded-lg border border-[#262420]">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase mr-1">Best Score:</span>
+                    {[1, 2, 3].map((s) => (
+                      <span
+                        key={s}
+                        className={`text-xs ${
+                          s <= (botStarsMap[chosenBot.id] || 0) ? 'text-amber-400' : 'text-zinc-700'
+                        }`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : selectedMode === 'online_pvp' ? (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center text-3xl shadow text-amber-400">
+                    🌐
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-base font-black text-white">1v1 Online PvP</span>
+                    <span className="text-[11px] text-zinc-400">Matches your {effectiveRating} rating</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-300 bg-[#141311] px-2.5 py-1 rounded-lg border border-[#262420]">
+                    <span>{selectedTimeControl.label} ({selectedTimeControl.sub})</span>
+                    <span>•</span>
+                    <span className="text-[#81b64c]">
+                      {playAsColor === 'w' ? 'White ♔' : playAsColor === 'b' ? 'Black ♚' : 'Random ☯'}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-center text-3xl shadow text-purple-400">
+                    👥
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-base font-black text-white">Pass & Play Local</span>
+                    <span className="text-[11px] text-zinc-400">Two players on one device</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

@@ -1049,6 +1049,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
           result={resultDetails}
           whitePlayer={whitePlayer}
           blackPlayer={blackPlayer}
+          userColor={userColor}
           botStars={earnedBotStars}
           undosUsed={undosUsed}
           onReviewGame={() => {

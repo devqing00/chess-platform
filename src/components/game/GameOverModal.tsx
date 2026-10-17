@@ -10,6 +10,7 @@ interface GameOverModalProps {
   result: GameResultDetails;
   whitePlayer: GamePlayer;
   blackPlayer: GamePlayer;
+  userColor?: 'w' | 'b';
   botStars?: number;
   undosUsed?: number;
   onReviewGame: () => void;
@@ -23,6 +24,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   result,
   whitePlayer,
   blackPlayer,
+  userColor: propUserColor,
   botStars,
   undosUsed = 0,
   onReviewGame,
@@ -32,18 +34,33 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   if (!isOpen) return null;
 
   const isUserWhite = React.useMemo(() => {
-    if (whitePlayer.id === 'user-local' || whitePlayer.id === 'player-1') return true;
-    if (blackPlayer.id === 'user-local' || blackPlayer.id === 'player-1') return false;
+    if (propUserColor) return propUserColor === 'w';
+    // 1. Bot vs Human check
+    if (whitePlayer.isBot && !blackPlayer.isBot) return false;
+    if (blackPlayer.isBot && !whitePlayer.isBot) return true;
+    // 2. Local ID check
+    if (whitePlayer.id === 'local-user' || whitePlayer.id === 'user-local' || whitePlayer.id === 'player-you' || whitePlayer.id === 'player-1') return true;
+    if (blackPlayer.id === 'local-user' || blackPlayer.id === 'user-local' || blackPlayer.id === 'player-you' || blackPlayer.id === 'player-1') return false;
+    // 3. Rating delta truth: if user gained rating, user must be the winner!
+    if (result.ratingDelta > 0 && (result.winner === 'w' || result.winner === 'b')) {
+      return result.winner === 'w';
+    }
+    if (result.ratingDelta < 0 && (result.winner === 'w' || result.winner === 'b')) {
+      return result.winner === 'b';
+    }
+    // 4. Fallback name check
     const wName = (whitePlayer.name || '').toLowerCase();
     const bName = (blackPlayer.name || '').toLowerCase();
     if (wName.includes('you') || wName.includes('qing')) return true;
     if (bName.includes('you') || bName.includes('qing')) return false;
     return true;
-  }, [whitePlayer, blackPlayer]);
+  }, [propUserColor, whitePlayer, blackPlayer, result]);
 
-  const userColor = isUserWhite ? 'w' : 'b';
-  const isWin = result.winner === userColor;
-  const isDraw = result.winner === 'draw';
+  const resolvedUserColor = isUserWhite ? 'w' : 'b';
+  const isWin =
+    result.winner === resolvedUserColor ||
+    (result.ratingDelta > 0 && (result.winner as string) !== 'draw');
+  const isDraw = (result.winner as string) === 'draw' || (result.ratingDelta === 0 && (result.winner as string) !== 'w' && (result.winner as string) !== 'b');
   const isLoss = !isWin && !isDraw;
 
   const titleText = isWin ? 'You Won!' : isDraw ? 'Game Drawn' : 'You Lost';

@@ -28,76 +28,88 @@ export function generateBotMove(
   const isWhite = chess.turn() === 'w';
   const rating = bot.rating;
 
-  // Evaluate and score all legal candidate moves
-  const scoredMoves: { move: Move; score: number }[] = legalMoves.map((m) => {
-    chess.move(m);
-    const score = ChessEvaluator.evaluateWithReply(chess);
-    chess.undo();
-    return { move: m, score };
-  });
+  // 0ms instant response if only 1 legal move exists
+  if (legalMoves.length === 1) {
+    return {
+      san: legalMoves[0].san,
+      from: legalMoves[0].from,
+      to: legalMoves[0].to,
+      promotion: legalMoves[0].promotion,
+    };
+  }
 
-  // Sort best to worst from bot's perspective
-  // If bot is Black, lower score is better for Black; if White, higher score is better.
-  scoredMoves.sort((a, b) => (isWhite ? b.score - a.score : a.score - b.score));
-
-  let chosenMove: Move = scoredMoves[0].move;
+  let chosenMove: Move = legalMoves[0];
   let quoteType: keyof BotPersonality['quotes'] | null = null;
 
   if (rating <= 300) {
     // MARTIN (250 ELO): The lovable blunderer
-    // 75% of the time, choose a random or suboptimal move
+    // 75% of the time, immediately pick a random legal move with 0ms calculation
     const roll = Math.random();
-    if (roll < 0.75 && scoredMoves.length > 1) {
-      // Pick a random move from the middle or lower tier of legal moves
-      const randomIndex = Math.floor(Math.random() * scoredMoves.length);
-      chosenMove = scoredMoves[randomIndex].move;
+    if (roll < 0.75) {
+      const randomIndex = Math.floor(Math.random() * legalMoves.length);
+      chosenMove = legalMoves[randomIndex];
       if (Math.random() < 0.4) {
         quoteType = 'blunder';
       }
     } else {
-      chosenMove = scoredMoves[0].move;
-    }
-  } else if (rating <= 500) {
-    // ELANI (400 ELO): Enthusiastic beginner
-    const roll = Math.random();
-    if (roll < 0.60 && scoredMoves.length > 1) {
-      const candidateIndex = Math.min(
-        scoredMoves.length - 1,
-        Math.floor(Math.random() * Math.min(6, scoredMoves.length))
-      );
-      chosenMove = scoredMoves[candidateIndex].move;
-    } else {
-      chosenMove = scoredMoves[0].move;
+      // 25% simple 1-ply piece-value evaluation (0.05ms)
+      const scored = legalMoves.map((m) => {
+        chess.move(m);
+        const score = ChessEvaluator.evaluatePosition(chess);
+        chess.undo();
+        return { move: m, score };
+      });
+      scored.sort((a, b) => (isWhite ? b.score - a.score : a.score - b.score));
+      chosenMove = scored[0].move;
     }
   } else if (rating <= 800) {
-    // WAYNE (700 ELO): Coffee-shop casual
-    const roll = Math.random();
-    if (roll < 0.40 && scoredMoves.length > 2) {
-      const candidateIndex = Math.floor(Math.random() * Math.min(3, scoredMoves.length));
-      chosenMove = scoredMoves[candidateIndex].move;
+    // ELANI (400 ELO) & WAYNE (700 ELO): Fast 1-ply position evaluation
+    const scored = legalMoves.map((m) => {
+      chess.move(m);
+      const score = ChessEvaluator.evaluatePosition(chess);
+      chess.undo();
+      return { move: m, score };
+    });
+    scored.sort((a, b) => (isWhite ? b.score - a.score : a.score - b.score));
+
+    const mistakeChance = rating <= 500 ? 0.60 : 0.40;
+    if (Math.random() < mistakeChance && scored.length > 1) {
+      const candidateIndex = Math.floor(Math.random() * Math.min(3, scored.length));
+      chosenMove = scored[candidateIndex].move;
     } else {
-      chosenMove = scoredMoves[0].move;
+      chosenMove = scored[0].move;
     }
   } else if (rating <= 1400) {
-    // NELSON (1300 ELO): Aggressive Queen attacks
-    // Nelson prioritizes Queen moves in early game if legal
+    // NELSON (1300 ELO): Aggressive Queen attacks with 1-ply evaluation
+    const scored = legalMoves.map((m) => {
+      chess.move(m);
+      const score = ChessEvaluator.evaluatePosition(chess);
+      chess.undo();
+      return { move: m, score };
+    });
+    scored.sort((a, b) => (isWhite ? b.score - a.score : a.score - b.score));
+
     if (chess.history().length < 12) {
-      const queenMove = scoredMoves.find((sm) => sm.move.piece === 'q');
+      const queenMove = scored.find((sm) => sm.move.piece === 'q');
       if (queenMove && Math.random() < 0.65) {
         chosenMove = queenMove.move;
       } else {
-        chosenMove = Math.random() < 0.25 && scoredMoves.length > 1 ? scoredMoves[1].move : scoredMoves[0].move;
+        chosenMove = Math.random() < 0.25 && scored.length > 1 ? scored[1].move : scored[0].move;
       }
     } else {
-      chosenMove = Math.random() < 0.20 && scoredMoves.length > 1 ? scoredMoves[1].move : scoredMoves[0].move;
+      chosenMove = Math.random() < 0.20 && scored.length > 1 ? scored[1].move : scored[0].move;
     }
-  } else if (rating <= 2000) {
-    // Intermediate / Club Bots (1500 - 2000)
-    chosenMove = Math.random() < 0.12 && scoredMoves.length > 1 ? scoredMoves[1].move : scoredMoves[0].move;
   } else {
-    // Master / GM / Stockfish (2200 - 3200)
-    // 98% pure minimax top choice
-    chosenMove = scoredMoves[0].move;
+    // Advanced & Master Bots: Bounded candidate evaluation
+    const candidateMoves = legalMoves.length > 18 ? legalMoves.slice(0, 18) : legalMoves;
+    const scored = candidateMoves.map((m) => {
+      chess.move(m);
+      const score = ChessEvaluator.evaluatePosition(chess);
+      chess.undo();
+      return { move: m, score };
+    });
+    scored.sort((a, b) => (isWhite ? b.score - a.score : a.score - b.score));
+    chosenMove = scored[0].move;
   }
 
   // Pick contextual quote from bot personality

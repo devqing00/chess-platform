@@ -584,7 +584,9 @@ export class GameSessionStore {
       session = this.createSession(defaultWhite, defaultBlack, 600);
     }
 
-    const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves);
+    // Do not run synchronous heavy multi-ply minimax analysis on the main UI thread during game-over!
+    // Full engine evaluation is done asynchronously and lazily when the user visits Game Review.
+    const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves, true);
 
     session.moves = moves;
     session.isGameOver = true;

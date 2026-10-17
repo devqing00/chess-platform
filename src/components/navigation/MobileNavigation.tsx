@@ -82,9 +82,12 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
     router.push(href);
   };
 
-  const isGameScreen = pathname?.startsWith('/game/');
+  const isPlayOrGameScreen =
+    pathname === '/play' ||
+    pathname?.startsWith('/play/') ||
+    pathname?.startsWith('/game/');
 
-  if (isGameScreen) {
+  if (isPlayOrGameScreen) {
     return null;
   }
 
