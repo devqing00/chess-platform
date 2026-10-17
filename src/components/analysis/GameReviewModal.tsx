@@ -103,7 +103,7 @@ export const GameReviewModal: React.FC<GameReviewModalProps> = ({
                 {whiteCaps}%
               </div>
               <span className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1 font-bold">
-                CAPS Accuracy
+                Accuracy
               </span>
               <div className="w-full bg-[#161512] h-2 rounded-full mt-3 overflow-hidden">
                 <div
@@ -122,7 +122,7 @@ export const GameReviewModal: React.FC<GameReviewModalProps> = ({
                 {blackCaps}%
               </div>
               <span className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1 font-bold">
-                CAPS Accuracy
+                Accuracy
               </span>
               <div className="w-full bg-[#161512] h-2 rounded-full mt-3 overflow-hidden">
                 <div

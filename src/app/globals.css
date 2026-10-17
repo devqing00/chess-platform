@@ -1,8 +1,210 @@
 @import "tailwindcss";
+@source "../";
 
 :root {
   --background: #161512;
   --foreground: #ffffff;
+
+  /* Tactile Modern Tokens (Duolingo Style) */
+  --tactile-green: #81b64c;
+  --tactile-green-hover: #92cb56;
+  --tactile-green-shadow: #4d7a24;
+
+  --tactile-blue: #3b82f6;
+  --tactile-blue-hover: #60a5fa;
+  --tactile-blue-shadow: #1e3a8a;
+
+  --tactile-amber: #f59e0b;
+  --tactile-amber-hover: #fbbf24;
+  --tactile-amber-shadow: #92400e;
+
+  --tactile-red: #ef4444;
+  --tactile-red-hover: #f87171;
+  --tactile-red-shadow: #7f1d1d;
+
+  --tactile-purple: #a855f7;
+  --tactile-purple-hover: #c084fc;
+  --tactile-purple-shadow: #581c87;
+
+  --tactile-neutral-bg: #211f1c;
+  --tactile-neutral-border: #35322b;
+  --tactile-neutral-shadow: #141311;
+  --tactile-card-shadow: #100f0d;
+}
+
+/* ============================================
+   Tactile Modern Hard Shadows & 3D Extrusions
+   ============================================ */
+.shadow-hard-sm { box-shadow: 0 2px 0 0 var(--tactile-green-shadow); }
+.shadow-hard { box-shadow: 0 4px 0 0 var(--tactile-green-shadow); }
+.shadow-hard-lg { box-shadow: 0 6px 0 0 var(--tactile-green-shadow); }
+.shadow-hard-neutral-sm { box-shadow: 0 2px 0 0 var(--tactile-neutral-shadow); }
+.shadow-hard-neutral { box-shadow: 0 4px 0 0 var(--tactile-neutral-shadow); }
+.shadow-hard-neutral-lg { box-shadow: 0 6px 0 0 var(--tactile-neutral-shadow); }
+.shadow-hard-card { box-shadow: 0 4px 0 0 var(--tactile-card-shadow); }
+.shadow-hard-card-lg { box-shadow: 0 6px 0 0 var(--tactile-card-shadow); }
+.shadow-hard-success { box-shadow: 0 4px 0 0 var(--tactile-green-shadow); }
+.shadow-hard-warning { box-shadow: 0 4px 0 0 var(--tactile-amber-shadow); }
+.shadow-hard-error { box-shadow: 0 4px 0 0 var(--tactile-red-shadow); }
+.shadow-hard-blue { box-shadow: 0 4px 0 0 var(--tactile-blue-shadow); }
+.shadow-hard-purple { box-shadow: 0 4px 0 0 var(--tactile-purple-shadow); }
+
+/* Tactile 3D Buttons (Duolingo Pressable Style) */
+.btn-tactile-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-color: var(--tactile-green);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 4px 0 0 var(--tactile-green-shadow);
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-tactile-primary:hover:not(:disabled) {
+  background-color: var(--tactile-green-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 var(--tactile-green-shadow);
+}
+.btn-tactile-primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--tactile-green-shadow);
+}
+.btn-tactile-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-tactile-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 2px solid var(--tactile-neutral-border);
+  background-color: var(--tactile-neutral-bg);
+  color: #f4f4f5;
+  font-weight: 700;
+  box-shadow: 0 4px 0 0 var(--tactile-neutral-shadow);
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-tactile-secondary:hover:not(:disabled) {
+  border-color: #48433a;
+  background-color: #2a2723;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 var(--tactile-neutral-shadow);
+}
+.btn-tactile-secondary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--tactile-neutral-shadow);
+}
+
+.btn-tactile-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-color: var(--tactile-amber);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 4px 0 0 var(--tactile-amber-shadow);
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-tactile-warning:hover:not(:disabled) {
+  background-color: var(--tactile-amber-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 var(--tactile-amber-shadow);
+}
+.btn-tactile-warning:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--tactile-amber-shadow);
+}
+
+.btn-tactile-error {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-color: var(--tactile-red);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 4px 0 0 var(--tactile-red-shadow);
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-tactile-error:hover:not(:disabled) {
+  background-color: var(--tactile-red-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 var(--tactile-red-shadow);
+}
+.btn-tactile-error:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--tactile-red-shadow);
+}
+
+.btn-tactile-blue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-color: var(--tactile-blue);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 4px 0 0 var(--tactile-blue-shadow);
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  user-select: none;
+}
+.btn-tactile-blue:hover:not(:disabled) {
+  background-color: var(--tactile-blue-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 var(--tactile-blue-shadow);
+}
+.btn-tactile-blue:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--tactile-blue-shadow);
+}
+
+/* Tactile Cards */
+.card-tactile {
+  border-radius: 1.5rem;
+  border: 2px solid var(--tactile-neutral-border);
+  background-color: var(--tactile-neutral-bg);
+  box-shadow: 0 4px 0 0 var(--tactile-card-shadow);
+}
+
+.card-tactile-interactive {
+  border-radius: 1.5rem;
+  border: 2px solid var(--tactile-neutral-border);
+  background-color: var(--tactile-neutral-bg);
+  box-shadow: 0 4px 0 0 var(--tactile-card-shadow);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+}
+.card-tactile-interactive:hover {
+  border-color: #4c463b;
+  transform: translateY(-3px);
+  box-shadow: 0 7px 0 0 var(--tactile-card-shadow);
+}
+.card-tactile-interactive:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 0 var(--tactile-card-shadow);
 }
 
 body {
@@ -47,3 +249,97 @@ code, kbd, samp, pre, .font-mono {
 .animate-pulse-subtle {
   animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Checkmated King center-axis rotation: topples once when checkmated and settles */
+@keyframes checkmateKingTopple {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  30% {
+    transform: rotate(48deg) scale(0.95);
+  }
+  60% {
+    transform: rotate(72deg) scale(0.91);
+  }
+  80% {
+    transform: rotate(66deg) scale(0.92);
+  }
+  100% {
+    transform: rotate(68deg) scale(0.92);
+  }
+}
+
+.animate-king-defeated {
+  transform-origin: center center !important;
+  animation: checkmateKingTopple 0.55s cubic-bezier(0.25, 1, 0.45, 1) 1 forwards !important;
+}
+
+/* Realistic piece drop & subtle tactile settle */
+@keyframes pieceDropSettle {
+  0% {
+    transform: translateY(-2.5px) scale(1.02);
+  }
+  45% {
+    transform: translateY(0.75px) scale(0.995);
+  }
+  75% {
+    transform: translateY(-0.3px) scale(1.002);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-piece-shutter {
+  transform-origin: bottom center !important;
+  animation: pieceDropSettle 0.16s cubic-bezier(0.25, 1, 0.4, 1) forwards !important;
+}
+
+/* Tile flash shutter highlight when a piece arrives */
+@keyframes tileFlashShutter {
+  0% {
+    background-color: rgba(255, 255, 255, 0.45);
+    opacity: 1;
+  }
+  30% {
+    background-color: rgba(255, 255, 255, 0.25);
+    opacity: 0.8;
+  }
+  100% {
+    background-color: transparent;
+    opacity: 0;
+  }
+}
+
+.animate-tile-flash {
+  animation: tileFlashShutter 0.35s ease-out forwards !important;
+}
+
+/* Real Chess Silky Smooth Piece Movement */
+@keyframes pieceSmoothMove {
+  0% {
+    transform: translate3d(var(--move-dx, 0), var(--move-dy, 0), 0);
+    filter: blur(1px);
+    opacity: 0.96;
+  }
+  35% {
+    filter: blur(1.4px);
+    opacity: 1;
+  }
+  75% {
+    filter: blur(0.4px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    filter: blur(0px);
+    opacity: 1;
+  }
+}
+
+.animate-piece-speed-blur {
+  animation: pieceSmoothMove 0.20s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+

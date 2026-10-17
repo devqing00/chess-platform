@@ -61,7 +61,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
         return (
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-black uppercase tracking-wider animate-pulse">
             <ShieldAlert className="w-4 h-4" />
-            <span>High Correlation Flagged (Z &gt; 4.5)</span>
+            <span>Unusual Computer Similarity Flagged</span>
           </div>
         );
     }
@@ -91,7 +91,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
                 Fair-Play & Anti-Cheat Audit
               </h2>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Ken Regan Intrinsic Performance Rating (IPR) & Telemetry Screening
+                Move Accuracy & Pacing Fair Play Screening
               </p>
             </div>
           </div>
@@ -108,7 +108,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
           {/* Z-Score */}
           <div className="p-3.5 rounded-2xl bg-[#171613] border border-[#2e2a23] flex flex-col">
             <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-              Regan Z-Score
+              Statistical Variance
             </span>
             <span
               className={`text-xl font-black font-mono mt-1 ${
@@ -123,7 +123,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
           {/* Engine Match % */}
           <div className="p-3.5 rounded-2xl bg-[#171613] border border-[#2e2a23] flex flex-col">
             <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-              Rank 1 Match
+              Top Engine Match
             </span>
             <span className="text-xl font-black font-mono text-white mt-1">
               {report.metrics.engineCorrelationPct.toFixed(1)}%
@@ -136,7 +136,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
           {/* ACPL */}
           <div className="p-3.5 rounded-2xl bg-[#171613] border border-[#2e2a23] flex flex-col">
             <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-              Average ACPL
+              Move Inaccuracy
             </span>
             <span className="text-xl font-black font-mono text-cyan-400 mt-1">
               {report.metrics.acpl.toFixed(1)}
@@ -149,12 +149,12 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
           {/* Timing Entropy */}
           <div className="p-3.5 rounded-2xl bg-[#171613] border border-[#2e2a23] flex flex-col">
             <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-              Move Timing CV
+              Move Timing Variation
             </span>
             <span className="text-xl font-black font-mono text-amber-400 mt-1">
               {report.metrics.timingCoefficientOfVariation.toFixed(2)}
             </span>
-            <span className="text-[10px] text-zinc-400 mt-0.5">Human: &gt; 0.35</span>
+            <span className="text-[10px] text-zinc-400 mt-0.5">Typical: &gt; 0.35</span>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
         <div className="p-4 rounded-2xl bg-[#171613] border border-[#2e2a23] mb-6">
           <h3 className="text-xs font-black text-white uppercase tracking-wider mb-3 flex items-center gap-2">
             <Activity className="w-4 h-4 text-purple-400" />
-            <span>Real-Time Client Telemetry Signals</span>
+            <span>Fair Play Focus & Movement Signals</span>
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -170,7 +170,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
               <Eye className="w-4 h-4 text-amber-400 shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[11px] font-bold text-white">
-                  {telemetry?.tabBlurCount ?? 0} Window Blurs
+                  {telemetry?.tabBlurCount ?? 0} Tab Switches
                 </span>
                 <span className="text-[10px] text-zinc-400">
                   {telemetry?.totalBlurTimeMs ? `${(telemetry.totalBlurTimeMs / 1000).toFixed(1)}s away` : '0s away'}
@@ -182,10 +182,10 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
               <MousePointer className="w-4 h-4 text-cyan-400 shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[11px] font-bold text-white">
-                  Linearity: {telemetry?.mouseLinearityScore ?? 0.15}
+                  Cursor Path: {telemetry?.mouseLinearityScore ?? 0.15}
                 </span>
                 <span className="text-[10px] text-zinc-400">
-                  {(telemetry?.mouseLinearityScore ?? 0.15) > 0.85 ? 'Bot-like straight' : 'Natural human curves'}
+                  {(telemetry?.mouseLinearityScore ?? 0.15) > 0.85 ? 'Mechanical straight line' : 'Natural curved movement'}
                 </span>
               </div>
             </div>
@@ -197,7 +197,7 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
                   Avg Time: {(report.metrics.moveTimeMeanMs / 1000).toFixed(1)}s
                 </span>
                 <span className="text-[10px] text-zinc-400">
-                  StdDev: {(report.metrics.moveTimeStdDevMs / 1000).toFixed(1)}s
+                  Variation: ±{(report.metrics.moveTimeStdDevMs / 1000).toFixed(1)}s
                 </span>
               </div>
             </div>
@@ -216,12 +216,12 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
                 <div key={idx} className="p-3 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold text-amber-400">
-                      Ply {a.ply} ({a.san})
+                      Move {Math.ceil(a.ply / 2)} ({a.san})
                     </span>
                     <span className="text-[11px] text-zinc-400">{a.description}</span>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
-                    Rank #{a.engineRank}
+                    Choice #{a.engineRank}
                   </span>
                 </div>
               ))}

@@ -88,37 +88,37 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none">
-      <div className="w-full max-w-4xl bg-[#1e1c19] border border-[#33302b] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 select-none">
+      <div className="w-full max-w-4xl bg-[#211f1c] border-2 border-[#35322b] rounded-3xl shadow-[0_8px_0_0_#141311] overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-6 py-4 bg-[#262421] border-b border-[#33302b] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Crown className="w-6 h-6 text-amber-400" />
-            <span className="text-lg font-black text-white">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262420] border-b-2 border-[#35322b] flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
+            <span className="text-sm sm:text-lg font-black text-white truncate">
               Upgrade Your Check.mate Experience
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#383530] transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-full text-zinc-400 hover:text-white hover:bg-[#383530] transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tiers Grid */}
-        <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="p-3.5 sm:p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {tiers.map((tier) => {
             const isCurrent = currentTier === tier.id;
             return (
               <div
                 key={tier.id}
-                className={`p-4 rounded-xl bg-[#262421] border flex flex-col justify-between relative transition-all ${
-                  tier.accentColor
-                } ${tier.popular ? 'bg-gradient-to-b from-[#2d2924] to-[#211f1c]' : ''}`}
+                className={`p-4 sm:p-5 rounded-3xl bg-[#282521] border-2 flex flex-col justify-between relative transition-all shadow-[0_4px_0_0_#141311] hover:-translate-y-[2px] ${
+                  tier.popular ? 'border-cyan-400 shadow-[0_4px_0_0_#0891b2]' : 'border-[#383530]'
+                }`}
               >
                 {tier.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black text-[9px] uppercase px-2 py-0.5 rounded-full shadow">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500 border-2 border-cyan-300 text-black font-black text-[9px] uppercase tracking-wider px-3 py-0.5 rounded-full shadow-[0_2px_0_0_#0891b2]">
                     Most Popular
                   </span>
                 )}
@@ -126,7 +126,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-base font-black text-white">{tier.name}</span>
-                    <span className="text-[10px] text-zinc-400 font-semibold uppercase">
+                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">
                       {tier.badge}
                     </span>
                   </div>
@@ -137,8 +137,8 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                   <ul className="mt-4 space-y-2 text-xs text-zinc-300">
                     {tier.features.map((feat, idx) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <Check className="w-3.5 h-3.5 text-[#81b64c] shrink-0 mt-0.5" />
-                        <span className="leading-tight">{feat}</span>
+                        <Check className="w-4 h-4 text-[#81b64c] shrink-0 mt-0.5" />
+                        <span className="leading-tight font-medium">{feat}</span>
                       </li>
                     ))}
                   </ul>
@@ -149,12 +149,12 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                     onSelectTier(tier.id);
                     onClose();
                   }}
-                  className={`mt-6 w-full py-2 rounded-lg text-xs font-bold transition-all cursor-pointer shadow ${
+                  className={`mt-5 sm:mt-6 w-full py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
                     isCurrent
-                      ? 'bg-zinc-700 text-zinc-300 cursor-default'
+                      ? 'bg-[#211f1c] border-[#383530] text-zinc-500 cursor-default shadow-none'
                       : tier.popular
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white'
-                      : 'bg-[#81b64c] hover:bg-[#72a342] text-white'
+                      ? 'bg-cyan-500 hover:bg-cyan-400 border-cyan-400 text-black shadow-[0_3px_0_0_#0891b2] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#0891b2]'
+                      : 'bg-[#81b64c] hover:bg-[#72a342] border-[#5d8b32] text-white shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#4d7a24]'
                   }`}
                 >
                   {isCurrent ? 'Current Plan' : 'Select Plan'}
@@ -165,12 +165,12 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         </div>
 
         {/* Guarantee Footer */}
-        <div className="px-6 py-3 bg-[#161512] border-t border-[#33302b] flex items-center justify-between text-xs text-zinc-400">
+        <div className="px-4 sm:px-6 py-3 bg-[#181614] border-t-2 border-[#35322b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-zinc-400 font-medium">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-[#81b64c]" />
+            <Shield className="w-4 h-4 text-[#81b64c] shrink-0" />
             <span>Switch or cancel membership anytime. 100% money-back guarantee.</span>
           </div>
-          <span className="text-[11px] text-zinc-500">Official Check.mate VIP Tiers</span>
+          <span className="text-[10px] sm:text-[11px] text-zinc-500 font-bold uppercase tracking-wider">Official Check.mate VIP Tiers</span>
         </div>
       </div>
     </div>

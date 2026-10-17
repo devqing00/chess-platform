@@ -3,14 +3,19 @@
 import React, { useState } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
-import { ClassificationBadge } from '../board/ClassificationBadge';
+import { ClassificationBadge, CLASSIFICATION_CONFIG } from '../board/ClassificationBadge';
+import { PieceIcon } from '../board/PieceIcons';
 import { CoachDannyAvatar } from './CoachDannyAvatar';
+import { MentorAvatar } from './MentorAvatar';
+import { useShell } from '@/context/ShellContext';
+import { getMentorById } from '@/lib/mentorsData';
 import {
   GameReviewReport,
   BoardTheme,
   PieceTheme,
   MoveClassification,
 } from '@/types/chess';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Volume2,
@@ -23,7 +28,16 @@ import {
   X,
   Target,
   Layers,
+  Cpu,
+  Flame,
+  Network,
+  Bot,
+  Microscope,
+  RefreshCw,
+  ChevronDown,
+  MoreHorizontal,
 } from 'lucide-react';
+import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
 
@@ -33,6 +47,8 @@ interface GameReviewSummaryViewProps {
   pieceTheme: PieceTheme;
   onStartInteractiveReview: () => void;
   onBackToGame: () => void;
+  onEngineChange?: (engine: 'torch_human' | 'stockfish') => void;
+  onReanalyze?: () => void;
 }
 
 export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
@@ -41,8 +57,26 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   pieceTheme,
   onStartInteractiveReview,
   onBackToGame,
+  onEngineChange,
+  onReanalyze,
 }) => {
+  const router = useRouter();
+  const { activeMentorId, analysisEngine, setAnalysisEngine } = useShell();
+  const currentMentor = getMentorById(activeMentorId);
   const { whitePlayer, blackPlayer, whiteAccuracy, blackAccuracy, tallies, evalTimeline, moves } = report;
+
+  const isUserWhite = React.useMemo(() => {
+    if (whitePlayer.id === 'user-local' || whitePlayer.id === 'player-1') return true;
+    if (blackPlayer.id === 'user-local' || blackPlayer.id === 'player-1') return false;
+    const wName = (whitePlayer.name || '').toLowerCase();
+    const bName = (blackPlayer.name || '').toLowerCase();
+    if (wName.includes('you') || wName.includes('qing')) return true;
+    if (bName.includes('you') || bName.includes('qing')) return false;
+    return true;
+  }, [whitePlayer, blackPlayer]);
+
+  // Mobile sub-tab state for zero-scroll viewport
+  const [mobileTab, setMobileTab] = useState<'stats' | 'board'>('stats');
 
   // Board position for summary: show final move or most brilliant move
   const keyMove = moves.find((m) => m.classification === 'brilliant') || moves[moves.length - 1];
@@ -58,6 +92,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   });
 
   const puzzle = report.blunderRetryPuzzle;
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
   const handleBlunderMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
     if (!puzzle || blunderStatus === 'correct' || blunderStatus === 'revealed') return;
@@ -108,6 +143,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   };
 
   // Classification comparison rows matching Screenshot 3
+  // Classification comparison rows matching Chess.com screenshots (all 10 tiers)
   const classificationRows: {
     label: string;
     classification: MoveClassification;
@@ -117,40 +153,100 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
     {
       label: 'Brilliant',
       classification: 'brilliant',
-      whiteCount: tallies.white.brilliant,
-      blackCount: tallies.black.brilliant,
+      whiteCount: tallies.white.brilliant || 0,
+      blackCount: tallies.black.brilliant || 0,
     },
     {
       label: 'Great',
       classification: 'great',
-      whiteCount: tallies.white.great,
-      blackCount: tallies.black.great,
+      whiteCount: tallies.white.great || 0,
+      blackCount: tallies.black.great || 0,
     },
     {
       label: 'Best',
       classification: 'best',
-      whiteCount: tallies.white.best,
-      blackCount: tallies.black.best,
+      whiteCount: tallies.white.best || 0,
+      blackCount: tallies.black.best || 0,
+    },
+    {
+      label: 'Excellent',
+      classification: 'excellent',
+      whiteCount: tallies.white.excellent || 0,
+      blackCount: tallies.black.excellent || 0,
+    },
+    {
+      label: 'Good',
+      classification: 'good',
+      whiteCount: tallies.white.good || 0,
+      blackCount: tallies.black.good || 0,
+    },
+    {
+      label: 'Book',
+      classification: 'book',
+      whiteCount: tallies.white.book || 0,
+      blackCount: tallies.black.book || 0,
+    },
+    {
+      label: 'Inaccuracy',
+      classification: 'inaccuracy',
+      whiteCount: tallies.white.inaccuracy || 0,
+      blackCount: tallies.black.inaccuracy || 0,
     },
     {
       label: 'Mistake',
       classification: 'mistake',
-      whiteCount: tallies.white.mistake,
-      blackCount: tallies.black.mistake,
+      whiteCount: tallies.white.mistake || 0,
+      blackCount: tallies.black.mistake || 0,
     },
     {
       label: 'Miss',
       classification: 'miss',
-      whiteCount: tallies.white.miss,
-      blackCount: tallies.black.miss,
+      whiteCount: tallies.white.miss || 0,
+      blackCount: tallies.black.miss || 0,
     },
     {
       label: 'Blunder',
       classification: 'blunder',
-      whiteCount: tallies.white.blunder,
-      blackCount: tallies.black.blunder,
+      whiteCount: tallies.white.blunder || 0,
+      blackCount: tallies.black.blunder || 0,
     },
   ];
+
+  // Dynamic Advanced Stats calculated across Opening, Tactics, Strategy, and Endgame
+  const advancedStats = React.useMemo(() => {
+    return report.advancedStats || calculateGameAdvancedStats(report);
+  }, [report]);
+
+  const advancedStatsRows = React.useMemo(() => [
+    {
+      key: 'opening',
+      label: 'Opening',
+      description: 'Development & center control',
+      white: advancedStats.white.opening,
+      black: advancedStats.black.opening,
+    },
+    {
+      key: 'tactics',
+      label: 'Tactics',
+      description: 'Sharp calculation & attacks',
+      white: advancedStats.white.tactics,
+      black: advancedStats.black.tactics,
+    },
+    {
+      key: 'strategy',
+      label: 'Strategy',
+      description: 'Positional plans & harmony',
+      white: advancedStats.white.strategy,
+      black: advancedStats.black.strategy,
+    },
+    {
+      key: 'endgame',
+      label: 'Endgame',
+      description: 'Technique & conversion',
+      white: advancedStats.white.endgame,
+      black: advancedStats.black.endgame,
+    },
+  ], [advancedStats]);
 
   // SVG Evaluation graph points
   const points = evalTimeline.map((p, idx) => {
@@ -160,78 +256,465 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
     return `${x},${y}`;
   }).join(' ');
 
-  return (
-    <div className="flex flex-col h-full w-full bg-[#161512] text-zinc-100 select-none">
-      {/* Top Header Bar */}
-      <header className="h-14 px-4 lg:px-6 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBackToGame}
-            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+  // Shared Stats & Accuracy Panel
+  const renderStatsPanel = (isMobile = false) => (
+    <div className={`flex flex-col gap-3 w-full ${isMobile ? 'pb-16' : ''}`}>
+      {/* Dynamic Mentor Header Bubble */}
+      <div className="flex items-start gap-2.5 bg-[#1e1c18] border border-[#2e2a24] rounded-xl p-2.5 sm:p-3 shadow-lg">
+        <div className="relative shrink-0">
+          <MentorAvatar mentorId={activeMentorId} size={40} />
+          <span
+            className="absolute -bottom-1 -right-1 px-1 rounded-full text-[8px] font-black text-white border border-[#2a2723]"
+            style={{ backgroundColor: currentMentor.accentColor }}
           >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">Back to Play</span>
-          </button>
-          <span className="text-zinc-600">|</span>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#81b64c] animate-pulse" />
-            <h1 className="text-sm font-black text-white tracking-wide uppercase">
-              Game Review Summary
-            </h1>
+            AI
+          </span>
+        </div>
+        <div className="flex-1 bg-white text-zinc-900 rounded-lg p-2.5 text-xs font-semibold shadow relative">
+          <div className="absolute top-2.5 -left-1.5 w-0 h-0 border-t-[5px] border-t-transparent border-r-[6px] border-r-white border-b-[5px] border-b-transparent" />
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[11px] font-black text-zinc-900">{currentMentor.name}</span>
+            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">{currentMentor.title}</span>
+          </div>
+          <p className="line-clamp-3 sm:line-clamp-none text-[11px] leading-relaxed">
+            {report.summaryComment || `Right, let's go through this game and find some key moments.`}
+          </p>
+        </div>
+      </div>
+
+      {/* Authentic Review Summary Hub */}
+      <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-xl p-3 flex flex-col gap-3 shadow-lg">
+        {/* Players Row */}
+        <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+            Players
+          </span>
+          
+          {/* White Player */}
+          <div className="flex flex-col items-center gap-1 min-w-0">
+            <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center">
+              {whitePlayer.name}
+            </span>
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#2a2723] border border-[#3d3932] flex items-center justify-center p-2 shadow-sm">
+              {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover rounded-md" />
+              ) : (
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <PieceIcon type="p" color="w" theme={pieceTheme} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Black Player */}
+          <div className="flex flex-col items-center gap-1 min-w-0">
+            <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center">
+              {blackPlayer.name}
+            </span>
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#272522] border-2 border-[#81b64c] flex items-center justify-center p-2 shadow-sm relative">
+              {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover rounded-md" />
+              ) : (
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <PieceIcon type="p" color="b" theme={pieceTheme} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Accuracy Row */}
+        <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+            Accuracy
+          </span>
+          <div className="bg-white text-zinc-950 font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono">
+            {whiteAccuracy}
+          </div>
+          <div className="bg-[#312e2b] text-white font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono border border-[#44403a]">
+            {blackAccuracy}
+          </div>
+        </div>
+
+        {/* Classification Matrix Rows */}
+        <div className="flex flex-col gap-0.5 pt-2 border-t border-[#2d2a26]">
+          {classificationRows.map((row) => {
+            const cfg = CLASSIFICATION_CONFIG[row.classification];
+            return (
+              <div
+                key={row.classification}
+                className="grid grid-cols-[1fr_36px_40px_36px] items-center py-0.5 hover:bg-[#25221d] rounded px-1.5 transition-colors"
+              >
+                <span className="text-xs font-bold text-zinc-300">
+                  {row.label}
+                </span>
+                <span className={`text-right font-mono font-black text-xs ${cfg?.countColor || 'text-zinc-200'}`}>
+                  {row.whiteCount}
+                </span>
+                <div className="flex justify-center">
+                  <ClassificationBadge classification={row.classification} size="sm" />
+                </div>
+                <span className={`text-left font-mono font-black text-xs ${cfg?.countColor || 'text-zinc-200'}`}>
+                  {row.blackCount}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Game Rating Row */}
+        <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2 pt-2 border-t border-[#2d2a26]">
+          <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 leading-tight">
+            Rating
+          </span>
+          <div className="bg-white text-zinc-950 font-black text-base py-1 px-2 rounded-lg text-center shadow-sm font-mono">
+            {report.whiteEstimatedElo ?? 850}
+          </div>
+          <div className="bg-[#312e2b] text-white font-black text-base py-1 px-2 rounded-lg text-center shadow-sm font-mono border border-[#44403a]">
+            {report.blackEstimatedElo ?? 1100}
+          </div>
+        </div>
+
+        {/* Advanced Stats Section */}
+        <div className="flex flex-col gap-1.5 pt-2 border-t border-[#2d2a26]">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+              Phase Performance
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {advancedStatsRows.map((row) => (
+              <div
+                key={row.key}
+                className="grid grid-cols-[1fr_36px_40px_36px] items-center py-0.5 hover:bg-[#25221d] rounded px-1.5 transition-colors group cursor-default"
+                title={`White: ${row.white.score}% (${row.white.summary})\nBlack: ${row.black.score}% (${row.black.summary})`}
+              >
+                <div className="flex flex-col min-w-0 pr-1">
+                  <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
+                    {row.label}
+                  </span>
+                  <span className="text-[9px] text-zinc-500 truncate group-hover:text-zinc-400 transition-colors">
+                    {row.description}
+                  </span>
+                </div>
+                <div
+                  className="flex justify-end items-center pr-1"
+                  title={`White: ${row.white.score}% - ${row.white.summary}`}
+                >
+                  <ClassificationBadge classification={row.white.classification} size="sm" />
+                </div>
+                <div className="flex justify-center items-center">
+                  <span className="text-zinc-600 text-xs font-black select-none">·</span>
+                </div>
+                <div
+                  className="flex justify-start items-center pl-1"
+                  title={`Black: ${row.black.score}% - ${row.black.summary}`}
+                >
+                  <ClassificationBadge classification={row.black.classification} size="sm" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={onStartInteractiveReview}
+          className="w-full py-2.5 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white font-black text-sm uppercase tracking-wider border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer flex items-center justify-center gap-2"
+        >
+          <Play className="w-3.5 h-3.5 fill-current" />
+          <span>Continue Review</span>
+        </button>
+
+        {/* Blunder Retry CTA Button */}
+        {report.blunderRetryPuzzle && (
           <button
-            onClick={() => soundService.playMove()}
-            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer"
-            title="Sound"
+            onClick={() => {
+              resetBlunderPuzzle();
+              setIsBlunderModalOpen(true);
+            }}
+            className="w-full py-2 rounded-lg bg-[#e05344]/15 hover:bg-[#e05344]/25 text-[#f87171] hover:text-white font-black uppercase tracking-wider text-xs border border-[#e05344] shadow-[0_2px_0_0_#7f1d1d] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            <Volume2 className="w-4 h-4" />
+            <Target className="w-3.5 h-3.5 text-[#e05344]" />
+            <span>Practice & Retry Mistakes</span>
           </button>
+        )}
+
+        {/* Hub Bridges */}
+        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#2d2a26]">
+          <button
+            onClick={() => {
+              const movesStr = report.moves?.map((m) => m.san).join(' ') || '';
+              const targetPly = report.blunderRetryPuzzle?.ply !== undefined
+                ? report.blunderRetryPuzzle.ply
+                : Math.max(0, report.moves.length - 2);
+              router.push(
+                `/analysis?gameId=${encodeURIComponent(report.gameId || report.id)}&moves=${encodeURIComponent(movesStr)}&ply=${targetPly}`
+              );
+            }}
+            className="py-1.5 px-2 rounded-lg bg-[#201e1a] hover:bg-[#2c2924] border border-[#332f27] hover:border-[#06b6d4] text-zinc-300 hover:text-white font-black uppercase tracking-wider text-[10px] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            title="Deep calculate this game in Analysis Studio"
+          >
+            <Microscope className="w-3 h-3 text-cyan-400" />
+            <span>Deep Studio</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const sparFen = report.blunderRetryPuzzle?.fen || summaryChess.fen();
+              router.push(`/bots?fen=${encodeURIComponent(sparFen)}`);
+            }}
+            className="py-1.5 px-2 rounded-lg bg-[#201e1a] hover:bg-[#2c2924] border border-[#332f27] hover:border-[#f59e0b] text-zinc-300 hover:text-white font-black uppercase tracking-wider text-[10px] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            title="Practice turning point against adaptive bots"
+          >
+            <Bot className="w-3 h-3 text-amber-400" />
+            <span>Spar Bot</span>
+          </button>
+        </div>
+
+        {/* PGN Export Button */}
+        <button
+          onClick={async () => {
+            try {
+              const res = await fetch('/api/pgn/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ report }),
+              });
+              if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `review-${report.gameId || 'game'}.pgn`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+              }
+            } catch (e) {
+              console.error('Export failed:', e);
+            }
+          }}
+          className="w-full py-1.5 rounded-lg bg-[#282622] hover:bg-[#34312b] text-zinc-400 hover:text-white font-black uppercase tracking-wider text-[10px] border border-[#3d3932] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          <Sparkles className="w-3 h-3 text-[#81b64c]" />
+          <span>Export PGN</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-[100dvh] max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-hidden justify-start">
+      {/* Top Header Bar - Ultra-compact 36px-40px */}
+      <header className="h-9 sm:h-10 px-2 sm:px-3 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0 shadow-sm z-30">
+        {/* Left: Back / Play button + Title */}
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={onBackToGame}
+            className="px-2 py-1 rounded-full border border-[#35322b] bg-[#282622] text-zinc-300 hover:text-white hover:bg-[#34312b] shadow-sm active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1 text-[11px] font-black uppercase tracking-wider shrink-0"
+            title="Back to Play / Home"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            <span className="hidden xs:inline">Play</span>
+          </button>
+          <span className="text-zinc-600 hidden xs:inline">|</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-[#81b64c] shrink-0" />
+            <h1 className="text-xs font-black text-white tracking-wide uppercase truncate">
+              Review Summary
+            </h1>
+
+            {/* Tactile Engine Selection Toggle - Full Inline on xl+ screens */}
+            <div className="hidden xl:flex items-center bg-[#141311] p-0.5 rounded-full border border-[#2e2a24] text-[9px] font-black uppercase tracking-wider ml-2">
+              <button
+                onClick={() => {
+                  setAnalysisEngine('torch_human');
+                  onEngineChange?.('torch_human');
+                }}
+                className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                  analysisEngine === 'torch_human'
+                    ? 'bg-[#f59e0b] text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+                title="Torch Human"
+              >
+                <Flame className="w-2.5 h-2.5 text-amber-300" />
+                <span>Torch</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setAnalysisEngine('stockfish');
+                  onEngineChange?.('stockfish');
+                }}
+                className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                  analysisEngine === 'stockfish'
+                    ? 'bg-[#81b64c] text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+                title="Stockfish"
+              >
+                <Cpu className="w-2.5 h-2.5 text-white" />
+                <span>Stockfish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Actions: More Options Popover & Primary CTA */}
+        <div className="flex items-center gap-1.5 shrink-0 relative">
+          {/* Options Popover */}
+          <div className="relative">
+            <button
+              onClick={() => setIsOptionsOpen(!isOptionsOpen)}
+              className="p-1.5 rounded-full border border-[#35322b] bg-[#211f1c] hover:bg-[#2c2823] text-zinc-300 hover:text-white transition shadow-sm cursor-pointer"
+              title="More Options"
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+
+            {isOptionsOpen && (
+              <div className="absolute top-full right-0 mt-1.5 w-60 bg-[#1e1c19] border-2 border-[#35322b] rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                  Engine Model
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 bg-[#141311] p-1 rounded-xl border border-[#2b2824] mb-2.5">
+                  <button
+                    onClick={() => {
+                      setAnalysisEngine('torch_human');
+                      onEngineChange?.('torch_human');
+                      setIsOptionsOpen(false);
+                    }}
+                    className={`px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 text-[10px] font-black uppercase transition-all cursor-pointer ${
+                      analysisEngine === 'torch_human'
+                        ? 'bg-[#f59e0b] text-white shadow'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Flame className="w-3 h-3 text-amber-300" />
+                    <span>Torch</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAnalysisEngine('stockfish');
+                      onEngineChange?.('stockfish');
+                      setIsOptionsOpen(false);
+                    }}
+                    className={`px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 text-[10px] font-black uppercase transition-all cursor-pointer ${
+                      analysisEngine === 'stockfish'
+                        ? 'bg-[#81b64c] text-white shadow'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Cpu className="w-3 h-3 text-white" />
+                    <span>Stockfish</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1 border-t border-[#2b2824] pt-2">
+                  <button
+                    onClick={() => {
+                      soundService.playMove();
+                      setIsOptionsOpen(false);
+                    }}
+                    className="w-full py-1.5 px-2 rounded-lg hover:bg-[#282622] text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Test Sound</span>
+                  </button>
+
+                  {onReanalyze && (
+                    <button
+                      onClick={() => {
+                        setIsOptionsOpen(false);
+                        onReanalyze();
+                      }}
+                      className="w-full py-1.5 px-2 rounded-lg hover:bg-[#282622] text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-[#81b64c]" />
+                      <span>Re-analyze Game</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={onStartInteractiveReview}
-            className="px-4 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-[#81b64c]/20"
+            className="px-3 py-1 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer shrink-0"
           >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span>Start Review</span>
+            <Play className="w-2.5 h-2.5 fill-current" />
+            <span className="hidden xs:inline">Start Review</span>
+            <span className="xs:hidden">Review</span>
           </button>
         </div>
       </header>
 
-      {/* Main Review Hub Body: 60/40 Split */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 flex items-center justify-center">
-        <div className="flex flex-col xl:flex-row gap-6 w-full max-w-6xl items-center xl:items-start justify-center">
-          {/* Left Column: Board & Eval Graph */}
-          <div className="flex flex-col items-center gap-4 w-full max-w-[560px]">
-            <ChessBoard
-              chess={summaryChess}
-              orientation="w"
-              boardTheme={boardTheme}
-              pieceTheme={pieceTheme}
-              activeClassification={
-                keyMove
-                  ? { square: keyMove.to, classification: keyMove.classification || 'brilliant' }
-                  : null
-              }
-              lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
-              customArrows={
-                keyMove
-                  ? [{ from: keyMove.from, to: keyMove.to, color: '#f59e0b' }]
-                  : []
-              }
-              disabled={true}
-            />
+      {/* Mobile Tab Switcher (< lg) */}
+      <div className="lg:hidden flex items-center justify-center p-1.5 bg-[#171614] border-b border-[#262420] shrink-0">
+        <div className="flex bg-[#1f1d1a] p-0.5 rounded-full border border-[#2d2a26] w-full max-w-xs text-[11px] font-black uppercase">
+          <button
+            onClick={() => setMobileTab('stats')}
+            className={`flex-1 py-1 rounded-full text-center transition-all cursor-pointer ${
+              mobileTab === 'stats' ? 'bg-[#81b64c] text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            📊 Accuracies & Stats
+          </button>
+          <button
+            onClick={() => setMobileTab('board')}
+            className={`flex-1 py-1 rounded-full text-center transition-all cursor-pointer ${
+              mobileTab === 'board' ? 'bg-[#81b64c] text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            ♟ Board & Advantage
+          </button>
+        </div>
+      </div>
+
+      {/* Main Review Hub Body: Zero-scroll container */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 lg:p-3 xl:p-4 gap-4 w-full max-w-5xl mx-auto">
+        {/* Desktop Split View (Left: Board + Graph, Right: Stats Panel) */}
+        <div className="hidden lg:flex flex-row gap-5 w-full h-full justify-center items-start min-h-0">
+          {/* Left Column: Board & Eval Flow */}
+          <div className="flex flex-col items-center gap-2.5 w-[min(44vh,440px)] shrink-0">
+            <div className="w-full aspect-square rounded-xl overflow-hidden border border-[#35322b] shadow-xl bg-[#1a1816]">
+              <ChessBoard
+                chess={summaryChess}
+                orientation={isUserWhite ? 'w' : 'b'}
+                boardTheme={boardTheme}
+                pieceTheme={pieceTheme}
+                activeClassification={
+                  keyMove
+                    ? { square: keyMove.to, classification: keyMove.classification || 'brilliant' }
+                    : null
+                }
+                lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
+                customArrows={
+                  keyMove
+                    ? [{ from: keyMove.from, to: keyMove.to, color: '#f59e0b' }]
+                    : []
+                }
+                disabled={true}
+              />
+            </div>
 
             {/* Evaluation Flow Area Chart */}
-            <div className="w-full bg-[#1b1917] p-3 rounded-xl border border-[#2d2a26] flex flex-col gap-1.5 shadow-lg">
-              <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400">
-                <span>Evaluation Advantage Over Time</span>
-                <span className="font-mono text-xs text-[#81b64c] font-black">
-                  {moves.length} Plies Analyzed
+            <div className="w-full bg-[#1b1917] p-2 rounded-lg border border-[#2d2a26] flex flex-col gap-1 shadow-md">
+              <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
+                <span>Advantage Over Time</span>
+                <span className="font-mono text-[11px] text-[#81b64c] font-black">
+                  {moves.length} Moves
                 </span>
               </div>
-              <div className="h-16 w-full bg-[#12110f] rounded-lg border border-[#282622] relative overflow-hidden">
+              <div className="h-12 w-full bg-[#12110f] rounded border border-[#282622] relative overflow-hidden">
                 <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/60" />
                 <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                   <polyline
@@ -247,243 +730,75 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             </div>
           </div>
 
-          {/* Right Column: CAPS Accuracies, Phases, Matrix, and Actions */}
-          <div className="w-full max-w-md flex flex-col gap-4">
-            {/* Coach Danny Header Bubble (Screenshot 5) */}
-            <div className="flex items-start gap-3 bg-[#1e1c18] border border-[#2e2a24] rounded-2xl p-3.5 shadow-xl">
-              <CoachDannyAvatar size={48} className="shrink-0" />
-              <div className="flex-1 bg-white text-zinc-900 rounded-xl p-3 text-xs font-semibold shadow relative">
-                <div className="absolute top-3 -left-2 w-0 h-0 border-t-[6px] border-t-transparent border-r-[8px] border-r-white border-b-[6px] border-b-transparent" />
-                <p>
-                  Right, let's go through this game and find some key moments.
-                </p>
-              </div>
+          {/* Right Column: Independently scrollable stats */}
+          <div className="w-full max-w-md h-full overflow-y-auto custom-scrollbar flex flex-col pr-2 pb-4 shrink-0">
+            {renderStatsPanel(false)}
+          </div>
+        </div>
+
+        {/* Mobile View: Switch between Stats tab and Board tab with zero outer scroll */}
+        <div className="lg:hidden flex-1 min-h-0 w-full overflow-hidden flex flex-col relative">
+          {mobileTab === 'stats' ? (
+            <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar p-2.5 flex flex-col gap-2">
+              {renderStatsPanel(true)}
             </div>
-
-            {/* Accuracy Comparison Card (Screenshot 5) */}
-            <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-zinc-400">
-                  Partieanalyse / Computer Accuracy
-                </span>
-                {report.opening && (
-                  <span className="text-[11px] font-bold text-[#81b64c] bg-[#161512] px-2 py-0.5 rounded border border-[#2d2a26]">
-                    {report.opening.eco}: {report.opening.name}
-                  </span>
-                )}
-              </div>
-
-              {/* Accuracy Pills (Screenshot 5) */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* White Player Acc */}
-                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-[#3b3833] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0">
-                      {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{whitePlayer.avatar || '⚪'}</span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold text-zinc-200 truncate">{whitePlayer.name}</span>
-                  </div>
-                  <span className="text-base font-black text-black bg-white px-2.5 py-1 rounded-lg font-mono shrink-0 shadow-sm">
-                    {whiteAccuracy}%
-                  </span>
-                </div>
-
-                {/* Black Player Acc */}
-                <div className="bg-[#161512] p-3 rounded-xl border border-[#2d2a26] flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-[#3b3833] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0">
-                      {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{blackPlayer.avatar || '⚫'}</span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold text-zinc-200 truncate">{blackPlayer.name}</span>
-                  </div>
-                  <span className="text-base font-black text-white bg-[#81b64c] px-2.5 py-1 rounded-lg font-mono shrink-0 shadow-sm">
-                    {blackAccuracy}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Coach Summary Quote */}
-              <div className="bg-[#171513] p-3 rounded-xl border border-[#2a2723] text-xs text-zinc-300 leading-relaxed font-medium">
-                "{report.summaryComment}"
-              </div>
-            </div>
-
-            {/* Game Phase Accuracy Breakdown */}
-            {report.phaseBreakdown && (
-              <div className="bg-[#1a1815] border border-[#2d2a26] rounded-xl p-3.5 flex flex-col gap-2.5 shadow-lg text-xs">
-                <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400">
-                  <span className="flex items-center gap-1.5 text-zinc-200 uppercase tracking-wider">
-                    <Layers className="w-3.5 h-3.5 text-[#81b64c]" />
-                    Phase Accuracy Breakdown
-                  </span>
-                  <span className="font-mono text-[10px]">WHITE vs BLACK</span>
-                </div>
-
-                <div className="flex flex-col gap-2 divide-y divide-[#262420]">
-                  {/* Opening Phase */}
-                  <div className="pt-1.5 flex flex-col gap-1">
-                    <div className="flex justify-between font-semibold">
-                      <span className="text-zinc-300">Opening</span>
-                      <div className="font-mono text-[11px] flex gap-4">
-                        <span className="text-white font-bold">{report.phaseBreakdown.opening.whiteAccuracy}%</span>
-                        <span className="text-zinc-400 font-bold">{report.phaseBreakdown.opening.blackAccuracy}%</span>
-                      </div>
-                    </div>
-                    <div className="h-2 w-full bg-[#12110f] rounded-full overflow-hidden flex">
-                      <div
-                        style={{ width: `${report.phaseBreakdown.opening.whiteAccuracy}%` }}
-                        className="bg-white h-full"
-                      />
-                      <div
-                        style={{ width: `${100 - report.phaseBreakdown.opening.whiteAccuracy}%` }}
-                        className="bg-zinc-800 h-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Middlegame Phase */}
-                  <div className="pt-2 flex flex-col gap-1">
-                    <div className="flex justify-between font-semibold">
-                      <span className="text-zinc-300">Middlegame</span>
-                      <div className="font-mono text-[11px] flex gap-4">
-                        <span className="text-white font-bold">{report.phaseBreakdown.middlegame.whiteAccuracy}%</span>
-                        <span className="text-zinc-400 font-bold">{report.phaseBreakdown.middlegame.blackAccuracy}%</span>
-                      </div>
-                    </div>
-                    <div className="h-2 w-full bg-[#12110f] rounded-full overflow-hidden flex">
-                      <div
-                        style={{ width: `${report.phaseBreakdown.middlegame.whiteAccuracy}%` }}
-                        className="bg-white h-full"
-                      />
-                      <div
-                        style={{ width: `${100 - report.phaseBreakdown.middlegame.whiteAccuracy}%` }}
-                        className="bg-zinc-800 h-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Endgame Phase */}
-                  <div className="pt-2 flex flex-col gap-1">
-                    <div className="flex justify-between font-semibold">
-                      <span className="text-zinc-300">Endgame</span>
-                      <div className="font-mono text-[11px] flex gap-4">
-                        <span className="text-white font-bold">{report.phaseBreakdown.endgame.whiteAccuracy}%</span>
-                        <span className="text-zinc-400 font-bold">{report.phaseBreakdown.endgame.blackAccuracy}%</span>
-                      </div>
-                    </div>
-                    <div className="h-2 w-full bg-[#12110f] rounded-full overflow-hidden flex">
-                      <div
-                        style={{ width: `${report.phaseBreakdown.endgame.whiteAccuracy}%` }}
-                        className="bg-white h-full"
-                      />
-                      <div
-                        style={{ width: `${100 - report.phaseBreakdown.endgame.whiteAccuracy}%` }}
-                        className="bg-zinc-800 h-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Classification Comparison Matrix Table */}
-            <div className="bg-[#181614] border border-[#2a2824] rounded-xl overflow-hidden text-xs">
-              <div className="px-3 py-2 bg-[#201e1b] border-b border-[#2d2a26] flex items-center justify-between text-[11px] font-bold text-zinc-400">
-                <span>Move Classification</span>
-                <div className="flex items-center gap-6 font-mono text-[10px]">
-                  <span>WHITE</span>
-                  <span>BLACK</span>
-                </div>
-              </div>
-
-              <div className="divide-y divide-[#262420]">
-                {classificationRows.map((row) => (
-                  <div
-                    key={row.classification}
-                    className="px-3 py-2 flex items-center justify-between hover:bg-[#201e1a] transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <ClassificationBadge classification={row.classification} size="sm" />
-                      <span className="font-semibold text-zinc-200">{row.label}</span>
-                    </div>
-
-                    <div className="flex items-center gap-8 font-mono font-bold text-sm">
-                      <span className={row.whiteCount > 0 ? 'text-zinc-100' : 'text-zinc-600'}>
-                        {row.whiteCount}
-                      </span>
-                      <span className={row.blackCount > 0 ? 'text-zinc-100' : 'text-zinc-600'}>
-                        {row.blackCount}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={onStartInteractiveReview}
-                className="w-full py-3.5 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white font-black text-sm tracking-wide shadow-xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                <span>Start Interactive Game Review</span>
-              </button>
-
-              {/* Blunder Retry CTA Button */}
-              {report.blunderRetryPuzzle && (
-                <button
-                  onClick={() => {
-                    resetBlunderPuzzle();
-                    setIsBlunderModalOpen(true);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-[#e05344]/15 hover:bg-[#e05344]/25 text-[#f87171] hover:text-white font-bold text-xs border border-[#e05344]/30 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Target className="w-4 h-4 text-[#e05344]" />
-                  <span>Practice & Retry Your Blunder</span>
-                </button>
-              )}
-
-              {/* PGN Export Button */}
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/pgn/export', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ report }),
-                    });
-                    if (res.ok) {
-                      const blob = await res.blob();
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `review-${report.gameId || 'game'}.pgn`;
-                      document.body.appendChild(a);
-                      a.click();
-                      window.URL.revokeObjectURL(url);
-                      document.body.removeChild(a);
-                    }
-                  } catch (e) {
-                    console.error('Export failed:', e);
+          ) : (
+            <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-between p-2 pb-16 overflow-hidden">
+              <div className="w-[min(100vw,calc(100dvh-175px))] aspect-square overflow-hidden border-0 sm:border border-[#35322b] bg-[#1a1816]">
+                <ChessBoard
+                  chess={summaryChess}
+                  orientation={isUserWhite ? 'w' : 'b'}
+                  boardTheme={boardTheme}
+                  pieceTheme={pieceTheme}
+                  activeClassification={
+                    keyMove
+                      ? { square: keyMove.to, classification: keyMove.classification || 'brilliant' }
+                      : null
                   }
-                }}
-                className="w-full py-2.5 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 border border-[#36332e]"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
-                <span>Export Annotated PGN with [%eval]</span>
-              </button>
+                  lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
+                  customArrows={
+                    keyMove
+                      ? [{ from: keyMove.from, to: keyMove.to, color: '#f59e0b' }]
+                      : []
+                  }
+                  disabled={true}
+                />
+              </div>
+
+              {/* Mobile Evaluation Flow */}
+              <div className="w-full max-w-[min(100vw,calc(100dvh-175px))] bg-[#1b1917] p-2 rounded-lg border border-[#2d2a26] flex flex-col gap-1 shadow-md">
+                <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
+                  <span>Advantage Over Time</span>
+                  <span className="font-mono text-[11px] text-[#81b64c] font-black">
+                    {moves.length} Moves
+                  </span>
+                </div>
+                <div className="h-10 w-full bg-[#12110f] rounded border border-[#282622] relative overflow-hidden">
+                  <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/60" />
+                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+                    <polyline
+                      fill="none"
+                      stroke="#81b64c"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points={points}
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Fixed Bottom Bar on Mobile */}
+          <div className="fixed bottom-0 inset-x-0 p-2 bg-[#1b1916]/95 backdrop-blur-md border-t border-[#2d2a26] z-20 flex gap-2 justify-center">
+            <button
+              onClick={onStartInteractiveReview}
+              className="w-full max-w-sm py-2 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white font-black text-xs uppercase tracking-wider border border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Start Interactive Review</span>
+            </button>
           </div>
         </div>
       </div>
@@ -495,7 +810,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-[#2d2a26]">
               <div className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-[#e05344]" />
-                <h3 className="text-base font-black text-white">Retry Your Blunder (Ply {puzzle.ply})</h3>
+                <h3 className="text-base font-black text-white">Retry Your Mistake (Move {Math.ceil(puzzle.ply / 2)})</h3>
               </div>
               <button
                 onClick={() => setIsBlunderModalOpen(false)}
@@ -506,7 +821,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             </div>
 
             <div className="text-xs text-zinc-300 bg-[#161512] p-3 rounded-xl border border-[#282622]">
-              In this position, you played <strong className="text-[#f87171]">{puzzle.blunderedMoveSan}</strong>. Can you find Stockfish's top winning continuation?
+              In this position, you played <strong className="text-[#f87171]">{puzzle.blunderedMoveSan}</strong>. Can you find the best winning move?
             </div>
 
             <div className="flex justify-center">
@@ -546,7 +861,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
             {blunderStatus === 'revealed' && (
               <div className="p-3 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold">
-                Stockfish solution: <strong>{puzzle.solutionSan}</strong>. {puzzle.explanation}
+                Best move: <strong>{puzzle.solutionSan}</strong>. {puzzle.explanation}
               </div>
             )}
 

@@ -8,7 +8,7 @@ import {
   calculateAcpl,
   calculateEstimatedPerformanceRating,
 } from '@/lib/server/capsCalculator';
-import { generateCoachExplanation } from '@/lib/server/coachGenerator';
+import { generateCoachExplanation, detectTacticalMotifs } from '@/lib/server/coachGenerator';
 import {
   GameReviewReport,
   MoveRecord,
@@ -154,6 +154,18 @@ export async function POST(req: NextRequest) {
             isCheck,
             isBookMove,
             secondBestLoss,
+            fenBefore,
+            fenAfter,
+          });
+
+          const motifs = detectTacticalMotifs({
+            chessAfter: simChess,
+            playedMoveSan: san,
+            from: playedMove?.from,
+            to: playedMove?.to,
+            turnColor: isWhite ? 'w' : 'b',
+            fenBefore,
+            classification: classificationResult.classification,
           });
 
           const coachExplanation = generateCoachExplanation({
@@ -168,6 +180,8 @@ export async function POST(req: NextRequest) {
             isCheck,
             turnColor: isWhite ? 'w' : 'b',
             playerAccuracy: classificationResult.accuracy,
+            motif: motifs[0],
+            fenBefore,
           });
 
           const moveRecord: MoveRecord = {
@@ -183,6 +197,7 @@ export async function POST(req: NextRequest) {
             classification: classificationResult.classification,
             coachComment: coachExplanation,
             isCheck,
+            motif: motifs[0],
           };
 
           analyzedMoves.push(moveRecord);
@@ -263,10 +278,21 @@ export async function POST(req: NextRequest) {
           opponentElo: whitePlayer.rating || 1500,
         });
 
-        const summaryComment =
-          whiteAccuracy > blackAccuracy
-            ? `White played brilliantly with ${whiteAccuracy}% CAPS accuracy (perf est. ${whiteEstimatedElo}), dominating the center.`
-            : `Black outplayed White with ${blackAccuracy}% CAPS accuracy (perf est. ${blackEstimatedElo}), exploiting critical inaccuracies!`;
+        const lastMove = sanMoves[sanMoves.length - 1];
+        const isCheckmateLast = Boolean(lastMove?.includes('#'));
+        const whiteWonByMate = isCheckmateLast && sanMoves.length % 2 === 1;
+        const blackWonByMate = isCheckmateLast && sanMoves.length % 2 === 0;
+
+        let summaryComment: string;
+        if (whiteWonByMate) {
+          summaryComment = `White won decisively by checkmate with ${whiteAccuracy}% CAPS accuracy (perf est. ${whiteEstimatedElo}), executing a clean tactical attack!`;
+        } else if (blackWonByMate) {
+          summaryComment = `Black won decisively by checkmate with ${blackAccuracy}% CAPS accuracy (perf est. ${blackEstimatedElo}), delivering a clinical finishing blow!`;
+        } else if (whiteAccuracy > blackAccuracy) {
+          summaryComment = `White played brilliantly with ${whiteAccuracy}% CAPS accuracy (perf est. ${whiteEstimatedElo}), dominating the center.`;
+        } else {
+          summaryComment = `Black outplayed White with ${blackAccuracy}% CAPS accuracy (perf est. ${blackEstimatedElo}), exploiting critical inaccuracies!`;
+        }
 
         const opening = matchOpeningFromMoves(sanMoves);
 
@@ -290,6 +316,7 @@ export async function POST(req: NextRequest) {
           keyMoments,
           moves: analyzedMoves,
           summaryComment,
+          isDeepReview: true,
         };
 
         sendEvent('complete', { report });

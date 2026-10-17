@@ -9,6 +9,7 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDIXkoY5Azlj1GFaBszyroRYKLDXwWwdfI",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "chess-platform-ffb4c.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "chess-platform-ffb4c",
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "https://chess-platform-ffb4c-default-rtdb.firebaseio.com",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "chess-platform-ffb4c.firebasestorage.app",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1067195714287",
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:1067195714287:web:908e63d58aea74a517291a",

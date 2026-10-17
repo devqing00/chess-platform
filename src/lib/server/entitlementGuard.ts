@@ -15,13 +15,13 @@ export interface TierEntitlements {
 export const TIER_CONFIGS: Record<MembershipTier, TierEntitlements> = {
   free: {
     tier: 'free',
-    dailyReviewQuota: 1,
+    dailyReviewQuota: 50, // Generous quota for continuous gameplay & bot review
     maxEngineDepth: 10,
     unlimitedPuzzles: false,
     unlimitedPuzzleRush: false,
     openingExplorerDepthLimit: 4, // 4 plies max on free tier
     unlimitedTablebase: false,
-    coachExplanations: false,
+    coachExplanations: true,
     cloudDeepAnalysis: false,
   },
   gold: {

@@ -8,12 +8,14 @@ interface NotationRibbonProps {
   moves: MoveRecord[];
   currentMoveIndex: number;
   onSelectMove: (index: number) => void;
+  showClassifications?: boolean;
 }
 
 export const NotationRibbon: React.FC<NotationRibbonProps> = ({
   moves,
   currentMoveIndex,
   onSelectMove,
+  showClassifications = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +31,7 @@ export const NotationRibbon: React.FC<NotationRibbonProps> = ({
   return (
     <div
       ref={containerRef}
-      className="w-full max-w-[580px] bg-[#1a1815] border border-[#2d2a26] rounded-lg px-3 py-1.5 flex items-center gap-2 overflow-x-auto select-none no-scrollbar text-xs font-mono font-semibold"
+      className="w-full max-w-[580px] bg-[#181614] border-2 border-[#35322b] rounded-full px-3.5 py-1.5 flex items-center gap-1.5 overflow-x-auto select-none no-scrollbar text-xs font-mono font-semibold shadow-[0_3px_0_0_#141311]"
     >
       {moves.map((move, idx) => {
         const isWhite = idx % 2 === 0;
@@ -40,16 +42,23 @@ export const NotationRibbon: React.FC<NotationRibbonProps> = ({
           <button
             key={idx}
             onClick={() => onSelectMove(idx)}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 ${
               isCurrent
-                ? 'bg-[#81b64c] text-white font-bold shadow'
-                : 'text-zinc-300 hover:text-white hover:bg-[#2b2824]'
+                ? 'bg-[#81b64c] text-white font-black border-2 border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]'
+                : 'text-zinc-300 hover:text-white hover:bg-[#262420] border-2 border-transparent font-bold'
             }`}
           >
-            {isWhite && <span className="text-zinc-500 font-sans">{turnNum}.</span>}
+            {isWhite && <span className="text-zinc-500 font-sans font-bold">{turnNum}.</span>}
             <span>{move.san}</span>
-            {move.classification && (
-              <ClassificationBadge classification={move.classification} size="sm" />
+            {showClassifications && move.classification && (
+              <ClassificationBadge
+                classification={
+                  typeof move.classification === 'string'
+                    ? move.classification
+                    : (move.classification as any)?.classification || 'good'
+                }
+                size="sm"
+              />
             )}
           </button>
         );

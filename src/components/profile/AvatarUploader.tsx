@@ -94,33 +94,33 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
   const isImageAvatar = currentDisplayAvatar && currentDisplayAvatar.startsWith('http');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md bg-[#262421] border border-[#3d3a34] rounded-2xl p-6 shadow-2xl text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
+      <div className="relative w-full max-w-md bg-[#22201d] border-2 border-[#35322b] rounded-3xl p-6 sm:p-7 shadow-[0_12px_0_0_#141311] text-white">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-[#322f2b] transition"
+          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white rounded-full border-2 border-[#35322b] bg-[#1a1815] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
-            <Camera className="w-6 h-6" />
+          <div className="w-11 h-11 bg-amber-500/20 border-2 border-amber-500/40 rounded-2xl text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
+            <Camera className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tight">Profile Avatar</h2>
-            <p className="text-xs text-zinc-400">
+            <h2 className="text-xl font-black tracking-tight text-white">Profile Avatar</h2>
+            <p className="text-xs text-zinc-400 font-medium">
               Cloudflare R2 Powered &bull; 100% Free CDN Egress
             </p>
           </div>
         </div>
 
         {/* Avatar Preview */}
-        <div className="flex flex-col items-center justify-center py-4">
+        <div className="flex flex-col items-center justify-center py-3">
           <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-            <div className="w-28 h-28 rounded-2xl overflow-hidden bg-[#1c1a17] border-2 border-dashed border-zinc-600 group-hover:border-amber-400 transition-all flex items-center justify-center shadow-inner">
+            <div className="w-28 h-28 rounded-3xl overflow-hidden bg-[#1a1815] border-2 border-dashed border-[#4d483f] group-hover:border-[#81b64c] transition-all flex items-center justify-center shadow-inner">
               {isImageAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -134,13 +134,13 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
             </div>
 
             {/* Hover overlay */}
-            <div className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs font-semibold gap-1 text-white">
-              <Camera className="w-5 h-5" />
+            <div className="absolute inset-0 bg-black/60 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs font-black gap-1 text-white">
+              <Camera className="w-5 h-5 text-amber-400" />
               <span>Change</span>
             </div>
           </div>
 
-          <p className="text-xs text-zinc-400 mt-3 text-center">
+          <p className="text-xs text-zinc-400 font-medium mt-3 text-center">
             Supports JPG, PNG, WEBP, or GIF (max 5 MB).
           </p>
         </div>
@@ -157,13 +157,13 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
         {/* Progress Bar */}
         {isUploading && (
           <div className="mb-4">
-            <div className="flex justify-between text-xs text-zinc-400 mb-1">
+            <div className="flex justify-between text-xs text-zinc-400 font-bold mb-1.5">
               <span>Uploading to R2...</span>
-              <span className="font-mono">{progress}%</span>
+              <span className="font-mono text-[#81b64c] font-black">{progress}%</span>
             </div>
-            <div className="w-full h-2 bg-[#1c1a17] rounded-full overflow-hidden">
+            <div className="w-full h-3 bg-[#1a1815] border-2 border-[#35322b] rounded-full overflow-hidden p-0.5">
               <div
-                className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-150"
+                className="h-full bg-gradient-to-r from-amber-500 to-[#81b64c] rounded-full transition-all duration-150"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -172,7 +172,7 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
 
         {/* Error message */}
         {error && (
-          <div className="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-3 mb-4 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-300 text-xs font-semibold flex items-center gap-2 shadow-[0_3px_0_0_#881337]">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
@@ -180,8 +180,8 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
 
         {/* Success message */}
         {success && (
-          <div className="p-3 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-            <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+          <div className="p-3 mb-4 rounded-2xl bg-emerald-500/10 border-2 border-[#81b64c]/40 text-emerald-300 text-xs font-black flex items-center gap-2 shadow-[0_3px_0_0_#4d7a24]">
+            <Check className="w-4 h-4 shrink-0 text-[#81b64c]" />
             <span>Avatar saved successfully!</span>
           </div>
         )}
@@ -192,7 +192,7 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="flex-1 py-2.5 px-4 bg-[#322f2b] hover:bg-[#3d3a34] text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="flex-1 py-3 px-4 bg-[#262420] hover:bg-[#322f29] border-2 border-[#35322b] text-white text-xs font-black rounded-full shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Upload className="w-4 h-4" />
             <span>Select File</span>
@@ -202,7 +202,7 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
             type="button"
             onClick={handleUpload}
             disabled={!selectedFile || isUploading}
-            className="flex-1 py-2.5 px-4 bg-[#81b64c] hover:bg-[#92c855] text-black text-xs font-black rounded-xl transition shadow flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 py-3 px-4 bg-[#81b64c] hover:bg-[#72a342] border-2 border-[#4d7a24] text-white text-xs font-black rounded-full shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isUploading ? (
               <>
@@ -211,7 +211,7 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
               </>
             ) : (
               <>
-                <Check className="w-4 h-4" />
+                <Check className="w-4 h-4 stroke-[3]" />
                 <span>Save Avatar</span>
               </>
             )}

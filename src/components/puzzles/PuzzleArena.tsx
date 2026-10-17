@@ -7,6 +7,7 @@ import { TACTICAL_PUZZLES } from '@/lib/puzzlesData';
 import { TacticalPuzzle, BoardTheme, PieceTheme } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
+import { useRouter } from 'next/navigation';
 import {
   Flame,
   Clock,
@@ -20,18 +21,43 @@ import {
   Calendar,
   Filter,
   Sparkles,
+  Microscope,
+  Bot,
 } from 'lucide-react';
+
+import { useAuth } from '@/context/AuthContext';
+import { FirestoreService } from '@/lib/firebase/firestoreService';
+import { LearningProgressStore } from '@/lib/learningPathData';
+import { useXpSystem } from '@/hooks/useXpSystem';
+import { XpGainToast } from '@/components/xp/XpGainToast';
 
 interface PuzzleArenaProps {
   boardTheme: BoardTheme;
   pieceTheme: PieceTheme;
+  initialPuzzleId?: string;
+  onSolve?: (puzzleId: string) => void;
 }
 
 export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   boardTheme,
   pieceTheme,
+  initialPuzzleId,
+  onSolve,
 }) => {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { awardXp, recentGain } = useXpSystem();
   const [puzzleIndex, setPuzzleIndex] = useState(0);
+
+  // Jump to requested puzzle if initialPuzzleId passed
+  useEffect(() => {
+    if (initialPuzzleId) {
+      const idx = TACTICAL_PUZZLES.findIndex((p) => p.id === initialPuzzleId);
+      if (idx !== -1) {
+        setPuzzleIndex(idx);
+      }
+    }
+  }, [initialPuzzleId]);
   const [rushMode, setRushMode] = useState(false);
   const [rushTimeRemaining, setRushTimeRemaining] = useState(180); // 3 minutes
   const [rushActive, setRushActive] = useState(false);
@@ -48,6 +74,21 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const [ratingDelta, setRatingDelta] = useState<number | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<string>('all');
   const [isDailyMode, setIsDailyMode] = useState(false);
+
+  // Sync puzzle rating and streak from Firestore for authenticated users
+  useEffect(() => {
+    if (!user?.uid) return;
+    FirestoreService.getUserPuzzleStats(user.uid).then((stats) => {
+      if (stats) {
+        if (typeof stats.rating === 'number') {
+          setPlayerRating((prev) => ({ ...prev, rating: stats.rating }));
+        }
+        if (typeof stats.streak === 'number') {
+          setStreak(stats.streak);
+        }
+      }
+    });
+  }, [user?.uid]);
   const [remotePuzzle, setRemotePuzzle] = useState<TacticalPuzzle | null>(null);
   const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
 
@@ -91,6 +132,18 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
     setPlayedMoves([]);
     setRatingDelta(null);
   }, []);
+
+  // Advance to next puzzle with Spacebar or Enter when solved
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.code === 'Space' || e.key === 'Enter') && statusMessage === 'solved') {
+        e.preventDefault();
+        handleNextPuzzle();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [statusMessage, handleNextPuzzle]);
 
   // Fetch puzzle from backend API
   const fetchPuzzle = useCallback(async (theme: string, daily: boolean) => {
@@ -194,6 +247,9 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           }
           soundService.playPuzzleSuccess();
           confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+          LearningProgressStore.completeNode(currentPuzzle.id, 25);
+          awardXp(hintLevel > 0 ? 'solve_puzzle_retry' : 'solve_puzzle_first_try', 'Tactical Puzzle Solved');
+          onSolve?.(currentPuzzle.id);
 
           // Submit solve to backend Glicko-2 engine
           try {
@@ -211,6 +267,11 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
               if (solveData.newRating) {
                 setPlayerRating(solveData.newRating);
                 setRatingDelta(solveData.ratingDelta);
+                if (user?.uid) {
+                  const newStreak = hintLevel < 3 && !showSolution ? streak + 1 : streak;
+                  FirestoreService.saveUserPuzzleStats(user.uid, Math.round(solveData.newRating.rating), newStreak);
+                  FirestoreService.savePuzzleAttempt(user.uid, currentPuzzle.id, true, Math.round(solveData.newRating.rating));
+                }
               }
             }
           } catch (err) {
@@ -278,6 +339,10 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
               if (solveData.newRating) {
                 setPlayerRating(solveData.newRating);
                 setRatingDelta(solveData.ratingDelta);
+                if (user?.uid) {
+                  FirestoreService.saveUserPuzzleStats(user.uid, Math.round(solveData.newRating.rating), 0);
+                  FirestoreService.savePuzzleAttempt(user.uid, currentPuzzle.id, false, Math.round(solveData.newRating.rating));
+                }
               }
             }
           } catch (err) {
@@ -302,10 +367,71 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center p-2 sm:p-4 select-none">
-      {/* Tactical Board Column - Bound cleanly by screen height & width */}
-      <div className="w-[min(100%,calc(100vh-220px),480px)] shrink-0 flex flex-col items-center gap-2.5">
-        <div className="w-full aspect-square">
+    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 lg:gap-8 items-center lg:items-start justify-center p-1 sm:p-4 select-none">
+      {/* Tactical Board Column - Bound cleanly by screen height & width, scaled on tablet */}
+      <div className="w-full max-w-[min(100vw-2rem,_560px)] lg:max-w-[460px] xl:max-w-[500px] 2xl:max-w-[540px] shrink-0 flex flex-col items-center gap-2.5 sm:gap-3 mx-auto lg:mx-0">
+        {/* Priority Tactical Directive Banner - Unmistakable Visual Guidance */}
+        <div
+          className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl border-2 flex items-center justify-between gap-2.5 sm:gap-3 shadow-[0_4px_0_0_#141311] transition-all duration-200 ${
+            statusMessage === 'solved'
+              ? 'bg-[#182c14] border-[#58cc02] text-white shadow-[0_4px_0_0_#2b7300]'
+              : statusMessage === 'incorrect'
+              ? 'bg-[#2f1418] border-rose-500 text-white shadow-[0_4px_0_0_#881337]'
+              : 'bg-[#1f1d1a] border-[#35322b] text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <span
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 shrink-0 ${
+                puzzleTurn === 'w'
+                  ? 'bg-white border-zinc-400'
+                  : 'bg-zinc-950 border-zinc-600'
+              }`}
+            />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-black uppercase tracking-wider text-white truncate flex items-center gap-1.5">
+                {statusMessage === 'solved' ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-[#58cc02] shrink-0" />
+                    <span>Puzzle Solved! +15 XP</span>
+                  </>
+                ) : statusMessage === 'incorrect' ? (
+                  <>
+                    <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>Wrong Move &bull; Try Another</span>
+                  </>
+                ) : (
+                  <span>{puzzleTurn === 'w' ? 'White to Move' : 'Black to Move'}</span>
+                )}
+              </span>
+              <span className="text-[10px] sm:text-[11px] text-zinc-300 font-medium truncate">
+                {statusMessage === 'solved'
+                  ? 'Spacebar or Continue for next puzzle'
+                  : statusMessage === 'incorrect'
+                  ? 'Board reverted to initial position'
+                  : `Find the winning tactic (${Math.min(moveStepIndex + 1, Math.ceil(solutionSequence.length / 2))} of ${Math.max(1, Math.ceil(solutionSequence.length / 2))})`}
+              </span>
+            </div>
+          </div>
+
+          {statusMessage === 'solved' ? (
+            <button
+              onClick={handleNextPuzzle}
+              className="px-3.5 sm:px-4 py-1.5 rounded-xl bg-[#58cc02] hover:bg-[#4cad02] border-2 border-[#3da300] text-white text-xs font-black uppercase tracking-wider shadow-[0_3px_0_0_#2b7300] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <span>Next</span>
+              <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 font-mono text-xs text-zinc-400 shrink-0">
+              <span className="text-zinc-500 font-bold text-[10px] sm:text-xs">ELO</span>
+              <strong className="text-[#81b64c] text-xs sm:text-sm">{currentPuzzle.rating}</strong>
+            </div>
+          )}
+        </div>
+
+        {/* Board */}
+        <div className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-[#332f28] shadow-[0_6px_0_0_#141311]">
           <ChessBoard
             chess={chess}
             orientation={puzzleTurn}
@@ -316,127 +442,124 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           />
         </div>
 
-        {/* Turn indicator card */}
-        <div className="w-full bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between text-xs">
+        {/* Tactical Info Bar */}
+        <div className="w-full bg-[#1a1815] border-2 border-[#2b2824] rounded-2xl px-3 sm:px-3.5 py-2 flex items-center justify-between text-xs shadow-[0_2px_0_0_#141311]">
           <div className="flex items-center gap-2">
-            <span
-              className={`w-3 h-3 rounded-full border ${
-                puzzleTurn === 'w' ? 'bg-white border-zinc-300' : 'bg-zinc-900 border-zinc-600'
-              }`}
-            />
-            <span className="font-bold text-white">
-              {puzzleTurn === 'w' ? 'White to Move' : 'Black to Move'}
+            <span className="text-zinc-500 font-black uppercase text-[10px] tracking-wider">Motif:</span>
+            <span className="font-black text-white text-[11px] capitalize">
+              {currentPuzzle.theme ? currentPuzzle.theme.replace(/_/g, ' ') : 'Tactical Sequence'}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 font-mono text-[11px] text-zinc-400">
+          <div className="flex items-center gap-2 font-mono text-[10px] sm:text-[11px] text-zinc-400">
             <span>Puzzle #{currentPuzzle.id}</span>
-            <span>•</span>
-            <span>Rating: <strong className="text-[#81b64c]">{currentPuzzle.rating}</strong></span>
           </div>
         </div>
       </div>
 
       {/* Control Hub & Tactical Rating Sidebar */}
-      <div className="w-full lg:w-[360px] xl:w-[380px] shrink-0 min-w-0 flex flex-col gap-4">
+      <div className="w-full max-w-[min(100vw-2rem,_560px)] lg:w-[360px] xl:w-[380px] shrink-0 min-w-0 flex flex-col gap-3.5 sm:gap-4 mx-auto lg:mx-0">
         {/* Rating & Mode Header Card */}
-        <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-3.5 shadow-[0_6px_0_0_#141311] overflow-hidden">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-[#81b64c]" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center shrink-0 shadow-[0_2px_0_0_#4d7a24]">
+                <Award className="w-5 h-5 text-[#81b64c]" />
+              </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                  Tactics Rating (Glicko-2)
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                  Tactical Rating
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black text-white font-mono">
+                  <span className="text-2xl font-black text-white font-mono leading-none">
                     {Math.round(playerRating.rating)}
                   </span>
                   {ratingDelta !== null && (
                     <span
-                      className={`text-xs font-mono font-black px-1.5 py-0.5 rounded ${
+                      className={`text-xs font-mono font-black px-2.5 py-0.5 rounded-xl border-2 ${
                         ratingDelta >= 0
-                          ? 'bg-[#81b64c]/20 text-[#81b64c]'
-                          : 'bg-rose-500/20 text-rose-400'
+                          ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]/50'
+                          : 'bg-rose-500/20 text-rose-400 border-rose-500/50'
                       }`}
                     >
                       {ratingDelta >= 0 ? `+${ratingDelta}` : ratingDelta}
                     </span>
                   )}
-                  {/* Smart Streak Badge in performance stat row */}
-                  <div
-                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 shadow-sm"
-                    title={`Current puzzle streak: ${streak}`}
-                  >
-                    <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20 shrink-0" />
-                    <span className="text-xs font-mono font-black">{streak}</span>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300/80">streak</span>
-                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Mode Toggle Pills */}
-            <div className="flex items-center gap-1.5 bg-[#161512] p-1 rounded-xl border border-[#2b2824] shrink-0">
-              <button
-                onClick={() => {
-                  setIsDailyMode(false);
-                  setRushMode(false);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  !isDailyMode && !rushMode
-                    ? 'bg-[#81b64c] text-white shadow'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Rated
-              </button>
-              <button
-                onClick={() => {
-                  setIsDailyMode(true);
-                  setRushMode(false);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  isDailyMode
-                    ? 'bg-amber-500 text-white shadow'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <Calendar className="w-3 h-3" />
-                <span>Daily</span>
-              </button>
-              <button
-                onClick={() => {
-                  setRushMode(true);
-                  setIsDailyMode(false);
-                  setRushActive(true);
-                  setRushTimeRemaining(180);
-                  setScore(0);
-                  setStrikes(0);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  rushMode
-                    ? 'bg-orange-500 text-white shadow'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <Flame className="w-3 h-3" />
-                <span>Rush</span>
-              </button>
+            {/* Smart Streak Badge */}
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#f59e0b]/15 border-2 border-[#f59e0b] text-amber-300 shadow-[0_2px_0_0_#92400e] shrink-0"
+              title={`Current puzzle streak: ${streak}`}
+            >
+              <Flame className="w-4 h-4 text-amber-400 fill-amber-400/20 shrink-0" />
+              <span className="text-sm font-mono font-black">{streak}</span>
+              <span className="text-[10px] uppercase font-black tracking-wider text-amber-300">streak</span>
             </div>
           </div>
 
-          {/* Level Filter Bar (Full width 5-column grid, completely immune to overflow) */}
-          <div className="pt-2 border-t border-[#2d2a26] flex flex-col gap-1.5">
+          {/* Mode Toggle Tabs Container - Uniform balanced p-1.5 padding without excessive bottom void */}
+          <div className="grid grid-cols-3 gap-1.5 bg-[#141311] p-1.5 rounded-2xl border-2 border-[#2b2824] w-full shadow-[0_2px_0_0_#0f0e0c]">
+            <button
+              onClick={() => {
+                setIsDailyMode(false);
+                setRushMode(false);
+              }}
+              className={`py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer border-2 ${
+                !isDailyMode && !rushMode
+                  ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none'
+                  : 'text-zinc-400 hover:text-white border-transparent'
+              }`}
+            >
+              Rated
+            </button>
+            <button
+              onClick={() => {
+                setIsDailyMode(true);
+                setRushMode(false);
+              }}
+              className={`py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer flex items-center justify-center gap-1.5 border-2 ${
+                isDailyMode
+                  ? 'bg-amber-500 text-white border-amber-700 shadow-[0_2px_0_0_#b45309] active:translate-y-[1px] active:shadow-none'
+                  : 'text-zinc-400 hover:text-white border-transparent'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 shrink-0" />
+              <span>Daily</span>
+            </button>
+            <button
+              onClick={() => {
+                setRushMode(true);
+                setIsDailyMode(false);
+                setRushActive(true);
+                setRushTimeRemaining(180);
+                setScore(0);
+                setStrikes(0);
+              }}
+              className={`py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer flex items-center justify-center gap-1.5 border-2 ${
+                rushMode
+                  ? 'bg-orange-500 text-white border-orange-700 shadow-[0_2px_0_0_#c2410c] active:translate-y-[1px] active:shadow-none'
+                  : 'text-zinc-400 hover:text-white border-transparent'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 shrink-0" />
+              <span>Rush</span>
+            </button>
+          </div>
+
+          {/* Level Filter Bar */}
+          <div className="pt-2 border-t-2 border-[#2d2a26] flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
                 Difficulty Level
               </span>
-              <span className="text-[10px] font-semibold text-zinc-500 capitalize">
+              <span className="text-[10px] font-bold text-zinc-400 capitalize">
                 {selectedLevel === 'all' ? 'All ELO Ratings' : `${selectedLevel} Tier`}
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-1.5 w-full">
+            <div className="grid grid-cols-5 gap-1 sm:gap-1.5 w-full">
               {(['all', 'beginner', 'club', 'advanced', 'master'] as const).map((lvl) => (
                 <button
                   key={lvl}
@@ -444,10 +567,10 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                     setSelectedLevel(lvl);
                     handleNextPuzzle();
                   }}
-                  className={`py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-center cursor-pointer ${
+                  className={`py-1 sm:py-1.5 px-0.5 sm:px-1 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer border-2 truncate ${
                     selectedLevel === lvl
-                      ? 'bg-[#81b64c] text-white shadow-md shadow-[#81b64c]/20 ring-1 ring-[#81b64c]'
-                      : 'bg-[#161512] text-zinc-400 hover:text-white hover:bg-[#262420] border border-[#272522]'
+                      ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] translate-y-0.5'
+                      : 'bg-[#161512] text-zinc-400 border-[#272522] shadow-[0_2px_0_0_#141311] hover:text-white hover:border-[#383530]'
                   }`}
                 >
                   {lvl}
@@ -456,32 +579,49 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </div>
           </div>
 
-          {/* Theme Filters (Rated Mode) */}
+          {/* Tactical Motif Filters (Rated Mode) */}
           {!rushMode && !isDailyMode && (
-            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#2d2a26]">
-              {['all', 'fork', 'pin', 'skewer', 'mate', 'back_rank'].map((th) => (
-                <button
-                  key={th}
-                  onClick={() => setSelectedTheme(th)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
-                    selectedTheme === th
-                      ? 'bg-[#2d2a26] text-[#81b64c] border border-[#81b64c]/40'
-                      : 'bg-[#161512] text-zinc-400 hover:text-zinc-200 border border-transparent'
-                  }`}
-                >
-                  {th.replace('_', ' ')}
-                </button>
-              ))}
+            <div className="pt-2 border-t-2 border-[#2d2a26] flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                  Tactical Motif
+                </span>
+                <span className="text-[10px] font-bold text-zinc-400 capitalize">
+                  {selectedTheme === 'all' ? 'All Motifs' : selectedTheme.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                {[
+                  { id: 'all', label: 'Any Motif' },
+                  { id: 'fork', label: 'Fork' },
+                  { id: 'pin', label: 'Pin' },
+                  { id: 'skewer', label: 'Skewer' },
+                  { id: 'mate', label: 'Mate' },
+                  { id: 'back_rank', label: 'Back Rank' },
+                ].map((th) => (
+                  <button
+                    key={th.id}
+                    onClick={() => setSelectedTheme(th.id)}
+                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer border-2 ${
+                      selectedTheme === th.id
+                        ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c] shadow-[0_2px_0_0_#4d7a24]'
+                        : 'bg-[#161512] text-zinc-400 border-[#272522] shadow-[0_2px_0_0_#141311] hover:text-zinc-200'
+                    }`}
+                  >
+                    {th.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
         {/* Rush Mode Status Header */}
         {rushMode && (
-          <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center justify-between text-xs">
+          <div className="p-3 sm:p-3.5 bg-orange-500/10 border-2 border-orange-500/30 rounded-2xl flex items-center justify-between text-xs shadow-[0_3px_0_0_#7c2d12]">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-orange-400" />
-              <span className="font-mono font-bold text-white text-base">
+              <span className="font-mono font-black text-white text-base">
                 {Math.floor(rushTimeRemaining / 60)}:
                 {rushTimeRemaining % 60 < 10 ? '0' : ''}
                 {rushTimeRemaining % 60}
@@ -489,10 +629,10 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="font-mono font-bold text-[#81b64c] text-sm">Score: {score}</span>
-              <div className="flex gap-1">
+              <span className="font-mono font-black text-[#81b64c] text-sm">Score: {score}</span>
+              <div className="flex gap-1.5">
                 {[0, 1, 2].map((s) => (
-                  <span key={s} className={s < strikes ? 'text-red-500 font-bold' : 'text-zinc-700'}>
+                  <span key={s} className={s < strikes ? 'text-red-500 font-black' : 'text-zinc-700'}>
                     ✕
                   </span>
                 ))}
@@ -502,17 +642,21 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         )}
 
         {/* Puzzle Card & Details */}
-        <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-black text-white">{currentPuzzle.title}</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/30">
-              {currentPuzzle.theme}
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-3.5 shadow-[0_6px_0_0_#141311] overflow-hidden">
+          <div className="flex items-center justify-between min-h-[24px]">
+            <span className="text-sm font-black text-white">
+              {currentPuzzle.title?.trim() || 'Find the Winning Move'}
             </span>
+            {currentPuzzle.theme && currentPuzzle.theme.trim().length > 0 ? (
+              <span className="text-[10px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-300 px-3 py-1 rounded-xl border-2 border-blue-500/40 shadow-[0_2px_0_0_#141311]">
+                {currentPuzzle.theme.replace(/_/g, ' ')}
+              </span>
+            ) : null}
           </div>
 
-          <p className="text-xs text-zinc-300 leading-relaxed">
+          <p className="text-xs text-zinc-300 leading-relaxed font-medium">
             Find the best continuation for{' '}
-            <strong className="text-white font-bold">
+            <strong className="text-white font-black">
               {puzzleTurn === 'w' ? 'White' : 'Black'}
             </strong>
             . Look for forcing checks, tactical pins, double attacks, and mating nets.
@@ -520,14 +664,14 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
 
           {/* Feedback Badges */}
           {statusMessage === 'solved' && (
-            <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-emerald-300 text-xs font-bold animate-in fade-in">
+            <div className="p-3.5 bg-emerald-500/15 border-2 border-emerald-500/40 rounded-2xl flex items-center gap-2.5 text-emerald-300 text-xs font-black animate-in fade-in shadow-[0_3px_0_0_#064e3b]">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Brilliant! Tactical continuation verified!</span>
+              <span>Brilliant! Tactical continuation verified! (+15 XP)</span>
             </div>
           )}
 
           {statusMessage === 'incorrect' && (
-            <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl flex items-center gap-2 text-rose-300 text-xs font-bold animate-in fade-in">
+            <div className="p-3.5 bg-rose-500/15 border-2 border-rose-500/40 rounded-2xl flex items-center gap-2.5 text-rose-300 text-xs font-black animate-in fade-in shadow-[0_3px_0_0_#4c0519]">
               <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>Incorrect move. That lets the opponent escape or loses material!</span>
             </div>
@@ -535,16 +679,16 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
 
           {/* Progressive Hint Display */}
           {hintLevel > 0 && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-200 flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 font-bold text-amber-400">
+            <div className="p-3.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl text-xs text-amber-200 flex flex-col gap-1.5 shadow-[0_2px_0_0_#78350f]">
+              <div className="flex items-center gap-1.5 font-black text-amber-400 uppercase tracking-wider text-[11px]">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Tactical Hint ({hintLevel}/3):</span>
               </div>
-              <p className="text-[11px] leading-relaxed text-zinc-300">
+              <p className="text-[11px] leading-relaxed text-zinc-300 font-medium">
                 {hintLevel === 1 && (
                   <>
                     Notice the piece alignment and unprotected units. Consider moving your{' '}
-                    <strong className="text-white">
+                    <strong className="text-white font-bold">
                       {solutionSequence[0]?.slice(0, 2) ? 'tactical piece' : 'active piece'}
                     </strong>
                     .
@@ -553,7 +697,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                 {hintLevel === 2 && (
                   <>
                     Look specifically at the square{' '}
-                    <strong className="text-amber-300 font-mono">
+                    <strong className="text-amber-300 font-mono font-bold">
                       {solutionSequence[0]?.length >= 4
                         ? solutionSequence[0].slice(2, 4)
                         : solutionSequence[0]}
@@ -564,7 +708,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                 {hintLevel === 3 && (
                   <>
                     The winning first move is{' '}
-                    <strong className="text-[#81b64c] font-mono">
+                    <strong className="text-[#81b64c] font-mono font-bold">
                       {solutionSequence[0]}
                     </strong>
                     ! Execute it to continue the attack.
@@ -576,60 +720,134 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
 
           {/* Solution Breakdown */}
           {showSolution && (
-            <div className="p-3 bg-[#161512] rounded-xl border border-[#2b2824] text-xs text-zinc-300 leading-relaxed font-sans">
-              <strong className="text-[#81b64c] block mb-1">Solution Breakdown:</strong>
+            <div className="p-3.5 bg-[#161512] rounded-2xl border-2 border-[#2b2824] text-xs text-zinc-300 leading-relaxed font-sans shadow-inner">
+              <strong className="text-[#81b64c] block mb-1 font-black uppercase tracking-wider text-[11px]">Solution Breakdown:</strong>
               {currentPuzzle.solutionDescription}
-              <div className="mt-2 text-[11px] font-mono text-zinc-400">
+              <div className="mt-2 text-[11px] font-mono font-bold text-zinc-400">
                 Moves: {solutionSequence.join(' → ')}
               </div>
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 pt-2 border-t border-[#2d2a26]">
-            <button
-              onClick={() => {
-                setChess(new Chess(currentPuzzle.fen));
-                setMoveStepIndex(0);
-                setPlayedMoves([]);
-                setStatusMessage('idle');
-              }}
-              className="p-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+          {/* Action Buttons - Priority Visual Hierarchy */}
+          {statusMessage === 'solved' ? (
+            <div className="pt-3 border-t-2 border-[#2d2a26] flex flex-col gap-2.5">
+              <button
+                onClick={handleNextPuzzle}
+                className="w-full py-3.5 px-6 rounded-2xl bg-[#58cc02] hover:bg-[#4bad02] text-white text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 border-2 border-[#3da300] shadow-[0_5px_0_0_#2b7300] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
+              >
+                <span>Continue to Next Puzzle</span>
+                <ArrowRight className="w-4 h-4 stroke-[3]" />
+              </button>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    setChess(new Chess(currentPuzzle.fen));
+                    setMoveStepIndex(0);
+                    setPlayedMoves([]);
+                    setStatusMessage('idle');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#262420] hover:bg-[#2d2a26] text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Try Again</span>
+                </button>
+                <button
+                  onClick={() => setShowSolution((prev) => !prev)}
+                  className="px-4 py-2 rounded-xl bg-[#262420] hover:bg-[#2d2a26] text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{showSolution ? 'Hide Analysis' : 'Show Analysis'}</span>
+                </button>
 
-            <button
-              onClick={() => setHintLevel((lvl) => (lvl >= 3 ? 0 : lvl + 1))}
-              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                hintLevel > 0
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                  : 'bg-[#282622] hover:bg-[#34312b] text-zinc-300'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{hintLevel > 0 ? `Hint (${hintLevel}/3)` : 'Hint'}</span>
-            </button>
+                <button
+                  onClick={() => router.push(`/analysis?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
+                  className="px-3.5 py-2 rounded-xl bg-[#201e1a] hover:bg-[#2a2722] text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-cyan-500/30 hover:border-cyan-500 shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
+                  title="Deep calculate this puzzle in Analysis Studio"
+                >
+                  <Microscope className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Studio</span>
+                </button>
 
-            <button
-              onClick={() => setShowSolution((prev) => !prev)}
-              className="p-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>{showSolution ? 'Hide' : 'Solution'}</span>
-            </button>
+                <button
+                  onClick={() => router.push(`/bots?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
+                  className="px-3.5 py-2 rounded-xl bg-[#201e1a] hover:bg-[#2a2722] text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-amber-500/40 hover:border-amber-500 shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
+                  title="Practice converting this winning tactical position against a Bot"
+                >
+                  <Bot className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Spar Bot</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t-2 border-[#2d2a26]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => {
+                    setChess(new Chess(currentPuzzle.fen));
+                    setMoveStepIndex(0);
+                    setPlayedMoves([]);
+                    setStatusMessage('idle');
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
 
-            <button
-              onClick={handleNextPuzzle}
-              className="ml-auto px-4 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-[#81b64c]/20"
-            >
-              <span>Next</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+                <button
+                  onClick={() => setHintLevel((lvl) => (lvl >= 3 ? 0 : lvl + 1))}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 transition-all cursor-pointer ${
+                    hintLevel > 0
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_2px_0_0_#92400e]'
+                      : 'bg-[#262420] hover:bg-[#2e2a25] text-zinc-300 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{hintLevel > 0 ? `Hint ${hintLevel}/3` : 'Hint'}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowSolution((prev) => !prev)}
+                  className="px-3.5 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{showSolution ? 'Hide' : 'Solution'}</span>
+                </button>
+
+                <button
+                  onClick={() => router.push(`/analysis?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
+                  className="px-3 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-cyan-300 text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-cyan-500/30 hover:border-cyan-500 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                  title="Deep calculate this puzzle in Analysis Studio"
+                >
+                  <Microscope className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="hidden sm:inline">Studio</span>
+                </button>
+
+                <button
+                  onClick={() => router.push(`/bots?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
+                  className="px-3 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-amber-300 text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-amber-500/30 hover:border-amber-500 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                  title="Practice converting this position against a Bot"
+                >
+                  <Bot className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Spar Bot</span>
+                </button>
+              </div>
+
+              <button
+                onClick={handleNextPuzzle}
+                className="px-5 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#5c8a32] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              >
+                <span>Next</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Tactile XP Gain Toast */}
+      <XpGainToast gain={recentGain} />
     </div>
   );
 };

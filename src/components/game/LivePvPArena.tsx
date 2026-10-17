@@ -317,9 +317,9 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const opponentDisconnected = game?.disconnectedPlayer && game.disconnectedPlayer !== playerColor;
 
   return (
-    <div className="flex-1 w-full flex flex-col lg:flex-row items-center justify-center p-4 lg:p-8 bg-[#161512] text-zinc-100 gap-6 select-none overflow-y-auto">
+    <div className="flex-1 w-full flex flex-col xl:flex-row items-center xl:items-start justify-center p-3 sm:p-6 lg:p-8 bg-[#161512] text-zinc-100 gap-6 select-none overflow-y-auto">
       {/* Board Column */}
-      <div className="flex flex-col items-center gap-3 w-full max-w-[620px]">
+      <div className="flex flex-col items-center gap-3 w-full max-w-[min(calc(100vw-2rem),560px)] xl:max-w-[560px]">
         {/* Opponent Card & Clock */}
         <div className="w-full flex items-center justify-between p-3 bg-[#1e1c18] border border-[#2e2b26] rounded-2xl shadow">
           <div className="flex items-center gap-3">
@@ -446,7 +446,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                   className="px-5 py-2.5 bg-[#81b64c] hover:bg-[#92c855] text-black font-black text-xs rounded-xl shadow transition flex items-center gap-2 cursor-pointer"
                 >
                   <Award className="w-4 h-4" />
-                  <span>Review Game (CAPS 2.0)</span>
+                  <span>Review Game (Accuracy)</span>
                 </button>
                 <button
                   onClick={() => router.push('/play')}
@@ -501,7 +501,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       </div>
 
       {/* Live Controls & Match Info Sidebar */}
-      <div className="w-full lg:w-80 flex flex-col gap-4">
+      <div className="w-full max-w-[min(calc(100vw-2rem),560px)] xl:max-w-none xl:w-80 flex flex-col gap-4">
         {/* Match Info Panel */}
         <div className="p-5 bg-[#1b1916] border border-[#2d2a26] rounded-2xl flex flex-col gap-4 shadow-xl">
           <div className="flex items-center justify-between border-b border-[#2d2a26] pb-3">

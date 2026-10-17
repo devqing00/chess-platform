@@ -33,11 +33,11 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
   },
   {
     id: 'puzzle-3',
-    fen: 'rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2',
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2',
     solutionMoves: ['Qh4#'],
     rating: 650,
     themes: ['mate_in_1', 'fools_mate'],
-    description: 'Qh4# exploits the fatally opened e1-h4 diagonal created by White pushing f3 and g4 prematurely.',
+    description: 'Qh4# exploits the fatally opened e1-h4 diagonal created by White pushing f3 and g4 prematurely, delivering checkmate.',
     authorOrGame: 'Fool’s Mate Trap',
   },
   {
@@ -78,11 +78,11 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
   },
   {
     id: 'puzzle-8',
-    fen: '4k3/8/8/3q4/8/8/8/4R1K1 w - - 0 1',
-    solutionMoves: ['Re1+', 'Kd7', 'Rxd5+'],
+    fen: '4q3/8/8/4k3/8/8/8/R5K1 w - - 0 1',
+    solutionMoves: ['Re1+', 'Kd6', 'Rxe8'],
     rating: 1200,
     themes: ['skewer', 'absolute_pin'],
-    description: 'Re1+ skewers the Black King along the open e-file, forcing the King to move and leaving the Queen on d5 hanging.',
+    description: 'Re1+ skewers the Black King along the open e-file, forcing the King to move and winning the Queen on e8.',
     authorOrGame: 'King & Queen Skewer',
   },
   {
@@ -114,7 +114,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
   },
   {
     id: 'puzzle-12',
-    fen: 'r1bq1rk1/ppp2ppp/2n1p3/3p4/2PPn3/2B1PN2/PPB2PPP/R2QK2R w KQ - 0 1',
+    fen: 'r1bq1rk1/pppn1ppp/4p3/3pP3/8/3BPN2/PPP2PPP/R1BQK2R w KQ - 0 1',
     solutionMoves: ['Bxh7+', 'Kxh7', 'Ng5+'],
     rating: 1550,
     themes: ['greek_gift', 'sacrifice'],

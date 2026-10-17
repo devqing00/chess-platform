@@ -99,7 +99,7 @@ export function exportAnnotatedPgn(report: GameReviewReport): string {
     report.blackEstimatedElo ? `[BlackEstimatedElo "${report.blackEstimatedElo}"]` : null,
     report.whiteAcpl !== undefined ? `[WhiteACPL "${report.whiteAcpl}"]` : null,
     report.blackAcpl !== undefined ? `[BlackACPL "${report.blackAcpl}"]` : null,
-    `[Annotator "Stockfish 18 NNUE & Coach Danny"]`,
+    `[Annotator "Stockfish & Coach Danny"]`,
   ]
     .filter(Boolean)
     .join('\n');

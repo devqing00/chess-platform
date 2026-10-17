@@ -184,7 +184,7 @@ export class AntiCheatEngine {
 
     // Flag: Rating-to-ACPL Discrepancy
     if (acpl <= expectedAcpl * 0.25 && totalEvaluated >= 10) {
-      flags.push(`ACPL_DISCREPANCY: Observed ACPL (${acpl}) is dramatically lower than nominal rating expectancy (${expectedAcpl}).`);
+      flags.push(`Move Accuracy: Average inaccuracy (${acpl}) is significantly lower than typical for rating (${expectedAcpl}).`);
     }
 
     // Flag: Robotic Move Cadence (Low Timing Variance)
@@ -224,13 +224,13 @@ export class AntiCheatEngine {
     else if (cheatLikelihoodScore >= 50) verdict = 'SUSPICIOUS';
     else if (cheatLikelihoodScore >= 30) verdict = 'NORMAL_VARIANCE';
 
-    let summary = `Evaluation completed across ${totalEvaluated} plies (${informativeDecisions} informative decisions). `;
+    let summary = `Analysis completed across ${totalEvaluated} moves (${informativeDecisions} key decisions). `;
     if (verdict === 'FLAGGED_HIGH_CORRELATION') {
-      summary += `High statistical probability of engine assistance detected (Regan Z-score: +${zScore}σ, ${engineCorrelationPct}% Rank 1 match, ${acpl} ACPL).`;
+      summary += `High probability of computer assistance detected (${engineCorrelationPct}% top move match, ${acpl} average inaccuracy).`;
     } else if (verdict === 'SUSPICIOUS') {
       summary += `Elevated engine correlation and robotic pacing observed exceeding normal expectations for a ${playerRating}-rated player.`;
     } else {
-      summary += `Gameplay patterns, Z-score (+${zScore}σ), and timing distributions fall within expected human variance.`;
+      summary += `Move choices and thinking time patterns fall well within normal human play.`;
     }
 
     return {

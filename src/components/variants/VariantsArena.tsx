@@ -377,33 +377,33 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
   const currentVariantMeta = VARIANT_DETAILS[activeVariant];
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 w-full items-center xl:items-start justify-center p-2 sm:p-4 select-none">
+    <div className="flex flex-col lg:flex-row gap-5 sm:gap-6 w-full items-center lg:items-start justify-center p-2 sm:p-4 select-none">
       {/* Interactive Chessboard & Reserved Trays */}
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-3 sm:gap-3.5 w-full max-w-[min(calc(100vw-2rem),560px)] lg:max-w-[460px] xl:max-w-[490px] 2xl:max-w-[530px]">
         {/* Crazyhouse Black Pocket Tray (Opponent Reserve) */}
         {activeVariant === 'crazyhouse' && (
-          <div className="w-full max-w-[580px] bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-zinc-400" />
-              <span className="text-xs font-bold text-zinc-300">Black Pocket</span>
+          <div className="w-full bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-[0_4px_0_0_#141311]">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-1 min-w-0">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-zinc-400 border border-black/40 shadow-inner shrink-0" />
+              <span className="text-[10px] sm:text-xs font-black text-zinc-300 uppercase tracking-wider truncate">Black Pocket</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {POCKET_PIECE_TYPES.map((pt) => {
                 const count = gameState.blackPocket[pt] || 0;
                 return (
                   <div
                     key={pt}
-                    className={`relative flex items-center justify-center w-9 h-9 rounded-lg border transition-all ${
+                    className={`relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl border-2 transition-all ${
                       count > 0
-                        ? 'bg-[#282522] border-zinc-600 text-white'
+                        ? 'bg-[#282622] border-[#35322b] text-white shadow-[0_2px_0_0_#141311]'
                         : 'bg-black/30 border-zinc-800 opacity-30 text-zinc-600'
                     }`}
                   >
-                    <div className="w-6 h-6">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6">
                       <PieceIcon type={pt as PieceType} color="b" theme={pieceTheme} />
                     </div>
                     {count > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-zinc-700 text-white text-[10px] font-black rounded-full px-1.5 border border-zinc-500 shadow">
+                      <span className="absolute -top-1.5 -right-1.5 bg-zinc-700 text-white text-[9px] sm:text-[10px] font-black rounded-full px-1 border border-zinc-500 shadow">
                         {count}
                       </span>
                     )}
@@ -416,22 +416,22 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
         {/* 3-Check Indicator Bar */}
         {activeVariant === '3check' && (
-          <div className="w-full max-w-[580px] bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-cyan-400 animate-pulse" />
-              <span className="text-xs font-black uppercase text-zinc-200">3-Check Tracker</span>
+          <div className="w-full bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-[0_4px_0_0_#141311]">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-1 min-w-0">
+              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 animate-pulse shrink-0" />
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-cyan-300 truncate">3-Check Tracker</span>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 sm:gap-6 shrink-0">
               {/* White Checks */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-zinc-300">White:</span>
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-[10px] sm:text-xs font-bold text-zinc-300">W:</span>
+                <div className="flex items-center gap-1 sm:gap-1.5">
                   {[1, 2, 3].map((num) => (
                     <span
                       key={num}
-                      className={`w-5 h-5 rounded-md flex items-center justify-center text-xs font-black border transition-all ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black border-2 transition-all ${
                         gameState.whiteChecksGiven >= num
-                          ? 'bg-cyan-500 border-cyan-300 text-black shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                          ? 'bg-cyan-500 border-cyan-300 text-black shadow-[0_2px_0_0_#0e7490]'
                           : 'bg-zinc-800 border-zinc-700 text-zinc-500'
                       }`}
                     >
@@ -441,15 +441,15 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                 </div>
               </div>
               {/* Black Checks */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-zinc-300">Black:</span>
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-[10px] sm:text-xs font-bold text-zinc-300">B:</span>
+                <div className="flex items-center gap-1.5">
                   {[1, 2, 3].map((num) => (
                     <span
                       key={num}
-                      className={`w-5 h-5 rounded-md flex items-center justify-center text-xs font-black border transition-all ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black border-2 transition-all ${
                         gameState.blackChecksGiven >= num
-                          ? 'bg-cyan-500 border-cyan-300 text-black shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                          ? 'bg-cyan-500 border-cyan-300 text-black shadow-[0_2px_0_0_#0e7490]'
                           : 'bg-zinc-800 border-zinc-700 text-zinc-500'
                       }`}
                     >
@@ -464,27 +464,27 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
         {/* King of the Hill Indicator Bar */}
         {activeVariant === 'kingofthehill' && kothKingDistances && (
-          <div className="w-full max-w-[580px] bg-[#1a1815] border border-amber-900/40 rounded-xl p-2.5 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-amber-400 animate-bounce" />
-              <span className="text-xs font-black uppercase text-amber-300">
-                Center Hill: d4, e4, d5, e5
+          <div className="w-full bg-[#1f1d1a] border-2 border-amber-600/40 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-[0_4px_0_0_#78350f]">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-1 min-w-0">
+              <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-bounce shrink-0" />
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-300 truncate">
+                Center: d4, e4, d5, e5
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs font-bold">
+            <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-mono font-bold shrink-0">
               <span className="text-zinc-200">
-                White King: <span className="text-amber-400 font-black">{kothKingDistances.whiteDist}</span> sq away
+                W: <span className="text-amber-400 font-black">{kothKingDistances.whiteDist}</span> sq
               </span>
-              <span className="text-zinc-400">|</span>
+              <span className="text-zinc-500">|</span>
               <span className="text-zinc-200">
-                Black King: <span className="text-amber-400 font-black">{kothKingDistances.blackDist}</span> sq away
+                B: <span className="text-amber-400 font-black">{kothKingDistances.blackDist}</span> sq
               </span>
             </div>
           </div>
         )}
 
         {/* Main Chessboard Component */}
-        <div className="relative">
+        <div className="w-[min(100%,calc(100vh-270px),560px)] aspect-square relative shadow-2xl rounded-2xl overflow-hidden border border-[#302d29]">
           <ChessBoard
             chess={chessInstance}
             orientation="w"
@@ -500,12 +500,12 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
         {/* Crazyhouse White Pocket Tray (Player Reserve) */}
         {activeVariant === 'crazyhouse' && (
-          <div className="w-full max-w-[580px] bg-[#1a1815] border border-[#2b2824] rounded-xl p-2.5 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-white shadow" />
-              <span className="text-xs font-bold text-zinc-300">White Pocket (Drops)</span>
+          <div className="w-full bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-[0_4px_0_0_#141311]">
+            <div className="flex items-center gap-1.5 sm:gap-2 px-1 min-w-0">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white border border-black/40 shadow shrink-0" />
+              <span className="text-[10px] sm:text-xs font-black text-zinc-300 uppercase tracking-wider truncate">White Pocket</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {POCKET_PIECE_TYPES.map((pt) => {
                 const count = gameState.whitePocket[pt] || 0;
                 const isSelected = activeDropPiece === pt;
@@ -524,19 +524,19 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                         soundService.playMove();
                       }
                     }}
-                    className={`relative flex items-center justify-center w-10 h-10 rounded-lg border transition-all cursor-pointer ${
+                    className={`relative flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-500/30 border-emerald-400 scale-105 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                        ? 'bg-[#81b64c]/30 border-[#81b64c] shadow-[0_3px_0_0_#4d7a24] -translate-y-1'
                         : canDrop
-                        ? 'bg-[#282522] border-zinc-600 hover:border-emerald-400 hover:bg-[#34302c] text-white'
+                        ? 'bg-[#282622] border-[#35322b] hover:border-[#81b64c] hover:bg-[#34302c] text-white shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
                         : 'bg-black/30 border-zinc-800 opacity-30 cursor-not-allowed text-zinc-600'
                     }`}
                   >
-                    <div className="w-7 h-7">
+                    <div className="w-5 h-5 sm:w-7 sm:h-7">
                       <PieceIcon type={pt as PieceType} color="w" theme={pieceTheme} />
                     </div>
                     {count > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-[#81b64c] text-black text-[10px] font-black rounded-full px-1.5 border border-white shadow">
+                      <span className="absolute -top-1.5 -right-1.5 bg-[#81b64c] text-white text-[9px] sm:text-[10px] font-black rounded-full px-1 border border-white shadow">
                         {count}
                       </span>
                     )}
@@ -546,9 +546,9 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
               {activeDropPiece && (
                 <button
                   onClick={() => setActiveDropPiece(null)}
-                  className="px-2 py-1 text-[10px] font-bold text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition"
+                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-black text-zinc-300 hover:text-white bg-[#262420] border-2 border-[#35322b] rounded-full shadow-[0_2px_0_0_#141311] transition-all"
                 >
-                  Cancel Drop
+                  Cancel
                 </button>
               )}
             </div>
@@ -557,17 +557,17 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
       </div>
 
       {/* Control Panel, Single-Surface Filter Chips & Game Status */}
-      <div className="flex flex-col gap-4 w-full max-w-[420px]">
-        {/* Single-Surface Filter Chips (Satisfies Remediation R2) */}
-        <div className="bg-[#1a1815] border border-[#2b2824] rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
-          <div className="flex items-center justify-between pb-2 border-b border-[#2b2824]">
+      <div className="flex flex-col gap-3.5 sm:gap-4 w-full max-w-[min(calc(100vw-2rem),560px)] lg:max-w-[420px] xl:max-w-[440px]">
+        {/* Single-Surface Filter Chips */}
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 flex flex-col gap-3 shadow-[0_6px_0_0_#141311]">
+          <div className="flex items-center justify-between pb-2.5 border-b-2 border-[#282622]">
             <span className="text-xs font-black uppercase tracking-wider text-zinc-400">
               Select Chess Variant
             </span>
-            <span className="text-[11px] font-bold text-[#81b64c]">Official Rules</span>
+            <span className="text-[11px] font-black text-[#81b64c] uppercase">Official Rules</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
             {(['kingofthehill', '3check', 'crazyhouse', 'chess960'] as ChessVariant[]).map(
               (variant) => {
                 const meta = VARIANT_DETAILS[variant];
@@ -576,16 +576,16 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                   <button
                     key={variant}
                     onClick={() => handleSelectVariant(variant)}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 text-left transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-[#282522] border-[#81b64c] shadow-[0_0_12px_rgba(129,182,76,0.25)] text-white'
-                        : 'bg-[#151412] border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_4px_0_0_#4d7a24]'
+                        : 'bg-[#161512] border-[#35322b] text-zinc-300 hover:text-white hover:bg-[#25221d] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
                     }`}
                   >
-                    <div className="p-1.5 rounded-lg bg-black/40">{meta.icon}</div>
+                    <div className="p-1.5 rounded-xl bg-black/40 shrink-0">{meta.icon}</div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold truncate">{meta.name}</span>
-                      <span className="text-[10px] text-zinc-500 truncate">{meta.tag}</span>
+                      <span className="text-xs font-black truncate">{meta.name}</span>
+                      <span className={`text-[10px] font-bold truncate ${isActive ? 'text-white/80' : 'text-zinc-500'}`}>{meta.tag}</span>
                     </div>
                   </button>
                 );
@@ -595,37 +595,37 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
         </div>
 
         {/* Active Variant Rule Card */}
-        <div className="bg-[#1a1815] border border-[#2b2824] rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[0_6px_0_0_#141311] flex flex-col gap-3 sm:gap-3.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {currentVariantMeta.icon}
               <h3 className="text-sm font-black text-white">{currentVariantMeta.name}</h3>
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-[#81b64c]/20 text-[#81b64c] border border-[#81b64c]/40">
+            <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#81b64c]/20 text-[#81b64c] border-2 border-[#81b64c]/40">
               {currentVariantMeta.tag}
             </span>
           </div>
 
-          <p className="text-xs text-zinc-300 leading-relaxed">{currentVariantMeta.description}</p>
+          <p className="text-xs text-zinc-300 leading-relaxed font-medium">{currentVariantMeta.description}</p>
 
-          <div className="p-2.5 bg-black/30 rounded-xl border border-zinc-800 flex items-start gap-2">
+          <div className="p-2.5 sm:p-3 bg-[#161512] rounded-xl sm:rounded-2xl border-2 border-[#282622] flex items-start gap-2.5 shadow-inner">
             <HelpCircle className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
-            <div className="text-[11px] text-zinc-400">
-              <span className="font-bold text-zinc-300">Win Condition: </span>
+            <div className="text-[11px] text-zinc-400 font-medium">
+              <span className="font-black text-zinc-200">Win Condition: </span>
               {currentVariantMeta.rule}
             </div>
           </div>
 
           {/* Chess960 Specific Controls */}
           {activeVariant === 'chess960' && (
-            <div className="p-3 bg-[#24211d] rounded-xl border border-zinc-700/60 flex flex-col gap-2 mt-1">
+            <div className="p-3 sm:p-3.5 bg-[#24211d] rounded-xl sm:rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex flex-col gap-2.5 mt-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-200">
+                <span className="text-xs font-black text-zinc-200">
                   Scharnagl SP: <span className="text-rose-400 font-black">#{selected960Index}</span>
                 </span>
                 <button
                   onClick={handleRandomize960}
-                  className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold rounded-lg border border-rose-500/40 transition flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-full border-2 border-rose-700 shadow-[0_2px_0_0_#881337] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Dices className="w-3.5 h-3.5" />
                   <span>Roll (0-959)</span>
@@ -633,8 +633,8 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
               </div>
 
               {/* Back Rank Display */}
-              <div className="flex items-center justify-between px-2 py-1.5 bg-black/40 rounded-lg border border-zinc-800">
-                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">
+              <div className="flex items-center justify-between px-3 py-2 bg-black/40 rounded-xl border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">
                   Back Rank:
                 </span>
                 <span className="font-mono text-xs font-black tracking-widest text-emerald-400">
@@ -655,22 +655,22 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
           )}
 
           {/* Play Mode & Action Buttons */}
-          <div className="pt-2 border-t border-[#2b2824] flex items-center justify-between gap-2">
+          <div className="pt-3 border-t-2 border-[#282622] flex items-center justify-between gap-2 sm:gap-2.5">
             <button
               onClick={() => setVsBot((prev) => !prev)}
-              className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-full border-2 text-[11px] sm:text-xs font-black transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
                 vsBot
-                  ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-300'
+                  ? 'bg-purple-600 text-white border-purple-800 shadow-[0_3px_0_0_#581c87] hover:-translate-y-[1px]'
+                  : 'bg-[#262420] border-[#35322b] text-zinc-300 shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
               }`}
             >
-              {vsBot ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+              {vsBot ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
               <span>{vsBot ? 'vs AI Bot' : 'Pass & Play'}</span>
             </button>
 
             <button
               onClick={handleRestartGame}
-              className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="py-2 sm:py-2.5 px-3 sm:px-4 bg-[#262420] hover:bg-[#322f29] text-zinc-100 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none text-[11px] sm:text-xs font-black rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>New Game</span>
@@ -679,14 +679,14 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
         </div>
 
         {/* Turn, Move Count & Victory Status Modal */}
-        <div className="bg-[#1a1815] border border-[#2b2824] rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[0_6px_0_0_#141311] flex flex-col gap-3 sm:gap-3.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-wider text-zinc-400">
               Live Status
             </span>
             <div className="flex items-center gap-2">
               <span
-                className={`w-2.5 h-2.5 rounded-full ${
+                className={`w-3 h-3 rounded-full border-2 border-black/40 ${
                   gameState.turn === 'w' ? 'bg-white shadow' : 'bg-zinc-500'
                 } animate-pulse`}
               />
@@ -698,7 +698,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
           {/* Bot Thinking indicator */}
           {isBotThinking && (
-            <div className="p-2.5 bg-purple-950/40 border border-purple-800/50 rounded-xl flex items-center gap-2 text-xs text-purple-300 font-bold animate-pulse">
+            <div className="p-3 bg-purple-950/40 border-2 border-purple-800/50 shadow-[0_3px_0_0_#581c87] rounded-2xl flex items-center gap-2 text-xs text-purple-300 font-black animate-pulse">
               <Bot className="w-4 h-4 animate-spin" />
               <span>Variant Bot is calculating move...</span>
             </div>
@@ -706,7 +706,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
           {/* Game Over Banner */}
           {gameState.isGameOver && (
-            <div className="p-4 bg-gradient-to-r from-amber-950/60 to-emerald-950/60 border border-amber-500/50 rounded-xl flex flex-col gap-2 shadow-2xl animate-in zoom-in-95">
+            <div className="p-4 bg-gradient-to-r from-amber-950/80 to-emerald-950/80 border-2 border-amber-500/60 rounded-2xl flex flex-col gap-2.5 shadow-[0_6px_0_0_#78350f] animate-in zoom-in-95">
               <div className="flex items-center gap-2 text-amber-300 font-black text-sm">
                 <Trophy className="w-5 h-5 text-amber-400" />
                 <span>
@@ -720,7 +720,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
               <p className="text-xs text-zinc-200 font-medium">{gameState.winReason}</p>
               <button
                 onClick={handleRestartGame}
-                className="mt-2 py-2 w-full bg-[#81b64c] hover:bg-[#92c855] text-black font-black text-xs rounded-lg transition shadow cursor-pointer"
+                className="mt-2 py-2.5 w-full bg-[#81b64c] hover:bg-[#72a342] text-white font-black text-xs rounded-full border-2 border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer"
               >
                 Play Again
               </button>
@@ -729,8 +729,8 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
           {/* Move Log History */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-bold text-zinc-400">Move Log:</span>
-            <div className="p-2 bg-black/30 rounded-xl border border-zinc-800 h-28 overflow-y-auto text-xs font-mono text-zinc-300 flex flex-wrap gap-x-2 gap-y-1">
+            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-wider">Move Log:</span>
+            <div className="p-3 bg-[#151412] rounded-2xl border-2 border-[#282622] h-28 overflow-y-auto text-xs font-mono text-zinc-300 flex flex-wrap gap-x-2 gap-y-1 shadow-inner">
               {moveHistory.length === 0 ? (
                 <span className="text-zinc-600 italic">No moves played yet.</span>
               ) : (
@@ -740,7 +740,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                       <span className="text-zinc-500 font-sans">{Math.floor(i / 2) + 1}.</span>
                     )}
                     <span
-                      className={`px-1 py-0.5 rounded font-bold ${
+                      className={`px-1.5 py-0.5 rounded font-black ${
                         i % 2 === 0 ? 'text-zinc-200' : 'text-zinc-400'
                       }`}
                     >

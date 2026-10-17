@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Chess, PieceSymbol } from 'chess.js';
+import { ChessEvaluator } from '@/lib/chessEngine';
 import {
   evaluatePositionStockfish,
   formatEngineScore,
@@ -11,7 +12,8 @@ import {
   calculateAcpl,
   calculateEstimatedPerformanceRating,
 } from '@/lib/server/capsCalculator';
-import { generateCoachExplanation } from '@/lib/server/coachGenerator';
+import { generateCoachExplanation, detectTacticalMotifs } from '@/lib/server/coachGenerator';
+import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import {
   GameReviewReport,
   MoveRecord,
@@ -19,6 +21,7 @@ import {
   ClassificationTallies,
   EvalTimelinePoint,
   KeyMoment,
+  MoveClassification,
 } from '@/types/chess';
 import { OPENINGS_DATABASE, matchOpeningFromMoves } from '@/lib/openingsData';
 import { EntitlementGuard } from '@/lib/server/entitlementGuard';
@@ -67,7 +70,8 @@ export async function POST(req: NextRequest) {
       pgn,
       whitePlayer = { id: 'white', name: 'White Player', rating: 1500, color: 'w' },
       blackPlayer = { id: 'black', name: 'Black Player', rating: 1500, color: 'b' },
-      depth = 11,
+      depth = 8,
+      engineMode = 'torch_human',
     } = body;
 
     // Enforce server-side entitlement quota & depth ceiling
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
-    const targetDepth = quotaCheck.effectiveDepth;
+    const targetDepth = Math.min(8, quotaCheck.effectiveDepth || 8);
 
     const chess = new Chess();
     if (pgn) {
@@ -115,7 +119,10 @@ export async function POST(req: NextRequest) {
 
     const whiteCpLosses: number[] = [];
     const blackCpLosses: number[] = [];
+    const whiteClassifications: MoveClassification[] = [];
+    const blackClassifications: MoveClassification[] = [];
 
+    let inBook = true;
     for (let ply = 0; ply < sanMoves.length; ply++) {
       const san = sanMoves[ply];
       const isWhite = ply % 2 === 0;
@@ -138,25 +145,46 @@ export async function POST(req: NextRequest) {
 
       const fenAfter = runner.fen();
 
-      // Evaluate position after move with Stockfish 18 NNUE
-      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, 2);
+      // Evaluate position after move with Stockfish
+      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, 2, 3500);
 
-      // Check tablebase for endgame
-      const tbAfter = await queryTablebase(fenAfter);
+      // Check tablebase for endgame only when 7 or fewer pieces remain on board
+      const pieceCount = (fenAfter.split(' ')[0].match(/[pnbrqkPNBRQK]/g) || []).length;
+      const tbAfter = pieceCount <= 7 ? await queryTablebase(fenAfter) : null;
 
       const evalBeforeCp = prevEval.scoreCp;
       const evalAfterCp = currentEval.scoreCp;
       const mateBefore = prevEval.mateIn;
       const mateAfter = currentEval.mateIn;
-      const bestMoveSan = prevEval.bestMoveSan || san;
-      const bestMoveUci = prevEval.bestMoveUci || '';
+      let bestMoveSan = prevEval.bestMoveSan;
+      let bestMoveUci = prevEval.bestMoveUci || '';
+      if (!bestMoveSan || bestMoveSan === 'Checkmate' || bestMoveSan === 'Draw') {
+        try {
+          const cBefore = new Chess(fenBefore);
+          if (!cBefore.isGameOver()) {
+            const fallback = ChessEvaluator.findBestMoveAndScore(cBefore);
+            bestMoveSan = fallback.bestMoveSan || san;
+            bestMoveUci = fallback.bestMoveUci || '';
+          } else {
+            bestMoveSan = san;
+          }
+        } catch {
+          bestMoveSan = san;
+        }
+      }
 
       const secondBestLoss =
         prevEval.lines.length > 1
           ? Math.abs(prevEval.lines[0].scoreCp - prevEval.lines[1].scoreCp) / 100
           : 0;
 
-      const isBookMove = ply <= 12 && COMMON_BOOK_MOVES.has(san);
+      let isBookMove = false;
+      if (inBook && ply <= 12 && COMMON_BOOK_MOVES.has(san)) {
+        isBookMove = true;
+      } else {
+        inBook = false;
+      }
+
       const pieceType = (playedMove?.piece || 'p') as PieceSymbol;
       const isCapture = Boolean(playedMove?.captured);
       const isCheck = runner.inCheck();
@@ -181,6 +209,35 @@ export async function POST(req: NextRequest) {
         isCheck,
         isBookMove,
         secondBestLoss,
+        engineMode: engineMode as any,
+        fenBefore,
+        fenAfter,
+      });
+
+      if (isWhite) {
+        whiteClassifications.push(classificationResult.classification);
+      } else {
+        blackClassifications.push(classificationResult.classification);
+      }
+
+      const isUserWhite =
+        whitePlayer?.id === 'user-local' ||
+        (whitePlayer?.isBot === false && blackPlayer?.isBot === true) ||
+        (whitePlayer?.name || '').toLowerCase().includes('qing') ||
+        (whitePlayer?.name || '').toLowerCase().includes('you') ||
+        !(blackPlayer?.name || '').toLowerCase().includes('qing');
+      const isUserMove = isWhite ? isUserWhite : !isUserWhite;
+      const playerName = isWhite ? whitePlayer?.name : blackPlayer?.name;
+
+      // High-precision tactical motif detection (forks, pins, sacrifices, skewers, hanging pieces)
+      const motifs = detectTacticalMotifs({
+        chessAfter: runner,
+        playedMoveSan: san,
+        from: playedMove?.from,
+        to: playedMove?.to,
+        turnColor: isWhite ? 'w' : 'b',
+        fenBefore,
+        classification: classificationResult.classification,
       });
 
       // Generate Coach Danny natural-language advice
@@ -196,7 +253,13 @@ export async function POST(req: NextRequest) {
         isCheck,
         turnColor: isWhite ? 'w' : 'b',
         playerAccuracy: classificationResult.accuracy,
+        playerName,
+        isUser: isUserMove,
+        motif: motifs[0],
+        fenBefore,
       });
+
+      console.log(`[REVIEW_API] Ply ${ply} ${san}: class=${classificationResult.classification}, acc=${classificationResult.accuracy}, bestMove=${bestMoveSan}, evalB=${evalBeforeCp}, evalA=${evalAfterCp}`);
 
       const moveRecord: MoveRecord = {
         san,
@@ -210,6 +273,8 @@ export async function POST(req: NextRequest) {
         bestMoveUci,
         classification: classificationResult.classification,
         coachComment: coachExplanation,
+        accuracy: classificationResult.accuracy,
+        winProbLoss: classificationResult.winProbLoss,
         isCheck,
       };
 
@@ -258,8 +323,8 @@ export async function POST(req: NextRequest) {
       prevEval = currentEval;
     }
 
-    const whiteAccuracy = calculateGameCaps(whiteAccuracies);
-    const blackAccuracy = calculateGameCaps(blackAccuracies);
+    const whiteAccuracy = calculateGameCaps(whiteAccuracies, whiteClassifications);
+    const blackAccuracy = calculateGameCaps(blackAccuracies, blackClassifications);
     const whiteAcpl = calculateAcpl(whiteCpLosses);
     const blackAcpl = calculateAcpl(blackCpLosses);
 
@@ -268,6 +333,8 @@ export async function POST(req: NextRequest) {
       acpl: whiteAcpl,
       baselineElo: whitePlayer.rating || 1500,
       opponentElo: blackPlayer.rating || 1500,
+      engineMode: engineMode as any,
+      moveCount: Math.ceil(sanMoves.length / 2),
     });
 
     const blackEstimatedElo = calculateEstimatedPerformanceRating({
@@ -275,12 +342,25 @@ export async function POST(req: NextRequest) {
       acpl: blackAcpl,
       baselineElo: blackPlayer.rating || 1500,
       opponentElo: whitePlayer.rating || 1500,
+      engineMode: engineMode as any,
+      moveCount: Math.ceil(sanMoves.length / 2),
     });
 
-    const summaryComment =
-      whiteAccuracy > blackAccuracy
-        ? `White dominated with ${whiteAccuracy}% CAPS accuracy (perf est. ${whiteEstimatedElo}), seizing the tactical initiative. Black put up resistance but faltered in the critical moments.`
-        : `Black outplayed White with ${blackAccuracy}% CAPS accuracy (perf est. ${blackEstimatedElo}), punishing opening and tactical inaccuracies to secure victory!`;
+    const lastMove = sanMoves[sanMoves.length - 1];
+    const isCheckmateLast = Boolean(lastMove?.includes('#'));
+    const whiteWonByMate = isCheckmateLast && sanMoves.length % 2 === 1;
+    const blackWonByMate = isCheckmateLast && sanMoves.length % 2 === 0;
+
+    let summaryComment: string;
+    if (whiteWonByMate) {
+      summaryComment = `White won decisively by checkmate with ${whiteAccuracy}% accuracy (perf est. ${whiteEstimatedElo}), executing a clean tactical attack!`;
+    } else if (blackWonByMate) {
+      summaryComment = `Black won decisively by checkmate with ${blackAccuracy}% accuracy (perf est. ${blackEstimatedElo}), delivering a clinical finishing blow!`;
+    } else if (whiteAccuracy > blackAccuracy) {
+      summaryComment = `White dominated with ${whiteAccuracy}% accuracy (perf est. ${whiteEstimatedElo}), seizing the tactical initiative. Black put up resistance but faltered in the critical moments.`;
+    } else {
+      summaryComment = `Black outplayed White with ${blackAccuracy}% accuracy (perf est. ${blackEstimatedElo}), punishing opening and tactical inaccuracies to secure victory!`;
+    }
 
     const opening = matchOpeningFromMoves(sanMoves);
 
@@ -360,7 +440,10 @@ export async function POST(req: NextRequest) {
           fen: (worstBlunderMove as MoveRecord).fenBefore,
           blunderedMoveSan: (worstBlunderMove as MoveRecord).san,
           solutionSan: (worstBlunderMove as MoveRecord).bestMoveSan || '',
-          explanation: `In this position, you played ${(worstBlunderMove as MoveRecord).san}. Stockfish's top continuation was ${(worstBlunderMove as MoveRecord).bestMoveSan}.`,
+          explanation:
+            engineMode === 'torch_human'
+              ? `In this position, you played ${(worstBlunderMove as MoveRecord).san}. Torch Human recommends ${(worstBlunderMove as MoveRecord).bestMoveSan} as the most natural, practical path.`
+              : `In this position, you played ${(worstBlunderMove as MoveRecord).san}. Stockfish's top continuation was ${(worstBlunderMove as MoveRecord).bestMoveSan}.`,
         }
       : undefined;
 
@@ -375,6 +458,11 @@ export async function POST(req: NextRequest) {
       blackEstimatedElo,
       whiteAcpl,
       blackAcpl,
+      engineMode: engineMode as any,
+      engineDescription:
+        engineMode === 'torch_human'
+          ? 'Human Style (Natural Insights)'
+          : 'Stockfish (Deep Tactical Calculation)',
       opening,
       phaseBreakdown,
       blunderRetryPuzzle,
@@ -386,7 +474,11 @@ export async function POST(req: NextRequest) {
       keyMoments,
       moves: analyzedMoves,
       summaryComment,
+      isDeepReview: true,
+      reviewVersion: 'v2.4',
     };
+
+    report.advancedStats = calculateGameAdvancedStats(report);
 
     return NextResponse.json({
       success: true,

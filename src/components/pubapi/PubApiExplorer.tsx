@@ -153,20 +153,20 @@ export const PubApiExplorer: React.FC = () => {
   return (
     <div className="flex flex-col h-full max-w-5xl mx-auto p-4 select-none">
       {/* Header Banner */}
-      <div className="p-4 bg-[#21201d] rounded-2xl border border-[#302e2b] flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+      <div className="p-5 bg-[#211f1c] rounded-3xl border-2 border-[#35322b] flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_5px_0_0_#141311]">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-[#81b64c]/20 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shadow">
+          <div className="w-12 h-12 rounded-2xl bg-[#81b64c]/20 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_3px_0_0_#141311]">
             <Globe className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-base font-black text-white flex items-center gap-2">
               Public REST API & Data Service (A10)
-              <span className="text-[10px] bg-[#81b64c] text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+              <span className="text-[10px] bg-[#81b64c] text-white px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider border border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]">
                 PubAPI Live
               </span>
             </h2>
-            <p className="text-xs text-zinc-400">
-              Query player ratings, monthly game archives, leaderboards, and titled rosters via <code className="text-zinc-300 font-mono">/pub/*</code>.
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Query player ratings, monthly game archives, leaderboards, and titled rosters via <code className="text-zinc-300 font-mono bg-[#181614] px-1.5 py-0.5 rounded-md border border-[#35322b]">/pub/*</code>.
             </p>
           </div>
         </div>
@@ -185,13 +185,13 @@ export const PubApiExplorer: React.FC = () => {
               placeholder="Enter Chess username (e.g. hikaru)..."
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-[#161512] border border-[#302e2b] rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+              className="w-full bg-[#181614] border-2 border-[#35322b] rounded-full px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] shadow-inner font-medium"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-md shadow-[#81b64c]/20"
+            className="px-5 py-2 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all border-2 border-[#5c8a32] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#4d7a24]"
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
             <span>Query</span>
@@ -200,8 +200,8 @@ export const PubApiExplorer: React.FC = () => {
       </div>
 
       {/* Grandmaster Presets Bar */}
-      <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-zinc-400">
-        <span className="font-semibold text-zinc-500">Quick Query:</span>
+      <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-zinc-400">
+        <span className="font-black text-zinc-400 uppercase tracking-wider text-[11px]">Quick Query:</span>
         {['hikaru', 'magnuscarlsen', 'danielnaroditsky', 'alireza2003', 'guest-player'].map((u) => (
           <button
             key={u}
@@ -209,21 +209,21 @@ export const PubApiExplorer: React.FC = () => {
               setUsername(u);
               fetchPlayerData(u);
             }}
-            className="text-zinc-300 hover:text-white bg-[#22201d] hover:bg-[#2d2a26] border border-[#302e2b] px-2.5 py-1 rounded-lg cursor-pointer transition-colors font-mono text-[11px]"
+            className="text-zinc-300 hover:text-white bg-[#262420] hover:bg-[#2e2a25] border-2 border-[#35322b] px-3 py-1 rounded-full cursor-pointer transition-all font-mono text-[11px] font-bold shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px]"
           >
             @{u}
           </button>
         ))}
       </div>
 
-      {/* Tabs Header */}
-      <div className="flex gap-2 mt-4 border-b border-[#2d2a26] pb-2 text-xs font-bold">
+      {/* Tabs Header - Segmented Capsule */}
+      <div className="flex flex-wrap gap-1 mt-4 p-1 bg-[#181614] rounded-full border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] max-w-fit">
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+          className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'profile'
-              ? 'bg-[#81b64c] text-white shadow'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-[#81b64c] text-white border-2 border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]'
+              : 'text-zinc-400 hover:text-white border-2 border-transparent'
           }`}
         >
           <User className="w-3.5 h-3.5" />
@@ -231,10 +231,10 @@ export const PubApiExplorer: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('games')}
-          className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+          className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'games'
-              ? 'bg-[#81b64c] text-white shadow'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-[#81b64c] text-white border-2 border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]'
+              : 'text-zinc-400 hover:text-white border-2 border-transparent'
           }`}
         >
           <Calendar className="w-3.5 h-3.5" />
@@ -242,10 +242,10 @@ export const PubApiExplorer: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('leaderboards')}
-          className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+          className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'leaderboards'
-              ? 'bg-[#81b64c] text-white shadow'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-[#81b64c] text-white border-2 border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]'
+              : 'text-zinc-400 hover:text-white border-2 border-transparent'
           }`}
         >
           <Trophy className="w-3.5 h-3.5" />
@@ -253,10 +253,10 @@ export const PubApiExplorer: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('streamers')}
-          className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+          className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'streamers'
-              ? 'bg-[#81b64c] text-white shadow'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-[#81b64c] text-white border-2 border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]'
+              : 'text-zinc-400 hover:text-white border-2 border-transparent'
           }`}
         >
           <Video className="w-3.5 h-3.5" />
@@ -266,7 +266,7 @@ export const PubApiExplorer: React.FC = () => {
 
       {/* Error Notice */}
       {error && (
-        <div className="mt-4 p-4 bg-red-950/40 border border-red-500/40 rounded-xl text-xs text-red-300">
+        <div className="mt-4 p-4 bg-red-950/40 border-2 border-red-500/40 rounded-2xl text-xs text-red-300 font-bold shadow-[0_3px_0_0_#7f1d1d]">
           {error}
         </div>
       )}
@@ -275,21 +275,21 @@ export const PubApiExplorer: React.FC = () => {
       {activeTab === 'profile' && profile && (
         <div className="mt-4 flex flex-col gap-4 animate-in fade-in">
           {/* Profile Banner */}
-          <div className="p-5 bg-[#21201d] rounded-2xl border border-[#302e2b] flex flex-col sm:flex-row items-center gap-5 shadow-xl">
+          <div className="p-6 bg-[#211f1c] rounded-3xl border-2 border-[#35322b] flex flex-col sm:flex-row items-center gap-5 shadow-[0_5px_0_0_#141311]">
             <div className="relative">
               {profile.avatar ? (
                 <img
                   src={profile.avatar}
                   alt={profile.username}
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-[#81b64c] shadow-lg"
+                  className="w-20 h-20 rounded-2xl object-cover border-2 border-[#81b64c] shadow-[0_4px_0_0_#4d7a24]"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-2xl bg-[#2b2926] border border-[#3f3b35] flex items-center justify-center text-3xl shadow">
+                <div className="w-20 h-20 rounded-2xl bg-[#262420] border-2 border-[#35322b] flex items-center justify-center text-3xl shadow-[0_3px_0_0_#141311]">
                   👤
                 </div>
               )}
               {profile.title && (
-                <span className="absolute -top-2 -right-2 bg-amber-500 text-black font-black text-xs px-2 py-0.5 rounded-md shadow-md">
+                <span className="absolute -top-2 -right-2 bg-amber-500 text-black font-black text-xs px-2.5 py-0.5 rounded-full border border-amber-600 shadow-[0_2px_0_0_#92400e]">
                   {profile.title}
                 </span>
               )}
@@ -299,18 +299,18 @@ export const PubApiExplorer: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <h3 className="text-xl font-black text-white">{profile.username}</h3>
                 {profile.name && (
-                  <span className="text-xs font-semibold text-zinc-400">({profile.name})</span>
+                  <span className="text-xs font-bold text-zinc-400">({profile.name})</span>
                 )}
               </div>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mt-2 text-xs text-zinc-400">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-[#81b64c]" />
-                  Status: <strong className="text-zinc-200 capitalize">{profile.status || 'Active'}</strong>
+                  Status: <strong className="text-zinc-200 capitalize font-bold">{profile.status || 'Active'}</strong>
                 </span>
                 {profile.followers !== undefined && (
                   <span className="flex items-center gap-1.5">
                     <User className="w-4 h-4 text-blue-400" />
-                    Followers: <strong className="text-zinc-200">{profile.followers.toLocaleString()}</strong>
+                    Followers: <strong className="text-zinc-200 font-bold">{profile.followers.toLocaleString()}</strong>
                   </span>
                 )}
               </div>
@@ -321,9 +321,9 @@ export const PubApiExplorer: React.FC = () => {
           {stats && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Rapid */}
-              <div className="p-4 bg-[#23211e] rounded-xl border border-[#33302b] flex flex-col">
+              <div className="p-4 bg-[#262420] rounded-2xl border-2 border-[#35322b] flex flex-col shadow-[0_3px_0_0_#141311] hover:-translate-y-[2px] transition-transform">
                 <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span className="font-bold uppercase tracking-wider text-[#81b64c]">⏱️ Rapid</span>
+                  <span className="font-black uppercase tracking-wider text-[#81b64c]">⏱️ Rapid</span>
                   <Award className="w-4 h-4 text-[#81b64c]" />
                 </div>
                 <div className="text-2xl font-black text-white font-mono mt-2">
@@ -340,9 +340,9 @@ export const PubApiExplorer: React.FC = () => {
               </div>
 
               {/* Blitz */}
-              <div className="p-4 bg-[#23211e] rounded-xl border border-[#33302b] flex flex-col">
+              <div className="p-4 bg-[#262420] rounded-2xl border-2 border-[#35322b] flex flex-col shadow-[0_3px_0_0_#141311] hover:-translate-y-[2px] transition-transform">
                 <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span className="font-bold uppercase tracking-wider text-amber-400">⚡ Blitz</span>
+                  <span className="font-black uppercase tracking-wider text-amber-400">⚡ Blitz</span>
                   <Award className="w-4 h-4 text-amber-400" />
                 </div>
                 <div className="text-2xl font-black text-white font-mono mt-2">
@@ -359,9 +359,9 @@ export const PubApiExplorer: React.FC = () => {
               </div>
 
               {/* Bullet */}
-              <div className="p-4 bg-[#23211e] rounded-xl border border-[#33302b] flex flex-col">
+              <div className="p-4 bg-[#262420] rounded-2xl border-2 border-[#35322b] flex flex-col shadow-[0_3px_0_0_#141311] hover:-translate-y-[2px] transition-transform">
                 <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span className="font-bold uppercase tracking-wider text-rose-400">🔥 Bullet</span>
+                  <span className="font-black uppercase tracking-wider text-rose-400">🔥 Bullet</span>
                   <Award className="w-4 h-4 text-rose-400" />
                 </div>
                 <div className="text-2xl font-black text-white font-mono mt-2">
@@ -388,16 +388,16 @@ export const PubApiExplorer: React.FC = () => {
             games.map((g, idx) => (
               <div
                 key={idx}
-                className="p-3.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between text-xs hover:border-[#423f39] transition-colors"
+                className="p-4 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex items-center justify-between text-xs hover:-translate-y-[1px] transition-transform"
               >
                 <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 font-bold">
+                  <div className="flex items-center gap-2 font-black">
                     <span className="text-white">{g.white.username} ({g.white.rating})</span>
                     <span className="text-zinc-500 font-mono text-[10px]">vs</span>
                     <span className="text-white">{g.black.username} ({g.black.rating})</span>
                   </div>
                   <div className="flex items-center gap-3 text-[10px] text-zinc-400 font-mono">
-                    <span className="uppercase text-[#81b64c] font-bold">{g.time_class} ({g.time_control}s)</span>
+                    <span className="uppercase text-[#81b64c] font-black">{g.time_class} ({g.time_control}s)</span>
                     {g.accuracies && (
                       <span>Accuracy: W {g.accuracies.white}% • B {g.accuracies.black}%</span>
                     )}
@@ -405,14 +405,14 @@ export const PubApiExplorer: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 rounded font-mono font-bold bg-[#161512] text-zinc-200 border border-[#2b2824]">
+                  <span className="px-3 py-1 rounded-full font-mono font-black text-xs bg-[#181614] text-zinc-200 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311]">
                     {g.white.result === 'win' ? '1-0' : g.black.result === 'win' ? '0-1' : '½-½'}
                   </span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="p-8 text-center text-zinc-500 text-xs bg-[#1f1d1a] rounded-xl border border-[#2d2a26]">
+            <div className="p-8 text-center text-zinc-500 text-xs bg-[#211f1c] rounded-3xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311]">
               No archived games found for this monthly period.
             </div>
           )}
@@ -423,13 +423,13 @@ export const PubApiExplorer: React.FC = () => {
       {activeTab === 'leaderboards' && leaderboards && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in">
           {Object.entries(leaderboards).map(([cat, list]) => (
-            <div key={cat} className="p-4 bg-[#21201d] rounded-xl border border-[#302e2b] flex flex-col gap-2">
-              <span className="text-xs font-bold text-white uppercase tracking-wider text-[#81b64c]">
+            <div key={cat} className="p-5 bg-[#211f1c] rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] flex flex-col gap-2">
+              <span className="text-xs font-black text-[#81b64c] uppercase tracking-wider">
                 {cat.replace('_', ' ')}
               </span>
-              <div className="divide-y divide-[#2a2824]">
+              <div className="divide-y-2 divide-[#35322b]">
                 {list.map((item) => (
-                  <div key={item.username} className="py-2 flex items-center justify-between text-xs font-mono">
+                  <div key={item.username} className="py-2.5 flex items-center justify-between text-xs font-mono">
                     <div className="flex items-center gap-2">
                       <span className="text-zinc-500 font-bold w-4">#{item.rank}</span>
                       <span className="text-zinc-200 font-bold">{item.username}</span>
@@ -449,15 +449,15 @@ export const PubApiExplorer: React.FC = () => {
           {streamers.map((s) => (
             <div
               key={s.username}
-              className="p-3.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-center justify-between text-xs"
+              className="p-4 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex items-center justify-between text-xs hover:-translate-y-[1px] transition-transform"
             >
               <div className="flex items-center gap-3">
-                <img src={s.avatar} alt={s.username} className="w-10 h-10 rounded-xl object-cover" />
+                <img src={s.avatar} alt={s.username} className="w-10 h-10 rounded-xl object-cover border-2 border-[#35322b]" />
                 <div className="flex flex-col">
-                  <span className="font-bold text-white">{s.username}</span>
+                  <span className="font-black text-white">{s.username}</span>
                   {s.is_live && (
-                    <span className="text-[10px] text-rose-400 font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    <span className="text-[10px] text-rose-400 font-black flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                       LIVE NOW
                     </span>
                   )}
@@ -468,7 +468,7 @@ export const PubApiExplorer: React.FC = () => {
                   href={s.twitch_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-2.5 py-1 rounded-lg bg-[#9146ff]/20 text-[#bf94ff] hover:bg-[#9146ff]/30 text-xs font-bold flex items-center gap-1 transition-colors"
+                  className="px-3 py-1 rounded-full bg-[#9146ff] hover:bg-[#7e32f0] text-white text-xs font-black flex items-center gap-1.5 transition-all border-2 border-[#772ce8] shadow-[0_3px_0_0_#581c87] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#581c87]"
                 >
                   <span>Twitch</span>
                   <ExternalLink className="w-3 h-3" />

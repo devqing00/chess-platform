@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { BoardTheme, PieceTheme, SoundTheme, MembershipTier } from '@/types/chess';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { BoardTheme, PieceTheme, SoundTheme, MembershipTier, AnalysisEngineMode, MoveInputMode } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 
 interface ShellContextType {
@@ -15,6 +15,10 @@ interface ShellContextType {
   setSoundEnabled: (enabled: boolean) => void;
   membershipTier: MembershipTier;
   setMembershipTier: (tier: MembershipTier) => void;
+  analysisEngine: AnalysisEngineMode;
+  setAnalysisEngine: (engine: AnalysisEngineMode) => void;
+  moveInputMode: MoveInputMode;
+  setMoveInputMode: (mode: MoveInputMode) => void;
   isSettingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
@@ -24,6 +28,8 @@ interface ShellContextType {
   isChessComSyncOpen: boolean;
   openChessComSync: () => void;
   closeChessComSync: () => void;
+  activeMentorId: string;
+  setActiveMentorId: (id: string) => void;
 }
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
@@ -34,6 +40,9 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [soundTheme, setSoundThemeState] = useState<SoundTheme>('classic');
   const [soundEnabled, setSoundEnabledState] = useState<boolean>(true);
   const [membershipTier, setMembershipTier] = useState<MembershipTier>('diamond');
+  const [activeMentorId, setActiveMentorIdState] = useState<string>('coach-danny');
+  const [analysisEngine, setAnalysisEngineState] = useState<AnalysisEngineMode>('torch_human');
+  const [moveInputMode, setMoveInputModeState] = useState<MoveInputMode>('both');
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMembershipOpen, setIsMembershipOpen] = useState(false);
@@ -59,6 +68,21 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const en = savedMute === 'true';
         setSoundEnabledState(en);
         soundService.setEnabled(en);
+      }
+
+      const savedMentor = localStorage.getItem('chess_active_mentor');
+      if (savedMentor) {
+        setActiveMentorIdState(savedMentor);
+      }
+
+      const savedEngine = localStorage.getItem('chess_pref_analysis_engine') as AnalysisEngineMode | null;
+      if (savedEngine === 'torch_human' || savedEngine === 'stockfish') {
+        setAnalysisEngineState(savedEngine);
+      }
+
+      const savedMoveInput = localStorage.getItem('chess_pref_move_input_mode') as MoveInputMode | null;
+      if (savedMoveInput === 'both' || savedMoveInput === 'drag' || savedMoveInput === 'click') {
+        setMoveInputModeState(savedMoveInput);
       }
     } catch {
       // LocalStorage access fallback
@@ -95,6 +119,27 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   };
 
+  const setActiveMentorId = (id: string) => {
+    setActiveMentorIdState(id);
+    try {
+      localStorage.setItem('chess_active_mentor', id);
+    } catch {}
+  };
+
+  const setAnalysisEngine = (engine: AnalysisEngineMode) => {
+    setAnalysisEngineState(engine);
+    try {
+      localStorage.setItem('chess_pref_analysis_engine', engine);
+    } catch {}
+  };
+
+  const setMoveInputMode = (mode: MoveInputMode) => {
+    setMoveInputModeState(mode);
+    try {
+      localStorage.setItem('chess_pref_move_input_mode', mode);
+    } catch {}
+  };
+
   return (
     <ShellContext.Provider
       value={{
@@ -108,6 +153,10 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSoundEnabled,
         membershipTier,
         setMembershipTier,
+        analysisEngine,
+        setAnalysisEngine,
+        moveInputMode,
+        setMoveInputMode,
         isSettingsOpen,
         openSettings: () => setIsSettingsOpen(true),
         closeSettings: () => setIsSettingsOpen(false),
@@ -117,6 +166,8 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isChessComSyncOpen,
         openChessComSync: () => setIsChessComSyncOpen(true),
         closeChessComSync: () => setIsChessComSyncOpen(false),
+        activeMentorId,
+        setActiveMentorId,
       }}
     >
       {children}

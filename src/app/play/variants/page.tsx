@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { VariantsArena } from '@/components/variants/VariantsArena';
-import { BoardTheme, PieceTheme } from '@/types/chess';
+import { useShell } from '@/context/ShellContext';
 import { ArrowLeft, Dices, Crown } from 'lucide-react';
 
 export default function PlayVariantsPage() {
   const router = useRouter();
-  const [boardTheme] = useState<BoardTheme>('green');
-  const [pieceTheme] = useState<PieceTheme>('neo');
+  const { boardTheme, pieceTheme } = useShell();
 
   return (
     <div className="flex-1 p-4 sm:p-6 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto">
@@ -24,8 +23,8 @@ export default function PlayVariantsPage() {
         </button>
         <div className="flex items-center gap-2">
           <Dices className="w-4 h-4 text-[#81b64c]" />
-          <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
-            Chess Variants Arena & Engine
+          <span className="text-xs font-black uppercase tracking-wider text-zinc-300 truncate">
+            Variants Arena<span className="hidden sm:inline"> &amp; Engine</span>
           </span>
         </div>
       </div>

@@ -3,6 +3,9 @@
 import React from 'react';
 import { MoveRecord, MoveClassification } from '@/types/chess';
 import { Sparkles, AlertTriangle, CheckCircle, Flame } from 'lucide-react';
+import { useShell } from '@/context/ShellContext';
+import { getMentorById, generateMentorComment } from '@/lib/mentorsData';
+import { explainChessMove } from '@/lib/chessMoveExplainer';
 
 interface CoachCommentaryCardProps {
   move: MoveRecord | null;
@@ -13,21 +16,24 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
   move,
   turnColor,
 }) => {
+  const { activeMentorId } = useShell();
+  const mentor = getMentorById(activeMentorId);
+
   if (!move) {
     return (
       <div className="p-3.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-start gap-3 select-none">
-        <div className="w-10 h-10 rounded-full bg-[#2d2a26] border border-[#3f3b35] flex items-center justify-center text-xl shadow">
-          🎙️
+        <div className={`w-10 h-10 rounded-full ${mentor.avatarBg} border border-white/20 flex items-center justify-center text-xl shadow-md shrink-0`}>
+          {mentor.avatarEmoji}
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-white">Coach Danny</span>
-            <span className="text-[10px] bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black px-1.5 py-0.2 rounded-full uppercase">
-              Diamond AI
+            <span className="text-xs font-bold text-white">{mentor.name}</span>
+            <span className="text-[10px] bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black px-1.5 py-0.2 rounded-full uppercase">
+              {mentor.title}
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-            Make your move! I will evaluate your tactical decisions, spot missed tactics, and guide your strategy move by move.
+            "{mentor.tagline}" Make your move! I will evaluate your tactics and guide your strategy move by move.
           </p>
         </div>
       </div>
@@ -93,38 +99,59 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
       break;
   }
 
+  const isUserMove = move.fenBefore ? move.fenBefore.split(' ')[1] === 'w' : true;
+
+  const dynamicComment = generateMentorComment(
+    mentor.id,
+    classification,
+    move.san,
+    move.bestMoveSan,
+    move.evalAfter,
+    undefined,
+    isUserMove,
+    move.motif,
+    move.fenBefore
+  );
+
   return (
     <div className="p-3.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-start gap-3 select-none">
-      <div className="relative">
-        <div className="w-10 h-10 rounded-full bg-[#2d2a26] border border-[#3f3b35] flex items-center justify-center text-xl shadow">
-          🎙️
+      <div className="relative shrink-0">
+        <div className={`w-10 h-10 rounded-full ${mentor.avatarBg} border border-white/20 flex items-center justify-center text-xl shadow-md`}>
+          {mentor.avatarEmoji}
         </div>
         <div className="absolute -bottom-1 -right-1">
           {icon}
         </div>
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-white">Coach Danny</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-bold text-white">{mentor.name}</span>
             <span className="text-[10px] bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black px-1.5 py-0.2 rounded-full uppercase">
-              Diamond AI
+              {mentor.title}
             </span>
+            {move.motif && (
+              <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+                ⚡ {move.motif.type.replace('-', ' ')}
+              </span>
+            )}
           </div>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}`}>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor} shrink-0`}>
             {badgeText}
           </span>
         </div>
 
         <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed font-sans">
-          {move.coachComment || 'Solid play on the board. Always watch out for your opponent’s tactical counter-strikes!'}
+          {dynamicComment || move.coachComment || 'Solid play on the board. Always watch out for your opponent’s tactical counter-strikes!'}
         </p>
 
         {move.bestMoveSan && move.bestMoveSan !== move.san && (
-          <div className="mt-2 text-[11px] text-zinc-400 bg-[#161512] px-2 py-1 rounded border border-[#2d2a26] flex items-center justify-between">
-            <span>Engine recommendation:</span>
-            <span className="text-[#81b64c] font-mono font-bold">{move.bestMoveSan}</span>
+          <div className="mt-2 text-[11px] text-zinc-400 bg-[#161512] px-2.5 py-1.5 rounded-lg border border-[#2d2a26] flex items-center justify-between gap-2">
+            <span className="shrink-0 text-zinc-400 font-medium">Better move was:</span>
+            <span className="text-[#81b64c] font-bold text-right font-sans">
+              {explainChessMove(move.bestMoveSan, move.fenBefore)}
+            </span>
           </div>
         )}
       </div>

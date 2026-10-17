@@ -25,7 +25,14 @@ class SoundService {
   };
 
   constructor() {
-    // AudioContext will be initialized on first user gesture
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('chess_pref_sound_theme');
+        if (saved) {
+          this.soundTheme = saved as SoundTheme;
+        }
+      } catch {}
+    }
   }
 
   private getAudioContext(): AudioContext | null {
@@ -123,6 +130,11 @@ class SoundService {
 
   public setTheme(theme: SoundTheme) {
     this.soundTheme = theme;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('chess_pref_sound_theme', theme);
+      } catch {}
+    }
   }
 
   public setEnabled(enabled: boolean) {
@@ -158,6 +170,18 @@ class SoundService {
     const dest = this.getSfxDestination();
 
     switch (this.soundTheme) {
+      case 'duolingo': {
+        // Playful cartoon bubble pop
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(420, t);
+        osc.frequency.exponentialRampToValueAtTime(780, t + 0.04);
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.08);
+        return;
+      }
       case 'arcade': {
         osc.type = 'square';
         osc.frequency.setValueAtTime(440, t);
@@ -219,7 +243,7 @@ class SoundService {
     }
   }
 
-  // Capture move: Resonant wooden snap / pop
+  // Capture move: Resonant snap / pop adapted to current sound theme
   public playCapture() {
     if (!this.soundEnabled) return;
     const ctx = this.getAudioContext();
@@ -228,33 +252,105 @@ class SoundService {
     const t = ctx.currentTime;
     const dest = this.getSfxDestination();
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    switch (this.soundTheme) {
+      case 'duolingo': {
+        // Snappy cartoon suction cork pop
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(540, t);
+        osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.11);
+        return;
+      }
+      case 'arcade': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.exponentialRampToValueAtTime(120, t + 0.09);
+        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.11);
+        return;
+      }
+      case 'wood': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, t);
+        osc.frequency.exponentialRampToValueAtTime(40, t + 0.14);
+        gain.gain.setValueAtTime(0.5, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.17);
+        return;
+      }
+      case 'marble': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, t);
+        osc.frequency.exponentialRampToValueAtTime(260, t + 0.08);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.11);
+        return;
+      }
+      case 'silman': {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(240, t);
+        osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.1);
+        return;
+      }
+      case 'classic':
+      default: {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, t);
+        osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
 
-    const snap = ctx.createOscillator();
-    const snapGain = ctx.createGain();
-    snap.type = 'square';
-    snap.frequency.setValueAtTime(420, t);
-    snap.frequency.exponentialRampToValueAtTime(120, t + 0.04);
-    snapGain.gain.setValueAtTime(0.18, t);
-    snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        const snap = ctx.createOscillator();
+        const snapGain = ctx.createGain();
+        snap.type = 'square';
+        snap.frequency.setValueAtTime(420, t);
+        snap.frequency.exponentialRampToValueAtTime(120, t + 0.04);
+        snapGain.gain.setValueAtTime(0.18, t);
+        snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
 
-    gain.gain.setValueAtTime(0.4, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
 
-    osc.connect(gain).connect(dest);
-    snap.connect(snapGain).connect(dest);
+        osc.connect(gain).connect(dest);
+        snap.connect(snapGain).connect(dest);
 
-    osc.start(t);
-    snap.start(t);
-    osc.stop(t + 0.15);
-    snap.stop(t + 0.06);
+        osc.start(t);
+        snap.start(t);
+        osc.stop(t + 0.15);
+        snap.stop(t + 0.06);
+        return;
+      }
+    }
   }
 
-  // Check alert: Distinct bell chime
+  // Check alert: Distinct bell chime adapted to sound theme
   public playCheck() {
     if (!this.soundEnabled) return;
     const ctx = this.getAudioContext();
@@ -262,6 +358,41 @@ class SoundService {
 
     const t = ctx.currentTime;
     const dest = this.getSfxDestination();
+
+    if (this.soundTheme === 'duolingo') {
+      // Cheerful bright two-tone chime (G5 -> C6)
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = 'sine';
+      osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(783.99, t);
+      osc2.frequency.setValueAtTime(1046.5, t + 0.08);
+      gain.gain.setValueAtTime(0.28, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      osc1.connect(gain).connect(dest);
+      osc2.connect(gain).connect(dest);
+      osc1.start(t);
+      osc2.start(t + 0.08);
+      osc1.stop(t + 0.28);
+      osc2.stop(t + 0.3);
+      return;
+    }
+
+    if (this.soundTheme === 'arcade') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, t);
+      osc.frequency.setValueAtTime(1174.66, t + 0.08);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(gain).connect(dest);
+      osc.start(t);
+      osc.stop(t + 0.24);
+      return;
+    }
+
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -401,9 +532,26 @@ class SoundService {
     if (!ctx) return;
 
     const t = ctx.currentTime;
-    const chord = [523.25, 659.25, 783.99, 1046.5];
     const dest = this.getSfxDestination();
 
+    if (this.soundTheme === 'duolingo') {
+      // Signature Duolingo joyful ding-ding! (C5 -> E5 -> G5 -> C6)
+      const duoNotes = [523.25, 659.25, 783.99, 1046.5];
+      duoNotes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * 0.07);
+        gain.gain.setValueAtTime(0.24, t + i * 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.35);
+        osc.connect(gain).connect(dest);
+        osc.start(t + i * 0.07);
+        osc.stop(t + i * 0.07 + 0.4);
+      });
+      return;
+    }
+
+    const chord = [523.25, 659.25, 783.99, 1046.5];
     chord.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -424,10 +572,30 @@ class SoundService {
     if (!ctx) return;
 
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
     const dest = this.getSfxDestination();
 
+    if (this.soundTheme === 'duolingo') {
+      // Friendly cartoon soft uh-oh descending bloop (392Hz -> 261Hz)
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = 'sine';
+      osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(392, t);
+      osc2.frequency.setValueAtTime(261.63, t + 0.12);
+      gain.gain.setValueAtTime(0.22, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc1.connect(gain).connect(dest);
+      osc2.connect(gain).connect(dest);
+      osc1.start(t);
+      osc2.start(t + 0.12);
+      osc1.stop(t + 0.18);
+      osc2.stop(t + 0.34);
+      return;
+    }
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(140, t);
     osc.frequency.linearRampToValueAtTime(95, t + 0.3);
@@ -437,6 +605,177 @@ class SoundService {
     osc.connect(gain).connect(dest);
     osc.start(t);
     osc.stop(t + 0.38);
+  }
+
+  // Brilliant (!!): Iconic sparkling four-note celestial arpeggio (C6 -> E6 -> G6 -> C7)
+  public playBrilliant() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const dest = this.getSfxDestination();
+    const notes = [1046.5, 1318.51, 1567.98, 2093.0];
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.05);
+
+      gain.gain.setValueAtTime(0.25, t + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.05 + 0.45);
+
+      osc.connect(gain).connect(dest);
+      osc.start(t + idx * 0.05);
+      osc.stop(t + idx * 0.05 + 0.5);
+    });
+
+    // Shimmer overtone (sparkle halo)
+    const shimmer = ctx.createOscillator();
+    const shimmerGain = ctx.createGain();
+    shimmer.type = 'triangle';
+    shimmer.frequency.setValueAtTime(3135.96, t + 0.15); // G7
+    shimmerGain.gain.setValueAtTime(0.08, t + 0.15);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    shimmer.connect(shimmerGain).connect(dest);
+    shimmer.start(t + 0.15);
+    shimmer.stop(t + 0.58);
+  }
+
+  // Great (!): Crisp resonant three-tone major chord
+  public playGreat() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const dest = this.getSfxDestination();
+    const notes = [659.25, 830.61, 1318.51];
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.06);
+
+      gain.gain.setValueAtTime(0.22, t + idx * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 0.35);
+
+      osc.connect(gain).connect(dest);
+      osc.start(t + idx * 0.06);
+      osc.stop(t + idx * 0.06 + 0.38);
+    });
+  }
+
+  // Blunder (??): Deep muffled bass thud (classic Chess.com sinking sensation)
+  public playBlunder() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const dest = this.getSfxDestination();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.22);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(280, t);
+
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
+    osc.connect(filter).connect(gain).connect(dest);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  }
+
+  // Mistake: Soft dual descending blip
+  public playMistake() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const dest = this.getSfxDestination();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(260, t);
+    osc.frequency.exponentialRampToValueAtTime(160, t + 0.16);
+
+    gain.gain.setValueAtTime(0.22, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+    osc.connect(gain).connect(dest);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  // Miss: Melancholic two-tone slip
+  public playMiss() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const dest = this.getSfxDestination();
+
+    const notes = [440, 293.66];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+
+      gain.gain.setValueAtTime(0.2, t + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.24);
+
+      osc.connect(gain).connect(dest);
+      osc.start(t + idx * 0.08);
+      osc.stop(t + idx * 0.08 + 0.26);
+    });
+  }
+
+  // Move Classification Audio Router
+  public playClassification(classification: string) {
+    if (!this.soundEnabled) return;
+    const norm = (classification || '').toLowerCase().trim();
+
+    switch (norm) {
+      case 'brilliant':
+        this.playBrilliant();
+        break;
+      case 'great':
+        this.playGreat();
+        break;
+      case 'blunder':
+        this.playBlunder();
+        break;
+      case 'mistake':
+        this.playMistake();
+        break;
+      case 'miss':
+        this.playMiss();
+        break;
+      case 'inaccuracy':
+        this.playMistake();
+        break;
+      case 'book':
+      case 'best':
+      case 'excellent':
+      case 'good':
+      default:
+        this.playMove();
+        break;
+    }
   }
 
   /**
@@ -519,6 +858,16 @@ class SoundService {
         break;
       }
     }
+  }
+
+  // Game Over: Victory fanfare
+  public playVictory() {
+    this.playPuzzleSuccess();
+  }
+
+  // Game Over: Defeat sound
+  public playDefeat() {
+    this.playPuzzleFail();
   }
 }
 

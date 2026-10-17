@@ -398,7 +398,7 @@ export class InsightsService {
         category: 'opening',
         severity: 'warning',
         finding:
-          'Your win rate in the French Defense is just 40.0% with an ACPL of 52.1 centipawns, significantly underperforming your Queen\'s Gambit (66.7% win rate, 22.4 ACPL).',
+          'Your win rate in the French Defense is 40.0% with an average inaccuracy of 52.1 points, compared to your solid Queen\'s Gambit (22.4 inaccuracy points and 66.7% win rate).',
         actionableDrill:
           'Study the "Pawn Breaks in the French" curriculum lesson. Master ...c5 and ...f6 breaks before your c8 bishop becomes permanently entombed.',
         expectedRatingGain: '+45 Elo',

@@ -64,6 +64,7 @@ export interface FirebaseGameRecord {
   };
   eco?: string;
   openingName?: string;
+  playerUids?: string[];
   createdAt: string;
 }
 

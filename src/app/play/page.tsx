@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { Chess } from 'chess.js';
+import { ChessBoard } from '@/components/board/ChessBoard';
+import { useShell } from '@/context/ShellContext';
 import { GameSessionStore } from '@/lib/gameSessionStore';
 import { MatchmakingService } from '@/lib/firebase/matchmakingService';
 import { useAuth } from '@/context/AuthContext';
@@ -22,7 +25,11 @@ import {
   Loader2,
   X,
   Share2,
+  ChevronRight,
+  History,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { FirestoreService } from '@/lib/firebase/firestoreService';
 
 interface TimeControlOption {
   sec: number;
@@ -32,34 +39,74 @@ interface TimeControlOption {
   category: 'bullet' | 'blitz' | 'rapid' | 'classical';
 }
 
+const QUICK_TIME_CONTROLS: TimeControlOption[] = [
+  { sec: 60, inc: 0, label: '1m', sub: 'Bullet', category: 'bullet' },
+  { sec: 180, inc: 0, label: '3m', sub: 'Blitz', category: 'blitz' },
+  { sec: 180, inc: 2, label: '3|2', sub: 'Blitz', category: 'blitz' },
+  { sec: 300, inc: 0, label: '5m', sub: 'Blitz', category: 'blitz' },
+  { sec: 600, inc: 0, label: '10m', sub: 'Rapid', category: 'rapid' },
+];
+
 const ALL_TIME_CONTROLS: TimeControlOption[] = [
-  // Bullet
-  { sec: 60, inc: 0, label: '1 min', sub: 'Bullet', category: 'bullet' },
-  { sec: 60, inc: 1, label: '1 | 1', sub: 'Bullet', category: 'bullet' },
-  { sec: 120, inc: 1, label: '2 | 1', sub: 'Bullet', category: 'bullet' },
-  // Blitz
-  { sec: 180, inc: 0, label: '3 min', sub: 'Blitz', category: 'blitz' },
-  { sec: 180, inc: 2, label: '3 | 2', sub: 'Blitz', category: 'blitz' },
-  { sec: 300, inc: 0, label: '5 min', sub: 'Blitz', category: 'blitz' },
-  { sec: 300, inc: 5, label: '5 | 5', sub: 'Blitz', category: 'blitz' },
-  // Rapid
-  { sec: 600, inc: 0, label: '10 min', sub: 'Rapid', category: 'rapid' },
-  { sec: 900, inc: 10, label: '15 | 10', sub: 'Rapid', category: 'rapid' },
-  { sec: 1800, inc: 0, label: '30 min', sub: 'Rapid', category: 'rapid' },
-  // Classical
-  { sec: 1800, inc: 20, label: '30 | 20', sub: 'Classical', category: 'classical' },
-  { sec: 3600, inc: 0, label: '60 min', sub: 'Classical', category: 'classical' },
+  { sec: 60, inc: 0, label: '1m', sub: 'Bullet', category: 'bullet' },
+  { sec: 60, inc: 1, label: '1|1', sub: 'Bullet', category: 'bullet' },
+  { sec: 120, inc: 1, label: '2|1', sub: 'Bullet', category: 'bullet' },
+  { sec: 180, inc: 0, label: '3m', sub: 'Blitz', category: 'blitz' },
+  { sec: 180, inc: 2, label: '3|2', sub: 'Blitz', category: 'blitz' },
+  { sec: 300, inc: 0, label: '5m', sub: 'Blitz', category: 'blitz' },
+  { sec: 300, inc: 5, label: '5|5', sub: 'Blitz', category: 'blitz' },
+  { sec: 600, inc: 0, label: '10m', sub: 'Rapid', category: 'rapid' },
+  { sec: 900, inc: 10, label: '15|10', sub: 'Rapid', category: 'rapid' },
+  { sec: 1800, inc: 0, label: '30m', sub: 'Rapid', category: 'rapid' },
+  { sec: 1800, inc: 20, label: '30|20', sub: 'Classical', category: 'classical' },
+  { sec: 3600, inc: 0, label: '60m', sub: 'Classical', category: 'classical' },
 ];
 
 export default function PlayLobbyPage() {
   const router = useRouter();
+  const { boardTheme, pieceTheme } = useShell();
   const { user, profile, effectiveDisplayName, effectiveRating, effectiveAvatar, effectiveCountry } = useAuth();
-  
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'bullet' | 'blitz' | 'rapid' | 'classical'>('all');
-  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControlOption>(ALL_TIME_CONTROLS[7]); // Default 10 min
-  const [selectedVariant, setSelectedVariant] = useState<ChessVariant>('standard');
+
+  const previewChess = useMemo(() => new Chess(), []);
+
+  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControlOption>(QUICK_TIME_CONTROLS[4]); // Default 10m
   const [selectedMode, setSelectedMode] = useState<'online_pvp' | 'bot' | 'pass_and_play'>('online_pvp');
   const [selectedBotId, setSelectedBotId] = useState<string>('martin');
+  const [playAsColor, setPlayAsColor] = useState<'w' | 'random' | 'b'>('w');
+  const [selectedVariant, setSelectedVariant] = useState<ChessVariant>('standard');
+  const [botCategoryFilter, setBotCategoryFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced' | 'master' | 'grandmaster'>('all');
+
+  const [isBotModalOpen, setIsBotModalOpen] = useState(false);
+  const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
+  const [isMoreTimeControlsOpen, setIsMoreTimeControlsOpen] = useState(false);
+
+  const [botStarsMap, setBotStarsMap] = useState<Record<string, number>>(() => {
+    if (typeof window === 'undefined') return {};
+    const map: Record<string, number> = {};
+    CHESS_BOTS.slice(0, 10).forEach((b) => {
+      try {
+        const val = localStorage.getItem(`bot_stars_${b.id}`);
+        if (val) map[b.id] = parseInt(val, 10);
+      } catch {}
+    });
+    return map;
+  });
+
+  // Sync bot stars from Firestore if user authenticated
+  useEffect(() => {
+    if (!user?.uid) return;
+    FirestoreService.getUserBotsProgress(user.uid).then((records) => {
+      if (records) {
+        setBotStarsMap((prev) => {
+          const merged = { ...prev };
+          Object.entries(records).forEach(([botId, data]) => {
+            merged[botId] = Math.max(merged[botId] || 0, data.stars || 0);
+          });
+          return merged;
+        });
+      }
+    });
+  }, [user?.uid]);
 
   // Live Matchmaking Queue State
   const [isQueueing, setIsQueueing] = useState<boolean>(false);
@@ -79,10 +126,6 @@ export default function PlayLobbyPage() {
     { id: '3check' as ChessVariant, name: '3-Check', desc: 'Deliver 3 checks' },
     { id: 'kingofthehill' as ChessVariant, name: 'King of the Hill', desc: 'Occupy the center' },
   ];
-
-  const filteredTimeControls = ALL_TIME_CONTROLS.filter(
-    (tc) => selectedCategory === 'all' || tc.category === selectedCategory
-  );
 
   // Matchmaking timer ticker
   useEffect(() => {
@@ -129,7 +172,6 @@ export default function PlayLobbyPage() {
       stats: { gamesPlayed: 0, wins: 0, losses: 0, draws: 0, winStreak: 0 },
     };
 
-    // Online opponents pool for reliable matchmaking fallback
     const onlineOpponents = [
       { name: 'Magnus_Disciple', rating: effectiveRating + 18, avatar: '🦅', country: 'NO' },
       { name: 'Vishy_Knight', rating: effectiveRating - 12, avatar: '🐯', country: 'IN' },
@@ -139,7 +181,6 @@ export default function PlayLobbyPage() {
       { name: 'CheckMate_Pro', rating: effectiveRating + 14, avatar: '👑', country: 'GB' },
     ];
 
-    // Try real matchmaking if user is authenticated with Firebase
     if (user) {
       try {
         const { ticketId, unsubscribe } = await MatchmakingService.enterQueue(
@@ -163,7 +204,6 @@ export default function PlayLobbyPage() {
       }
     }
 
-    // 3.5s Fallback simulation if no real human matches immediately
     matchmakingFallbackRef.current = setTimeout(() => {
       setIsQueueing(false);
       const opponentData = onlineOpponents[Math.floor(Math.random() * onlineOpponents.length)];
@@ -194,7 +234,7 @@ export default function PlayLobbyPage() {
       );
 
       router.push(`/game/${session.id}`);
-    }, 3500);
+    }, 3200);
   };
 
   const handleCancelQueue = () => {
@@ -258,7 +298,8 @@ export default function PlayLobbyPage() {
   };
 
   const handleStartLocalGame = () => {
-    const whitePlayer: GamePlayer = {
+    const chosenColor = playAsColor === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : playAsColor;
+    const humanPlayer: GamePlayer = {
       id: user?.uid || 'player-you',
       name: effectiveDisplayName,
       rating: effectiveRating,
@@ -267,7 +308,7 @@ export default function PlayLobbyPage() {
     };
 
     const chosenBot = CHESS_BOTS.find((b) => b.id === selectedBotId) || CHESS_BOTS[0];
-    const blackPlayer: GamePlayer =
+    const opponentPlayer: GamePlayer =
       selectedMode === 'bot'
         ? {
             id: chosenBot.id,
@@ -279,10 +320,13 @@ export default function PlayLobbyPage() {
           }
         : {
             id: 'player-2',
-            name: 'Player 2 (Black)',
+            name: 'Player 2 (Opponent)',
             rating: 1250,
             avatar: '♟️',
           };
+
+    const whitePlayer = chosenColor === 'w' ? humanPlayer : opponentPlayer;
+    const blackPlayer = chosenColor === 'w' ? opponentPlayer : humanPlayer;
 
     const session = GameSessionStore.createSession(
       whitePlayer,
@@ -301,306 +345,643 @@ export default function PlayLobbyPage() {
     setRecentGames(GameSessionStore.listRecentSessions());
   }, []);
 
-  return (
-    <div className="flex-1 p-6 lg:p-10 flex flex-col items-center justify-start bg-[#161512] text-zinc-100 overflow-y-auto select-none">
-      <div className="w-full max-w-4xl flex flex-col gap-8">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#262421] pb-4">
-          <div>
-            <h1 className="text-2xl font-black text-white tracking-wide">Play Chess</h1>
-            <p className="text-xs text-zinc-400 mt-1">
-              Live 1v1 PvP Matchmaking, Grandmaster Computer Bots, or Pass & Play.
-            </p>
-          </div>
+  const chosenBot = CHESS_BOTS.find((b) => b.id === selectedBotId) || CHESS_BOTS[0];
 
-          {/* Quick link to Masterpiece Game Review Demo */}
-          <button
-            onClick={() => router.push('/game/review/demo-game-masterpiece')}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
-          >
-            <Award className="w-4 h-4 text-amber-300" />
-            <span>Open Demo Game Review</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+  return (
+    <div className="flex flex-col h-[100dvh] max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-hidden justify-start">
+      {/* Top Header Bar - Ultra-compact 36px-40px */}
+      <header className="h-9 sm:h-10 px-2 sm:px-3 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#81b64c] shrink-0" />
+          <h1 className="text-xs sm:text-sm font-black text-white tracking-wide uppercase">
+            Play Chess
+          </h1>
         </div>
 
-        {/* Time Control Grid */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-[#81b64c]" />
-              <span>Choose Time Control</span>
-            </label>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {recentGames.length > 0 && (
+            <button
+              onClick={() => setIsRecentModalOpen(true)}
+              className="px-2 py-1 rounded-full border border-[#35322b] bg-[#211f1c] hover:bg-[#2b2723] text-zinc-300 hover:text-white text-[10px] sm:text-[11px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer"
+              title="Recent Games"
+            >
+              <History className="w-3 h-3 text-[#81b64c]" />
+              <span className="hidden sm:inline">Recent</span>
+            </button>
+          )}
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 bg-[#1a1815] p-1 rounded-xl border border-[#2b2824]">
-              {(['all', 'bullet', 'blitz', 'rapid', 'classical'] as const).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
-                    selectedCategory === cat
-                      ? 'bg-[#81b64c] text-white shadow'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+          <button
+            onClick={() => router.push('/game/review/demo-game-masterpiece')}
+            className="px-2.5 py-1 rounded-full border border-[#5d8b32] bg-[#81b64c] hover:bg-[#72a342] text-white text-[10px] sm:text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:translate-y-[1px] transition-all cursor-pointer"
+          >
+            <Award className="w-3 h-3 text-amber-300" />
+            <span>Demo Review</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Play Area */}
+      <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col lg:flex-row justify-start lg:justify-center">
+        {/* DESKTOP SPLIT VIEW */}
+        <div className="hidden lg:flex flex-row w-full h-full max-w-6xl mx-auto items-center justify-center gap-6 p-4 min-h-0">
+          {/* Left Column: Opponent info + Chessboard preview + User info */}
+          <div className="flex flex-col items-center justify-center gap-2 max-w-[min(54vh,540px)] w-full">
+            {/* Opponent Preview Bar */}
+            <div className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#1b1917] border border-[#2d2a26] rounded-xl text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base">
+                  {selectedMode === 'bot' ? chosenBot.avatar : selectedMode === 'online_pvp' ? '🌐' : '👥'}
+                </span>
+                <span className="font-black text-zinc-200 truncate">
+                  {selectedMode === 'bot'
+                    ? `${chosenBot.name} (${chosenBot.rating})`
+                    : selectedMode === 'online_pvp'
+                    ? '1v1 Online Opponent'
+                    : 'Player 2 (Local)'}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase">
+                {selectedTimeControl.label}
+              </span>
+            </div>
+
+            {/* Chessboard Preview */}
+            <div className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-[#35322b] shadow-2xl bg-[#1a1816]">
+              <ChessBoard
+                chess={previewChess}
+                orientation={playAsColor === 'b' ? 'b' : 'w'}
+                boardTheme={boardTheme}
+                pieceTheme={pieceTheme}
+                disabled={true}
+              />
+            </div>
+
+            {/* User Preview Bar */}
+            <div className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#1b1917] border border-[#2d2a26] rounded-xl text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base">{effectiveAvatar || '♟️'}</span>
+                <span className="font-black text-white truncate">
+                  {effectiveDisplayName} ({effectiveRating})
+                </span>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-[#81b64c] uppercase">
+                {playAsColor === 'w' ? 'Playing White ♔' : playAsColor === 'b' ? 'Playing Black ♚' : 'Random Color ☯'}
+              </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
-            {filteredTimeControls.map((tc) => {
-              const Icon =
-                tc.category === 'bullet'
-                  ? Zap
-                  : tc.category === 'blitz'
-                  ? Flame
-                  : Clock;
-              const isSelected =
-                selectedTimeControl.sec === tc.sec && selectedTimeControl.inc === tc.inc;
-              return (
+          {/* Right Column: Setup Controls (Compact Sidebar) */}
+          <div className="w-96 h-full max-h-[calc(100dvh-60px)] bg-[#1e1c19] border border-[#2d2a26] rounded-2xl p-4 flex flex-col justify-between overflow-y-auto custom-scrollbar shadow-xl shrink-0">
+            <div className="flex flex-col gap-4">
+              {/* Mode Switcher */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-black text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                  <Swords className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <span>Game Mode</span>
+                </label>
+                <div className="grid grid-cols-3 gap-1 bg-[#141311] p-1 rounded-xl border border-[#2e2a24]">
+                  <button
+                    onClick={() => setSelectedMode('online_pvp')}
+                    className={`py-1.5 px-2 rounded-lg text-center text-xs font-black uppercase transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                      selectedMode === 'online_pvp'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Online</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedMode('bot')}
+                    className={`py-1.5 px-2 rounded-lg text-center text-xs font-black uppercase transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                      selectedMode === 'bot'
+                        ? 'bg-[#81b64c] text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">vs Bot</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedMode('pass_and_play')}
+                    className={`py-1.5 px-2 rounded-lg text-center text-xs font-black uppercase transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                      selectedMode === 'pass_and_play'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span className="text-[10px]">Local</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bot Selector (When vs Bot) */}
+              {selectedMode === 'bot' && (
+                <div className="flex items-center justify-between p-2.5 bg-[#171513] border border-[#2b2723] rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{chosenBot.avatar}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-white">{chosenBot.name}</span>
+                      <span className="text-[10px] text-zinc-400 font-mono">{chosenBot.rating} ELO &bull; {chosenBot.category}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsBotModalOpen(true)}
+                    className="px-2.5 py-1 rounded-lg bg-[#272420] hover:bg-[#34302a] text-zinc-300 hover:text-white text-[10px] font-black uppercase border border-[#3b362e] transition cursor-pointer"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+
+              {/* Time Control Pill Grid (1m, 3m, 3|2, 5m, 10m) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <span>Time Control</span>
+                  </label>
+                  <button
+                    onClick={() => setIsMoreTimeControlsOpen(!isMoreTimeControlsOpen)}
+                    className="text-[10px] text-zinc-400 hover:text-white font-bold uppercase transition cursor-pointer"
+                  >
+                    {isMoreTimeControlsOpen ? 'Less' : 'More...'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1.5">
+                  {QUICK_TIME_CONTROLS.map((tc) => {
+                    const isSelected = selectedTimeControl.sec === tc.sec && selectedTimeControl.inc === tc.inc;
+                    return (
+                      <button
+                        key={`${tc.sec}-${tc.inc}`}
+                        onClick={() => setSelectedTimeControl(tc)}
+                        className={`py-2 px-1 rounded-xl text-center transition-all cursor-pointer flex flex-col items-center justify-center border ${
+                          isSelected
+                            ? 'bg-[#81b64c] border-[#5d8b32] text-white shadow-[0_2px_0_0_#4d7a24] font-black'
+                            : 'bg-[#181614] border-[#292622] text-zinc-400 hover:text-zinc-200 hover:bg-[#22201d]'
+                        }`}
+                      >
+                        <span className="text-xs font-mono font-black">{tc.label}</span>
+                        <span className="text-[8px] uppercase tracking-wider opacity-75">{tc.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {isMoreTimeControlsOpen && (
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-[#141311] rounded-xl border border-[#2b2723] animate-in fade-in duration-100">
+                    {ALL_TIME_CONTROLS.filter((tc) => !QUICK_TIME_CONTROLS.some((q) => q.sec === tc.sec && q.inc === tc.inc)).map((tc) => {
+                      const isSelected = selectedTimeControl.sec === tc.sec && selectedTimeControl.inc === tc.inc;
+                      return (
+                        <button
+                          key={`${tc.sec}-${tc.inc}`}
+                          onClick={() => setSelectedTimeControl(tc)}
+                          className={`py-1 rounded-lg text-center text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#81b64c] text-white'
+                              : 'text-zinc-400 hover:text-white hover:bg-[#22201d]'
+                          }`}
+                        >
+                          {tc.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Choose Color */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-black text-zinc-400 uppercase tracking-wider">
+                  Play As Color
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    onClick={() => setPlayAsColor('w')}
+                    className={`py-1.5 px-2 rounded-xl border text-xs font-black uppercase flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      playAsColor === 'w'
+                        ? 'bg-[#272420] border-[#81b64c] text-white shadow-sm'
+                        : 'bg-[#171513] border-[#2b2723] text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>♔</span>
+                    <span>White</span>
+                  </button>
+                  <button
+                    onClick={() => setPlayAsColor('random')}
+                    className={`py-1.5 px-2 rounded-xl border text-xs font-black uppercase flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      playAsColor === 'random'
+                        ? 'bg-[#272420] border-[#81b64c] text-white shadow-sm'
+                        : 'bg-[#171513] border-[#2b2723] text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>☯</span>
+                    <span>Random</span>
+                  </button>
+                  <button
+                    onClick={() => setPlayAsColor('b')}
+                    className={`py-1.5 px-2 rounded-xl border text-xs font-black uppercase flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      playAsColor === 'b'
+                        ? 'bg-[#272420] border-[#81b64c] text-white shadow-sm'
+                        : 'bg-[#171513] border-[#2b2723] text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>♚</span>
+                    <span>Black</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Variant Selector */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-black text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Variant</span>
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {variants.slice(0, 2).map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVariant(v.id)}
+                      className={`py-1.5 px-2 rounded-xl border text-xs font-black text-center transition-all cursor-pointer ${
+                        selectedVariant === v.id
+                          ? 'bg-[#272420] border-[#81b64c] text-white shadow-sm'
+                          : 'bg-[#171513] border-[#2b2723] text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {v.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Play Action Section */}
+            <div className="flex flex-col gap-2 pt-3 border-t border-[#2d2a26]">
+              {selectedMode === 'online_pvp' ? (
+                isQueueing ? (
+                  <div className="flex flex-col gap-2 p-3 bg-[#28241b] border border-amber-500/50 rounded-xl">
+                    <div className="flex items-center justify-between text-xs font-bold text-amber-300">
+                      <div className="flex items-center gap-1.5">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Searching Opponent...</span>
+                      </div>
+                      <span className="font-mono">{queueDuration}s</span>
+                    </div>
+                    <button
+                      onClick={handleCancelQueue}
+                      className="w-full py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-black uppercase transition cursor-pointer"
+                    >
+                      Cancel Search
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={handleStartLiveMatchmaking}
+                      className="w-full py-2.5 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white font-black text-sm uppercase tracking-wider border border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Globe className="w-4 h-4" />
+                      <span>Find 1v1 Opponent</span>
+                    </button>
+                    <button
+                      onClick={handleOpenChallengeModal}
+                      className="w-full py-1.5 rounded-lg bg-[#272420] hover:bg-[#322f29] border border-[#3b362e] text-zinc-300 hover:text-white text-xs font-bold uppercase transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Create Private Room</span>
+                    </button>
+                  </div>
+                )
+              ) : (
                 <button
-                  key={`${tc.sec}-${tc.inc}`}
-                  onClick={() => setSelectedTimeControl(tc)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
-                    isSelected
-                      ? 'bg-[#81b64c] border-[#81b64c] text-white shadow-lg shadow-[#81b64c]/20 ring-1 ring-[#81b64c]'
-                      : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-300 hover:border-zinc-500 hover:bg-[#262420]'
-                  }`}
+                  onClick={handleStartLocalGame}
+                  className="w-full py-3 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white font-black text-sm uppercase tracking-wider border border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Icon className="w-4 h-4 mb-0.5 opacity-90" />
-                  <span className="text-sm font-black font-mono">{tc.label}</span>
-                  <span className="text-[10px] font-bold opacity-75 uppercase tracking-wider">
-                    {tc.inc > 0 ? `+${tc.inc}s inc` : tc.sub}
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>
+                    {selectedMode === 'bot' ? `Play vs ${chosenBot.name}` : 'Start Local Game'}
                   </span>
                 </button>
-              );
-            })}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Opponent Mode (3 Options: Online 1v1, vs Computer, Pass & Play) */}
-        <div className="flex flex-col gap-3">
-          <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Swords className="w-4 h-4 text-[#81b64c]" />
-            <span>Game Mode</span>
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* 1. Online 1v1 PvP */}
-            <button
-              onClick={() => setSelectedMode('online_pvp')}
-              className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
-                selectedMode === 'online_pvp'
-                  ? 'bg-gradient-to-br from-[#2b271d] to-[#1e1c18] border-amber-500 text-white shadow-lg shadow-amber-500/10'
-                  : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-              }`}
-            >
-              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400">
-                <Globe className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-black text-white">Online 1v1 PvP</span>
-                <span className="text-[10px] text-zinc-400">Live Matchmaking & Rooms</span>
-              </div>
-            </button>
-
-            {/* 2. vs Computer */}
-            <button
-              onClick={() => setSelectedMode('bot')}
-              className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
-                selectedMode === 'bot'
-                  ? 'bg-[#282622] border-[#81b64c] text-white shadow-lg shadow-[#81b64c]/10'
-                  : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-              }`}
-            >
-              <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-black text-white">vs Computer</span>
-                <span className="text-[10px] text-zinc-400">20+ Grandmaster Bots</span>
-              </div>
-            </button>
-
-            {/* 3. Pass & Play */}
-            <button
-              onClick={() => setSelectedMode('pass_and_play')}
-              className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
-                selectedMode === 'pass_and_play'
-                  ? 'bg-[#282622] border-[#81b64c] text-white'
-                  : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-              }`}
-            >
-              <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400">
-                <Users className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-black text-white">Pass & Play</span>
-                <span className="text-[10px] text-zinc-400">Local 2-Player Board</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Variant Selection */}
-        <div className="flex flex-col gap-3">
-          <label className="text-xs font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Crown className="w-4 h-4 text-amber-400" />
-            <span>Chess Variant</span>
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {variants.map((v) => (
+        {/* MOBILE ZERO-SCROLL VIEW (< lg) */}
+        <div className="lg:hidden flex-1 min-h-0 w-full flex flex-col justify-between overflow-hidden">
+          {/* Opponent Micro-Bar */}
+          <div className="h-7 px-2.5 bg-[#181614] border-b border-[#262420] flex items-center justify-between text-xs text-zinc-400 shrink-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span>{selectedMode === 'bot' ? chosenBot.avatar : selectedMode === 'online_pvp' ? '🌐' : '👥'}</span>
+              <span className="font-bold text-zinc-200 truncate">
+                {selectedMode === 'bot' ? `${chosenBot.name} (${chosenBot.rating})` : selectedMode === 'online_pvp' ? '1v1 Online Opponent' : 'Player 2'}
+              </span>
+            </div>
+            {selectedMode === 'bot' && (
               <button
-                key={v.id}
-                onClick={() => setSelectedVariant(v.id)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  selectedVariant === v.id
-                    ? 'bg-[#282622] border-[#81b64c] text-white'
-                    : 'bg-[#1f1d1a] border-[#2e2b26] text-zinc-400 hover:bg-[#262420]'
-                }`}
+                onClick={() => setIsBotModalOpen(true)}
+                className="text-[10px] text-[#81b64c] font-black uppercase"
               >
-                <span className="text-xs font-black block text-white">{v.name}</span>
-                <span className="text-[10px] text-zinc-500">{v.desc}</span>
+                Change Bot ▾
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Main Action Section */}
-        {selectedMode === 'online_pvp' ? (
-          <div className="flex flex-col gap-3">
-            {isQueueing ? (
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-transparent border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-500/20 rounded-xl text-amber-400">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-white">
-                      Searching for Opponent...
-                    </h3>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      Rating Window: ±{Math.min(400, 75 + queueDuration * 15)} &bull; Queue Time:{' '}
-                      <span className="font-mono text-amber-400">{queueDuration}s</span>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleCancelQueue}
-                  className="px-5 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Cancel Search</span>
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  onClick={handleStartLiveMatchmaking}
-                  className="py-4 rounded-2xl bg-[#81b64c] hover:bg-[#73a542] text-white text-sm font-black tracking-wide shadow-2xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Globe className="w-5 h-5" />
-                  <span>Find 1v1 Rated Opponent</span>
-                </button>
-                <button
-                  onClick={handleOpenChallengeModal}
-                  className="py-4 rounded-2xl bg-[#262420] hover:bg-[#302d28] border border-[#3b3832] text-zinc-200 text-sm font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Share2 className="w-5 h-5 text-amber-400" />
-                  <span>Create Private Challenge Room</span>
-                </button>
-              </div>
             )}
           </div>
-        ) : (
-          <button
-            onClick={handleStartLocalGame}
-            className="w-full py-4 rounded-2xl bg-[#81b64c] hover:bg-[#73a542] text-white text-base font-black tracking-wide shadow-2xl shadow-[#81b64c]/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-          >
-            <Play className="w-5 h-5 fill-current" />
-            <span>Start Game</span>
-          </button>
-        )}
 
-        {/* Recent Games List */}
-        <div className="flex flex-col gap-3 pt-4 border-t border-[#262421]">
-          <h2 className="text-sm font-black text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-            <Award className="w-4 h-4 text-[#81b64c]" />
-            <span>Recent Games & Game Reviews</span>
-          </h2>
-          <div className="divide-y divide-[#282522] bg-[#1a1815] border border-[#2d2a26] rounded-2xl overflow-hidden">
-            {recentGames.map((game) => (
-              <div
-                key={game.id}
-                className="p-4 flex items-center justify-between hover:bg-[#201e1a] transition-colors"
+          {/* Full Bleed Mobile Chessboard (Zero Margins) */}
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+            <div className="w-[min(100vw,calc(100dvh-230px))] aspect-square overflow-hidden border-0 bg-[#1a1816]">
+              <ChessBoard
+                chess={previewChess}
+                orientation={playAsColor === 'b' ? 'b' : 'w'}
+                boardTheme={boardTheme}
+                pieceTheme={pieceTheme}
+                disabled={true}
+              />
+            </div>
+          </div>
+
+          {/* Compact Bottom Play Setup Card */}
+          <div className="shrink-0 bg-[#1a1816] border-t border-[#2d2a26] p-2 flex flex-col gap-1.5 z-10 shadow-lg">
+            {/* Row 1: Mode Pills */}
+            <div className="grid grid-cols-3 gap-1 bg-[#141311] p-0.5 rounded-lg border border-[#262420]">
+              <button
+                onClick={() => setSelectedMode('online_pvp')}
+                className={`py-1 text-center text-[10px] font-black uppercase rounded-md transition cursor-pointer ${
+                  selectedMode === 'online_pvp' ? 'bg-amber-600 text-white' : 'text-zinc-400'
+                }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#262421] border border-[#383530] flex items-center justify-center text-lg overflow-hidden shrink-0">
-                    {game.whitePlayer.avatar &&
-                    (game.whitePlayer.avatar.startsWith('http') || game.whitePlayer.avatar.startsWith('/')) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={game.whitePlayer.avatar}
-                        alt={game.whitePlayer.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-sm select-none">{game.whitePlayer.avatar || '♟️'}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-bold text-white truncate">
-                      {game.whitePlayer.name} ({game.whitePlayer.rating}) vs{' '}
-                      {game.blackPlayer.name} ({game.blackPlayer.rating})
-                    </span>
-                    <span className="text-[10px] text-zinc-400">
-                      {game.gameResult || 'In Progress'} • {game.moves.length} moves •{' '}
-                      {game.variant}
-                    </span>
-                  </div>
-                </div>
+                🌐 Online
+              </button>
+              <button
+                onClick={() => setSelectedMode('bot')}
+                className={`py-1 text-center text-[10px] font-black uppercase rounded-md transition cursor-pointer ${
+                  selectedMode === 'bot' ? 'bg-[#81b64c] text-white' : 'text-zinc-400'
+                }`}
+              >
+                🤖 vs Bot
+              </button>
+              <button
+                onClick={() => setSelectedMode('pass_and_play')}
+                className={`py-1 text-center text-[10px] font-black uppercase rounded-md transition cursor-pointer ${
+                  selectedMode === 'pass_and_play' ? 'bg-purple-600 text-white' : 'text-zinc-400'
+                }`}
+              >
+                👥 Local
+              </button>
+            </div>
 
-                <div className="flex items-center gap-2">
+            {/* Row 2: Time Control Pills (1m, 3m, 3|2, 5m, 10m) */}
+            <div className="grid grid-cols-5 gap-1">
+              {QUICK_TIME_CONTROLS.map((tc) => {
+                const isSelected = selectedTimeControl.sec === tc.sec && selectedTimeControl.inc === tc.inc;
+                return (
                   <button
-                    onClick={() => router.push(`/game/${game.id}`)}
-                    className="px-3 py-1.5 rounded-lg bg-[#282622] hover:bg-[#33302b] text-xs font-bold text-zinc-200 border border-[#3b3833] transition-colors cursor-pointer"
+                    key={`${tc.sec}-${tc.inc}`}
+                    onClick={() => setSelectedTimeControl(tc)}
+                    className={`py-1 rounded-lg text-center text-[11px] font-mono font-black border transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#81b64c] border-[#5d8b32] text-white shadow-sm'
+                        : 'bg-[#201e1a] border-[#2d2a26] text-zinc-400'
+                    }`}
                   >
-                    Open Game
+                    {tc.label}
                   </button>
-                  <button
-                    onClick={() => router.push(`/game/review/${game.id}`)}
-                    className="px-3 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-xs font-bold text-white transition-colors cursor-pointer flex items-center gap-1 shadow"
-                  >
-                    <Award className="w-3.5 h-3.5" />
-                    <span>Review</span>
-                  </button>
-                </div>
+                );
+              })}
+            </div>
+
+            {/* Row 3: Color Pills + Moderate Play Button */}
+            <div className="flex items-center gap-1.5">
+              {/* Color Toggles */}
+              <div className="flex bg-[#141311] p-0.5 rounded-lg border border-[#282622] shrink-0">
+                <button
+                  onClick={() => setPlayAsColor('w')}
+                  className={`px-2 py-1 rounded text-xs transition cursor-pointer ${
+                    playAsColor === 'w' ? 'bg-[#2b2723] text-white font-bold' : 'text-zinc-500'
+                  }`}
+                  title="White"
+                >
+                  ♔
+                </button>
+                <button
+                  onClick={() => setPlayAsColor('random')}
+                  className={`px-2 py-1 rounded text-xs transition cursor-pointer ${
+                    playAsColor === 'random' ? 'bg-[#2b2723] text-white font-bold' : 'text-zinc-500'
+                  }`}
+                  title="Random"
+                >
+                  ☯
+                </button>
+                <button
+                  onClick={() => setPlayAsColor('b')}
+                  className={`px-2 py-1 rounded text-xs transition cursor-pointer ${
+                    playAsColor === 'b' ? 'bg-[#2b2723] text-white font-bold' : 'text-zinc-500'
+                  }`}
+                  title="Black"
+                >
+                  ♚
+                </button>
               </div>
-            ))}
+
+              {/* Moderate Single Play Button */}
+              {selectedMode === 'online_pvp' ? (
+                isQueueing ? (
+                  <div className="flex-1 flex items-center justify-between px-3 py-1.5 bg-[#28241b] border border-amber-500/50 rounded-xl text-xs">
+                    <span className="font-mono text-amber-300 font-bold">{queueDuration}s Searching</span>
+                    <button
+                      onClick={handleCancelQueue}
+                      className="px-2 py-0.5 rounded bg-rose-600/30 text-rose-300 text-[10px] font-black uppercase cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex gap-1">
+                    <button
+                      onClick={handleStartLiveMatchmaking}
+                      className="flex-1 h-9 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 border border-[#5d8b32] shadow-sm active:translate-y-[1px] cursor-pointer"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Play 1v1</span>
+                    </button>
+                    <button
+                      onClick={handleOpenChallengeModal}
+                      className="h-9 px-2.5 rounded-xl bg-[#25221d] border border-[#35322b] text-zinc-300 hover:text-white text-xs flex items-center justify-center cursor-pointer"
+                      title="Create Private Room"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                    </button>
+                  </div>
+                )
+              ) : (
+                <button
+                  onClick={handleStartLocalGame}
+                  className="flex-1 h-9 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border border-[#5d8b32] shadow-sm active:translate-y-[1px] cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Play {selectedMode === 'bot' ? `vs ${chosenBot.name}` : ''}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Bot Selector Modal */}
+      {isBotModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-[#1f1d1a] border border-[#33302b] rounded-2xl w-full max-w-lg p-5 flex flex-col gap-4 shadow-2xl relative max-h-[85dvh] overflow-hidden">
+            <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-sm font-black text-white">Choose Computer Bot</h3>
+              </div>
+              <button
+                onClick={() => setIsBotModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Category filter pills */}
+            <div className="flex flex-wrap gap-1">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'beginner', label: 'Beginner' },
+                { id: 'intermediate', label: 'Intermediate' },
+                { id: 'advanced', label: 'Advanced' },
+                { id: 'master', label: 'Master' },
+                { id: 'grandmaster', label: 'Grandmaster' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setBotCategoryFilter(cat.id as typeof botCategoryFilter)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition cursor-pointer ${
+                    botCategoryFilter === cat.id
+                      ? 'bg-[#81b64c] text-white'
+                      : 'bg-[#262420] text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Bot Grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 overflow-y-auto custom-scrollbar flex-1 min-h-0 p-1">
+              {CHESS_BOTS.filter((b) => botCategoryFilter === 'all' || b.category === botCategoryFilter).map((bot) => {
+                const stars = botStarsMap[bot.id] || 0;
+                return (
+                  <button
+                    key={bot.id}
+                    onClick={() => {
+                      setSelectedBotId(bot.id);
+                      setIsBotModalOpen(false);
+                    }}
+                    className={`p-2 rounded-xl border flex flex-col items-center gap-0.5 transition cursor-pointer relative ${
+                      selectedBotId === bot.id
+                        ? 'bg-[#2b271f] border-[#81b64c] ring-1 ring-[#81b64c]'
+                        : 'bg-[#181614] border-[#292622] text-zinc-400 hover:bg-[#22201d]'
+                    }`}
+                  >
+                    {stars > 0 && (
+                      <span className="absolute top-1 right-1 text-[8px] text-amber-400 font-bold">
+                        {stars}★
+                      </span>
+                    )}
+                    <span className="text-xl">{bot.avatar}</span>
+                    <span className="text-xs font-black text-white truncate max-w-full">{bot.name}</span>
+                    <span className="text-[9px] text-zinc-400 font-mono">{bot.rating}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Games Modal */}
+      {isRecentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-[#1f1d1a] border border-[#33302b] rounded-2xl w-full max-w-lg p-5 flex flex-col gap-4 shadow-2xl relative max-h-[80dvh] overflow-hidden">
+            <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-[#81b64c]" />
+                <h3 className="text-sm font-black text-white">Recent Match History</h3>
+              </div>
+              <button
+                onClick={() => setIsRecentModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+              {recentGames.map((game) => (
+                <div
+                  key={game.id}
+                  className="p-2.5 rounded-xl bg-[#181714] border border-[#2b2824] flex items-center justify-between gap-2"
+                >
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-black text-white truncate">
+                      {game.whitePlayer.name} vs {game.blackPlayer.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-400">
+                      {game.gameResult || 'In Progress'} &bull; {game.moves.length} moves
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => {
+                        setIsRecentModalOpen(false);
+                        router.push(`/game/${game.id}`);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#272420] text-zinc-200 text-xs font-bold hover:text-white"
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsRecentModalOpen(false);
+                        router.push(`/game/review/${game.id}`);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#81b64c] text-white text-xs font-bold"
+                    >
+                      Review
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Private Challenge Room Modal */}
       {isChallengeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-[#1f1d1a] border border-[#33302b] rounded-2xl w-full max-w-md p-6 flex flex-col gap-5 shadow-2xl relative">
+          <div className="bg-[#1f1d1a] border border-[#33302b] rounded-2xl w-full max-w-md p-5 flex flex-col gap-4 shadow-2xl relative">
             <button
               onClick={() => setIsChallengeModalOpen(false)}
               className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-[#282522] transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                <Share2 className="w-6 h-6" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                <Share2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-black text-white">Private Challenge Room</h3>
-                <p className="text-xs text-zinc-400">Room Code: <span className="font-mono text-amber-400 font-bold">{challengeRoomCode}</span></p>
+                <h3 className="text-sm font-black text-white">Private Challenge Room</h3>
+                <p className="text-[11px] text-zinc-400">Code: <span className="font-mono text-amber-400 font-bold">{challengeRoomCode}</span></p>
               </div>
             </div>
 
@@ -608,8 +989,7 @@ export default function PlayLobbyPage() {
               Share this invite link with your friend. When they accept, you will enter a custom live match!
             </p>
 
-            {/* Invite URL box */}
-            <div className="flex items-center gap-2 p-2.5 bg-[#141311] border border-[#2b2824] rounded-xl">
+            <div className="flex items-center gap-2 p-2 bg-[#141311] border border-[#2b2824] rounded-xl">
               <input
                 readOnly
                 value={typeof window !== 'undefined' ? `${window.location.origin}/play?room=${challengeRoomCode}` : `https://checkmate.app/play?room=${challengeRoomCode}`}
@@ -617,30 +997,22 @@ export default function PlayLobbyPage() {
               />
               <button
                 onClick={handleCopyChallengeLink}
-                className="px-3 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                className="px-2.5 py-1 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
               >
-                <span>{hasCopiedLink ? 'Copied!' : 'Copy Link'}</span>
+                <span>{hasCopiedLink ? 'Copied!' : 'Copy'}</span>
               </button>
             </div>
 
-            {/* Match config summary */}
-            <div className="p-3 bg-[#181714] rounded-xl border border-[#262421] flex items-center justify-between text-xs text-zinc-300">
-              <span>Time: <strong className="text-white font-mono">{selectedTimeControl.label}</strong></span>
-              <span>Increment: <strong className="text-white font-mono">+{selectedTimeControl.inc}s</strong></span>
-              <span>Variant: <strong className="text-[#81b64c] capitalize">{selectedVariant}</strong></span>
-            </div>
-
-            {/* Join buttons */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 onClick={() => handleStartChallengeMatch('w')}
-                className="py-3 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black transition-all cursor-pointer shadow-lg shadow-[#81b64c]/20"
+                className="py-2.5 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black transition-all cursor-pointer shadow-sm"
               >
                 Play as White ♔
               </button>
               <button
                 onClick={() => handleStartChallengeMatch('b')}
-                className="py-3 rounded-xl bg-[#2b2824] hover:bg-[#38342e] border border-[#3b3730] text-zinc-200 text-xs font-black transition-all cursor-pointer"
+                className="py-2.5 rounded-xl bg-[#2b2824] hover:bg-[#38342e] border border-[#3b3730] text-zinc-200 text-xs font-black transition-all cursor-pointer"
               >
                 Play as Black ♚
               </button>

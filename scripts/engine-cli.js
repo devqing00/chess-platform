@@ -1,12 +1,27 @@
 const readline = require('readline');
-const initEngine = require('stockfish');
+const path = require('path');
 
-async function main() {
-  const engine = await initEngine();
+function main() {
+  let initEngine;
+  try {
+    initEngine = require('stockfish/bin/stockfish-19-asm.js');
+  } catch (err) {
+    try {
+      initEngine = require(path.join(__dirname, '..', 'node_modules', 'stockfish', 'bin', 'stockfish-19-asm.js'));
+    } catch (err2) {
+      console.error('Failed to load Stockfish asm.js:', err2);
+      process.exit(1);
+    }
+  }
+
+  const engine = initEngine();
+
+  engine.listener = (line) => {
+    process.stdout.write(line + '\n');
+  };
 
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
     terminal: false,
   });
 
@@ -16,11 +31,8 @@ async function main() {
     if (trimmed === 'quit') {
       process.exit(0);
     }
-    engine.sendCommand(trimmed);
+    engine.processCommand(trimmed);
   });
 }
 
-main().catch((err) => {
-  console.error('Fatal engine error:', err);
-  process.exit(1);
-});
+main();

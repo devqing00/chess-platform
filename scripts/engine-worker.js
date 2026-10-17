@@ -1,15 +1,26 @@
-const initEngine = require('stockfish');
+const path = require('path');
+
+let initEngine;
+try {
+  initEngine = require('stockfish/bin/stockfish-19-asm.js');
+} catch (e1) {
+  try {
+    initEngine = require(path.join(__dirname, '..', 'node_modules', 'stockfish', 'bin', 'stockfish-19-asm.js'));
+  } catch (e2) {
+    console.error('Failed to load Stockfish engine in worker:', e2);
+    process.exit(1);
+  }
+}
 
 let engineInstance = null;
-let currentResolve = null;
 
-async function getEngine() {
+function getEngine() {
   if (!engineInstance) {
-    engineInstance = await initEngine();
-    engineInstance.sendCommand('uci');
-    engineInstance.sendCommand('setoption name Threads value 2');
-    engineInstance.sendCommand('setoption name Hash value 32');
-    engineInstance.sendCommand('isready');
+    engineInstance = initEngine();
+    engineInstance.processCommand('uci');
+    engineInstance.processCommand('setoption name Threads value 1');
+    engineInstance.processCommand('setoption name Hash value 32');
+    engineInstance.processCommand('isready');
   }
   return engineInstance;
 }
@@ -18,21 +29,21 @@ process.on('message', async (msg) => {
   if (!msg || !msg.type) return;
 
   if (msg.type === 'ping') {
-    process.send({ type: 'pong' });
+    if (process.send) process.send({ type: 'pong' });
     return;
   }
 
   if (msg.type === 'evaluate') {
     const { id, fen, depth = 12, multiPv = 3 } = msg;
     try {
-      const engine = await getEngine();
+      const engine = getEngine();
       const linesMap = {};
       let maxDepth = 0;
       let seldepth = 0;
       let nodes = 0;
       let nps = 0;
 
-      engine.print = (line) => {
+      engine.listener = (line) => {
         if (typeof line !== 'string') return;
 
         if (line.startsWith('info depth')) {
@@ -69,34 +80,38 @@ process.on('message', async (msg) => {
         if (line.startsWith('bestmove')) {
           const bestMoveUci = line.split(' ')[1] || '';
           const lines = Object.values(linesMap).sort((a, b) => a.rank - b.rank);
-          process.send({
-            type: 'evaluate_result',
-            id,
-            success: true,
-            data: {
-              fen,
-              depth: maxDepth || depth,
-              seldepth,
-              nodes,
-              nps,
-              bestMoveUci,
-              lines,
-            },
-          });
+          if (process.send) {
+            process.send({
+              type: 'evaluate_result',
+              id,
+              success: true,
+              data: {
+                fen,
+                depth: maxDepth || depth,
+                seldepth,
+                nodes,
+                nps,
+                bestMoveUci,
+                lines,
+              },
+            });
+          }
         }
       };
 
-      engine.sendCommand('stop');
-      engine.sendCommand(`setoption name MultiPV value ${multiPv}`);
-      engine.sendCommand(`position fen ${fen}`);
-      engine.sendCommand(`go depth ${depth}`);
+      engine.processCommand('stop');
+      engine.processCommand(`setoption name MultiPV value ${multiPv}`);
+      engine.processCommand(`position fen ${fen}`);
+      engine.processCommand(`go depth ${depth}`);
     } catch (err) {
-      process.send({
-        type: 'evaluate_result',
-        id,
-        success: false,
-        error: err.message,
-      });
+      if (process.send) {
+        process.send({
+          type: 'evaluate_result',
+          id,
+          success: false,
+          error: err.message,
+        });
+      }
     }
   }
 });

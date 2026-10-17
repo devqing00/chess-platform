@@ -1,13 +1,22 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { SidebarNav } from '@/components/sidebar/SidebarNav';
 import { useShell } from '@/context/ShellContext';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { MembershipModal } from '@/components/modals/MembershipModal';
 import { ChessComSyncModal } from '@/components/modals/ChessComSyncModal';
 
+import { MobileNavigation } from '@/components/navigation/MobileNavigation';
+
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const pathname = usePathname();
+  const isGameScreen =
+    pathname?.startsWith('/game/') ||
+    pathname === '/play' ||
+    pathname?.startsWith('/play/') ||
+    pathname === '/analysis';
   const {
     boardTheme,
     setBoardTheme,
@@ -31,8 +40,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   } = useShell();
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#161512] text-zinc-100">
-      {/* Persistent Left Sidebar */}
+    <div className="flex flex-col md:flex-row h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-[#161512] text-zinc-100">
+      {/* Mobile Top Header, Bottom Bar & Drawer (< md screens) */}
+      <MobileNavigation
+        onOpenMembershipModal={openMembership}
+        onOpenSettingsModal={openSettings}
+      />
+
+      {/* Persistent Left Sidebar (md and desktop screens) */}
       <SidebarNav
         membership={membershipTier}
         onOpenMembershipModal={openMembership}
@@ -41,7 +56,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       />
 
       {/* Main Page Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden min-w-0 bg-[#161512] relative">
+      <div className={`flex-1 flex flex-col h-full min-w-0 bg-[#161512] relative ${isGameScreen ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden pb-16 md:pb-0'}`}>
         {children}
       </div>
 

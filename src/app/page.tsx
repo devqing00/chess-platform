@@ -20,6 +20,7 @@ import {
 } from '@/types/chess';
 import { CHESS_BOTS } from '@/lib/botsData';
 import { ChessEvaluator } from '@/lib/chessEngine';
+import { generateBotMove, calculateBotThinkingDelayMs } from '@/lib/botEngine';
 import { soundService } from '@/lib/audioService';
 
 // Core Navigation & Boards
@@ -37,24 +38,53 @@ import { ChessHomeDashboard } from '@/components/home/ChessHomeDashboard';
 // Analysis & Review
 import { CoachCommentaryCard } from '@/components/analysis/CoachCommentaryCard';
 import { GameReviewModal } from '@/components/analysis/GameReviewModal';
-import { GameReviewView } from '@/components/analysis/GameReviewView';
-import { GameReviewSummaryView } from '@/components/analysis/GameReviewSummaryView';
 import { GameSessionStore, generateGameReviewReport } from '@/lib/gameSessionStore';
+import dynamic from 'next/dynamic';
 
-// Subsystems
+// Subsystems (Lazy loaded for lightning-fast initial page load)
 import { BotChatBubble } from '@/components/bots/BotChatBubble';
 import { BotSelector } from '@/components/bots/BotSelector';
-import { PuzzleArena } from '@/components/puzzles/PuzzleArena';
-import { LessonArena } from '@/components/lessons/LessonArena';
-import { OpeningExplorer } from '@/components/openings/OpeningExplorer';
-import { InsightsDashboard } from '@/components/insights/InsightsDashboard';
-import { HistoricalGamesViewer } from '@/components/historical/HistoricalGamesViewer';
-import { VariantsArena } from '@/components/variants/VariantsArena';
-import { SoloChessArena } from '@/components/variants/SoloChessArena';
-import { PubApiExplorer } from '@/components/pubapi/PubApiExplorer';
-import { MembershipModal } from '@/components/modals/MembershipModal';
-import { SettingsModal } from '@/components/modals/SettingsModal';
-import { ChessComSyncModal } from '@/components/modals/ChessComSyncModal';
+
+const GameReviewView = dynamic(
+  () => import('@/components/analysis/GameReviewView').then((m) => m.GameReviewView),
+  { ssr: false }
+);
+const GameReviewSummaryView = dynamic(
+  () => import('@/components/analysis/GameReviewSummaryView').then((m) => m.GameReviewSummaryView),
+  { ssr: false }
+);
+const PuzzleArena = dynamic(
+  () => import('@/components/puzzles/PuzzleArena').then((m) => m.PuzzleArena),
+  { ssr: false }
+);
+const LessonArena = dynamic(
+  () => import('@/components/lessons/LessonArena').then((m) => m.LessonArena),
+  { ssr: false }
+);
+const OpeningExplorer = dynamic(
+  () => import('@/components/openings/OpeningExplorer').then((m) => m.OpeningExplorer),
+  { ssr: false }
+);
+const InsightsDashboard = dynamic(
+  () => import('@/components/insights/InsightsDashboard').then((m) => m.InsightsDashboard),
+  { ssr: false }
+);
+const HistoricalGamesViewer = dynamic(
+  () => import('@/components/historical/HistoricalGamesViewer').then((m) => m.HistoricalGamesViewer),
+  { ssr: false }
+);
+const VariantsArena = dynamic(
+  () => import('@/components/variants/VariantsArena').then((m) => m.VariantsArena),
+  { ssr: false }
+);
+const SoloChessArena = dynamic(
+  () => import('@/components/variants/SoloChessArena').then((m) => m.SoloChessArena),
+  { ssr: false }
+);
+const PubApiExplorer = dynamic(
+  () => import('@/components/pubapi/PubApiExplorer').then((m) => m.PubApiExplorer),
+  { ssr: false }
+);
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
 import { useRouter } from 'next/navigation';
@@ -134,8 +164,12 @@ export default function ChessPlatformPage() {
   const [blackTime, setBlackTime] = useState<number>(600);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(false);
 
-  // In-Game Bot Banter
+  // In-Game Bot Banter & Undos Tracking
   const [botMessage, setBotMessage] = useState<string>('');
+  const [undosUsed, setUndosUsed] = useState<number>(0);
+  const [isResignModalOpen, setIsResignModalOpen] = useState<boolean>(false);
+  const [chatInput, setChatInput] = useState<string>('');
+  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; isBot: boolean }[]>([]);
 
   const {
     user,
@@ -147,7 +181,7 @@ export default function ChessPlatformPage() {
     openAuthModal,
   } = useAuth();
 
-  // Players Profile (Synced rapid_qing 🇳🇬 (429) globally)
+  // Players Profile (Synced user profile globally)
   const whitePlayer: GamePlayer = useMemo(
     () => ({
       id: 'player-1',
@@ -219,6 +253,37 @@ export default function ChessPlatformPage() {
     return GameSessionStore.createDemoGameSession().reviewReport!;
   }, [reviewOverrideReport, moveHistory, whitePlayer, blackPlayer]);
 
+  // Seamlessly upgrade client draft review to deep Stockfish 18 NNUE analysis when review mode opens
+  useEffect(() => {
+    if (!isReviewViewActive || moveHistory.length === 0) return;
+    if (reviewOverrideReport?.isDeepReview) return;
+
+    let isMounted = true;
+    fetch('/api/engine/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameId: 'live-' + Date.now(),
+        moves: moveHistory.map((m) => m.san),
+        whitePlayer,
+        blackPlayer,
+        depth: 10,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.success && data?.report) {
+          data.report.isDeepReview = true;
+          setReviewOverrideReport(data.report);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isReviewViewActive, moveHistory, whitePlayer, blackPlayer, reviewOverrideReport?.isDeepReview]);
+
   // Handle Game Conclusion with Detailed Results Modal
   const triggerGameOver = useCallback(
     (
@@ -239,19 +304,22 @@ export default function ChessPlatformPage() {
         reason,
         ratingDelta,
         newRating,
-        league: 'Silver League',
-        trophiesDelta: isUserWin ? 15 : 0,
-        achievementToast: isUserWin
-          ? {
-              title: 'New Achievement!',
-              subtitle: 'Blitz Master 1',
-              icon: 'zap',
-            }
-          : undefined,
       };
 
       setGameResultDetails(details);
       setIsGameOverModalOpen(true);
+
+      // Persist bot match stars if player won
+      if (gameMode === 'vs_bot' && isUserWin) {
+        const earnedStars = undosUsed === 0 ? 3 : undosUsed === 1 ? 2 : 1;
+        if (user?.uid) {
+          FirestoreService.saveBotResult(user.uid, selectedBot.id, earnedStars, undosUsed);
+        }
+        try {
+          const currentStars = parseInt(localStorage.getItem(`bot_stars_${selectedBot.id}`) || '0', 10);
+          localStorage.setItem(`bot_stars_${selectedBot.id}`, String(Math.max(currentStars, earnedStars)));
+        } catch {}
+      }
 
       // Persist completed game to Cloud Firestore
       try {
@@ -280,6 +348,18 @@ export default function ChessPlatformPage() {
           winReason: reason,
           createdAt: new Date().toISOString(),
         });
+      } catch {
+        // ignore
+      }
+
+      // Persist completed game into local GameSessionStore for persistent review & historical analysis
+      try {
+        GameSessionStore.completeGame(
+          `game-${Date.now()}`,
+          moveHistory,
+          statusText,
+          details
+        );
       } catch {
         // ignore
       }
@@ -364,8 +444,8 @@ export default function ChessPlatformPage() {
 
       try {
         const fenBefore = chess.fen();
-        const evalBefore = ChessEvaluator.evaluateWithReply(chess);
         const bestChoice = ChessEvaluator.findBestMoveAndScore(chess);
+        const evalBefore = bestChoice.score;
         const secondBestDiff = Math.abs(bestChoice.score - bestChoice.secondBestScore);
         const turnBefore = chess.turn();
         const pieceMoved = chess.get(from);
@@ -409,7 +489,7 @@ export default function ChessPlatformPage() {
         }
 
         // Classify move with Expected Points Win Probability Model
-        const { classification, comment } = ChessEvaluator.classifyMove(
+        const { classification, comment, motif } = ChessEvaluator.classifyMove(
           move.san,
           bestChoice.bestMoveSan,
           evalBefore,
@@ -419,7 +499,11 @@ export default function ChessPlatformPage() {
           isCheckNow,
           moveHistory.length + 1,
           pieceMoved ? pieceMoved.type : 'p',
-          secondBestDiff
+          secondBestDiff,
+          fenBefore,
+          fenAfter,
+          from,
+          to
         );
 
         // Play audio cues & handle checkmate/stalemate
@@ -456,6 +540,7 @@ export default function ChessPlatformPage() {
           bestMoveSan: bestChoice.bestMoveSan,
           bestMoveUci: bestChoice.bestMoveUci,
           isCheck: isCheckNow,
+          motif,
         };
 
         const nextMoves = [...moveHistory, newRecord];
@@ -474,9 +559,10 @@ export default function ChessPlatformPage() {
             setBotMessage(quotes[Math.floor(Math.random() * quotes.length)]);
           }
 
+          const botDelay = calculateBotThinkingDelayMs(selectedBot, nextMoves.length, isCheckNow);
           setTimeout(() => {
             handleBotMove(new Chess(fenAfter), nextMoves, updatedChecks);
-          }, 450);
+          }, botDelay);
         }
       } catch {
         // Invalid move
@@ -485,7 +571,7 @@ export default function ChessPlatformPage() {
     [chess, gameResult, variant, checksDelivered, moveHistory, gameMode, selectedBot, triggerGameOver]
   );
 
-  // Bot AI Response Move
+  // Bot AI Response Move using Authentic ELO Generator
   const handleBotMove = useCallback(
     (
       currentChessInstance: Chess,
@@ -496,30 +582,23 @@ export default function ChessPlatformPage() {
 
       try {
         const fenBefore = currentChessInstance.fen();
-        const evalBefore = ChessEvaluator.evaluatePosition(currentChessInstance);
-        const turnBefore = currentChessInstance.turn();
+        const bestMoveResult = ChessEvaluator.findBestMoveAndScore(currentChessInstance);
+        const evalBefore = bestMoveResult.score;
 
-        // Search depth based on bot rating
-        const depth = selectedBot.rating >= 2200 ? 3 : selectedBot.rating >= 1300 ? 2 : 1;
-        const engineChoice = ChessEvaluator.getBestMove(currentChessInstance, depth);
+        // Generate authentic move according to bot's rating (Martin blunders, Nelson attacks, etc.)
+        const botMoveResult = generateBotMove(currentChessInstance, selectedBot);
+        if (!botMoveResult) return;
 
-        let botMove = null;
-        if (engineChoice.bestMoveSan) {
-          botMove = currentChessInstance.move(engineChoice.bestMoveSan);
-        }
-
-        // Fallback to random legal move
-        if (!botMove) {
-          const legal = currentChessInstance.moves({ verbose: true });
-          if (legal.length > 0) {
-            botMove = currentChessInstance.move(legal[Math.floor(Math.random() * legal.length)]);
-          }
-        }
+        const botMove = currentChessInstance.move({
+          from: botMoveResult.from as Square,
+          to: botMoveResult.to as Square,
+          promotion: (botMoveResult.promotion as PieceSymbol) || 'q',
+        });
 
         if (!botMove) return;
 
         const fenAfter = currentChessInstance.fen();
-        const evalAfter = ChessEvaluator.evaluatePosition(currentChessInstance);
+        const evalAfter = ChessEvaluator.evaluateWithReply(currentChessInstance);
         const isCheckNow = currentChessInstance.isCheck();
 
         // 1. King of the Hill Variant Check for Bot
@@ -549,6 +628,23 @@ export default function ChessPlatformPage() {
           }
         }
 
+        const { classification, comment, motif } = ChessEvaluator.classifyMove(
+          botMove.san,
+          bestMoveResult.bestMoveSan,
+          evalBefore,
+          evalAfter,
+          'b',
+          Boolean(botMove.captured),
+          isCheckNow,
+          currentMoves.length + 1,
+          botMove.piece,
+          Math.abs(bestMoveResult.score - bestMoveResult.secondBestScore),
+          fenBefore,
+          fenAfter,
+          botMove.from as Square,
+          botMove.to as Square
+        );
+
         if (currentChessInstance.isCheckmate()) {
           triggerGameOver('b', 'checkmate', 'Black wins by Checkmate! (0-1)');
           const winQuotes = selectedBot.quotes.win;
@@ -565,6 +661,14 @@ export default function ChessPlatformPage() {
           soundService.playMove();
         }
 
+        if (botMoveResult.quote) {
+          setBotMessage(botMoveResult.quote);
+          setChatMessages((prev) => [
+            ...prev,
+            { sender: selectedBot.name, text: botMoveResult.quote!, isBot: true },
+          ]);
+        }
+
         const botRecord: MoveRecord = {
           san: botMove.san,
           from: botMove.from as Square,
@@ -574,9 +678,11 @@ export default function ChessPlatformPage() {
           fenAfter,
           evalBefore,
           evalAfter,
-          classification: 'best',
-          coachComment: `${selectedBot.name} plays ${botMove.san}.`,
+          classification,
+          coachComment: comment || `${selectedBot.name} plays ${botMove.san}.`,
+          bestMoveSan: bestMoveResult.bestMoveSan,
           isCheck: isCheckNow,
+          motif,
         };
 
         const updatedHistory = [...currentMoves, botRecord];
@@ -599,6 +705,37 @@ export default function ChessPlatformPage() {
     },
     [selectedBot, variant, premoves, handleBoardMove, triggerGameOver]
   );
+
+  // Undo Move Takeback in Bot Mode
+  const handleUndoMove = () => {
+    if (gameMode !== 'vs_bot' || Boolean(gameResult) || moveHistory.length === 0) return;
+    let movesToKeep: MoveRecord[] = [];
+    if (moveHistory.length >= 2) {
+      movesToKeep = moveHistory.slice(0, moveHistory.length - 2);
+    } else {
+      movesToKeep = [];
+    }
+
+    setUndosUsed((u) => u + 1);
+    setMoveHistory(movesToKeep);
+    setCurrentMoveIndex(movesToKeep.length - 1);
+    const targetFen = movesToKeep.length > 0 ? movesToKeep[movesToKeep.length - 1].fenAfter : new Chess().fen();
+    setChess(new Chess(targetFen));
+    setEvalScore(movesToKeep.length > 0 ? movesToKeep[movesToKeep.length - 1].evalAfter : 0);
+    soundService.playMove();
+
+    const takebackQuotes = [
+      'Takebacks allowed! Try another move.',
+      'No worries, take your time!',
+      'Second chance! Show me what you got.',
+    ];
+    const quote = takebackQuotes[Math.floor(Math.random() * takebackQuotes.length)];
+    setBotMessage(quote);
+    setChatMessages((prev) => [
+      ...prev,
+      { sender: selectedBot.name, text: quote, isBot: true },
+    ]);
+  };
 
   // Replay historical move from move list
   const handleSelectHistoricalMove = (index: number) => {
@@ -693,25 +830,32 @@ export default function ChessPlatformPage() {
         )
       ) : (
         <>
-          {/* Top Header Bar */}
-          <header className="h-14 px-6 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
-                Live Arena
+          {/* Top Header Bar (Desktop/Tablet >= md; Mobile uses AppShell MobileNavigation) */}
+          <header className="hidden md:flex h-14 px-4 lg:px-6 border-b border-[#262421] bg-[#1a1815] items-center justify-between shrink-0 select-none">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5 shrink-0">
+                <span className="text-sm">♟️</span>
+                <span>Check·mate Arena</span>
               </span>
               <span className="text-zinc-600">|</span>
-              <span className="text-xs font-semibold text-zinc-400 capitalize">
-                Mode: <strong className="text-white">{gameMode.replace('_', ' ')}</strong>
+              <span className="text-xs font-semibold text-zinc-400 truncate">
+                {activeTab === 'home' ? (
+                  <span>Dashboard</span>
+                ) : (
+                  <>
+                    <span className="hidden lg:inline">Mode: </span>
+                    <strong className="text-white capitalize">{gameMode.replace('_', ' ')}</strong>
+                  </>
+                )}
               </span>
               {variant !== 'standard' && (
-                <span className="px-2 py-0.5 rounded-full bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase tracking-wider shrink-0">
                   {variant}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => {
                   setReviewStage('summary');
@@ -721,7 +865,7 @@ export default function ChessPlatformPage() {
                 title="Open Game Review with Coach Danny Rensch"
               >
                 <Award className="w-4 h-4 text-[#81b64c]" />
-                <span>Game Review</span>
+                <span className="hidden sm:inline">Game Review</span>
               </button>
 
               <button
@@ -735,7 +879,7 @@ export default function ChessPlatformPage() {
           </header>
 
           {/* View Switcher based on active tab */}
-          <div className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col items-center justify-start overflow-y-auto w-full">
+          <div className={`flex-1 ${activeTab === 'play' ? 'p-0 sm:p-2 lg:p-6 overflow-hidden' : 'p-2 sm:p-4 lg:p-6 overflow-y-auto'} flex flex-col items-center justify-start w-full`}>
             {/* Home Dashboard */}
             {activeTab === 'home' && (
               <ChessHomeDashboard
@@ -757,9 +901,19 @@ export default function ChessPlatformPage() {
                 }}
                 onOpenLessons={() => router.push('/lessons')}
                 onOpenPuzzles={() => router.push('/puzzles')}
-                onOpenReview={() => {
-                  setIsReviewViewActive(true);
-                  setReviewStage('summary');
+                onOpenReview={(gameId) => {
+                  if (gameId) {
+                    router.push(`/game/review/${gameId}`);
+                  } else {
+                    const recents = GameSessionStore.listRecentSessions();
+                    const lastSession = recents.find((s) => s.id !== 'demo-game-masterpiece');
+                    if (lastSession) {
+                      router.push(`/game/review/${lastSession.id}`);
+                    } else {
+                      setIsReviewViewActive(true);
+                      setReviewStage('summary');
+                    }
+                  }
                 }}
                 onOpenInsights={() => router.push('/insights')}
                 onOpenSyncModal={openChessComSync}
@@ -767,11 +921,11 @@ export default function ChessPlatformPage() {
             )}
 
               {activeTab === 'play' && (
-                <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 w-full max-w-6xl items-center justify-center p-1 sm:p-2.5 overflow-hidden">
+                <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 w-full max-w-6xl items-center justify-start lg:justify-center p-0 sm:p-2 overflow-hidden h-full">
                   {/* Left Column: Top Notation Ribbon + Players + Eval Bar + Board + Mobile Bottom Bar */}
-                  <div className="flex flex-col gap-1.5 items-center shrink-0 w-full xl:w-auto">
+                  <div className="flex flex-col gap-1 items-center shrink-0 w-full lg:w-auto">
                     {/* Top Notation Ribbon (Compact) */}
-                    <div className="w-[min(100%,calc(100vh-165px),480px)]">
+                    <div className="w-[min(100vw,calc(100dvh-175px),540px)] px-1 sm:px-0">
                       <NotationRibbon
                         moves={moveHistory}
                         currentMoveIndex={currentMoveIndex}
@@ -780,7 +934,7 @@ export default function ChessPlatformPage() {
                     </div>
 
                     {/* Top Player Card (Black by default) */}
-                    <div className="w-[min(100%,calc(100vh-165px),480px)]">
+                    <div className="w-[min(100vw,calc(100dvh-175px),540px)] px-1 sm:px-0">
                       <PlayerCard
                         player={orientation === 'w' ? blackPlayer : whitePlayer}
                         color={orientation === 'w' ? 'b' : 'w'}
@@ -792,18 +946,20 @@ export default function ChessPlatformPage() {
                     </div>
 
                     {/* Board Area with Eval Bar on Left */}
-                    <div className="flex gap-2 justify-center items-center">
-                      {/* Dynamic Eval Bar - Only show eval score if game is finished or in analysis mode */}
-                      <div className="h-[min(100%,calc(100vh-165px),480px)] flex items-stretch">
-                        <EvalBar
-                          score={Boolean(gameResult) || gameMode === 'analysis' ? evalScore : 0}
-                          orientation={orientation}
-                          isGameOver={Boolean(gameResult)}
-                        />
-                      </div>
+                    <div className="flex gap-1.5 justify-center items-center">
+                      {/* Dynamic Eval Bar - Strictly unmounted during active live gameplay */}
+                      {(Boolean(gameResult) || gameMode === 'analysis') && (
+                        <div className="h-[min(100vw,calc(100dvh-175px),540px)] flex items-stretch">
+                          <EvalBar
+                            score={evalScore}
+                            orientation={orientation}
+                            isGameOver={Boolean(gameResult)}
+                          />
+                        </div>
+                      )}
 
                       {/* ChessBoard with pinned badges & pre-moves - Strict height bound */}
-                      <div className="w-[min(100%,calc(100vh-165px),480px)] aspect-square shrink-0">
+                      <div className="w-[min(100vw,calc(100dvh-175px),540px)] aspect-square shrink-0">
                         <ChessBoard
                           chess={chess}
                           orientation={orientation}
@@ -823,7 +979,7 @@ export default function ChessPlatformPage() {
                     </div>
 
                     {/* Bottom Player Card (White by default) */}
-                    <div className="w-[min(100%,calc(100vh-165px),480px)]">
+                    <div className="w-[min(100vw,calc(100dvh-175px),540px)] px-1 sm:px-0">
                       <PlayerCard
                         player={orientation === 'w' ? whitePlayer : blackPlayer}
                         color={orientation === 'w' ? 'w' : 'b'}
@@ -849,11 +1005,15 @@ export default function ChessPlatformPage() {
                       canPrev={currentMoveIndex > 0}
                       canNext={currentMoveIndex < moveHistory.length - 1}
                       hasUnreadChat={Boolean(botMessage)}
+                      isGameOver={Boolean(gameResult)}
+                      onUndo={handleUndoMove}
+                      canUndo={gameMode === 'vs_bot' && moveHistory.length > 0 && !gameResult}
+                      onResign={() => setIsResignModalOpen(true)}
                     />
                   </div>
 
                   {/* Right Game Controls & Notation Column */}
-                  <div className="w-full max-w-[380px] flex flex-col gap-2.5 shrink-0 max-h-[calc(100vh-40px)] overflow-hidden">
+                  <div className="w-full max-w-[min(100%,560px)] lg:max-w-[380px] flex flex-col gap-2.5 shrink-0 max-h-[calc(100vh-40px)] overflow-hidden">
                     <DesktopPlayPanel
                       timeControl={timeControl}
                       onSelectTimeControl={(sec) => {
@@ -871,11 +1031,57 @@ export default function ChessPlatformPage() {
                         startNewGame();
                       }}
                       isGameActive={moveHistory.length > 0 && !gameResult}
-                      onResign={handleResign}
+                      onResign={() => setIsResignModalOpen(true)}
                       onDraw={handleOfferDraw}
                       onFlipBoard={() => setOrientation((prev) => (prev === 'w' ? 'b' : 'w'))}
                       onSelectVariant={(v) => setVariant(v)}
+                      onUndo={handleUndoMove}
+                      canUndo={gameMode === 'vs_bot' && moveHistory.length > 0 && !gameResult}
                     />
+
+                    {/* Bot Banter & Chat Panel */}
+                    {showChatPanel && gameMode === 'vs_bot' && (
+                      <div className="bg-[#21201d] rounded-2xl border border-[#302e2b] p-3 flex flex-col gap-2 shadow-lg">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-[#2d2a26]">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{selectedBot.avatar}</span>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white flex items-center gap-1">
+                                {selectedBot.name}
+                                <span className="text-[10px] text-zinc-400 font-mono">({selectedBot.rating})</span>
+                              </span>
+                              <span className="text-[9px] text-[#81b64c] font-medium">{selectedBot.playStyle}</span>
+                            </div>
+                          </div>
+                          <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Bot Banter</span>
+                        </div>
+
+                        {/* Speech bubble */}
+                        <div className="bg-[#1a1815] border border-[#2d2a26] rounded-xl p-2.5 text-xs text-zinc-200 min-h-[44px] flex items-center">
+                          {botMessage ? (
+                            <p className="italic leading-relaxed text-xs">"{botMessage}"</p>
+                          ) : (
+                            <span className="text-zinc-500 italic text-[11px]">Make a move or send a message to {selectedBot.name}...</span>
+                          )}
+                        </div>
+
+                        {/* Quick banter chips */}
+                        <div className="flex flex-wrap gap-1">
+                          {['Good game!', 'Nice move!', 'Take your time!', 'Oops!'].map((chip) => (
+                            <button
+                              key={chip}
+                              onClick={() => {
+                                const replies = selectedBot.quotes.goodMove || ["Thanks! Let's keep playing!"];
+                                setBotMessage(replies[Math.floor(Math.random() * replies.length)]);
+                              }}
+                              className="px-2 py-0.5 rounded-full bg-[#292622] hover:bg-[#33302a] text-[10px] text-zinc-300 transition cursor-pointer"
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Move History Table */}
                     {showMovesPanel && moveHistory.length > 0 && (
@@ -999,6 +1205,40 @@ export default function ChessPlatformPage() {
         whitePlayerName={whitePlayer.name}
         blackPlayerName={blackPlayer.name}
       />
+
+      {/* In-App Resign Confirmation Modal */}
+      {isResignModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none animate-in fade-in duration-150">
+          <div className="w-full max-w-sm bg-[#22201d] border border-[#3d3a34] rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in-95 duration-150 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center text-2xl shadow-inner">
+              🏳️
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">Resign this match?</h3>
+              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                Resigning will concede the victory to <strong className="text-white">{gameMode === 'vs_bot' ? selectedBot.name : blackPlayer.name}</strong> and conclude the match immediately.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 w-full pt-1">
+              <button
+                onClick={() => setIsResignModalOpen(false)}
+                className="py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition cursor-pointer"
+              >
+                Keep Playing
+              </button>
+              <button
+                onClick={() => {
+                  setIsResignModalOpen(false);
+                  triggerGameOver('b', 'resignation', 'White resigned. (0-1)');
+                }}
+                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition cursor-pointer shadow-lg shadow-rose-600/30"
+              >
+                Yes, Resign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

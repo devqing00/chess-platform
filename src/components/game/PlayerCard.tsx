@@ -14,14 +14,14 @@ interface PlayerCardProps {
   materialAdvantage?: number; // positive if this player has more material
 }
 
-export const PlayerCard: React.FC<PlayerCardProps> = ({
+export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerCard({
   player,
   color,
   timeRemainingSeconds,
   isActiveTurn,
   capturedPieces = [],
   materialAdvantage = 0,
-}) => {
+}) {
   const minutes = Math.floor(timeRemainingSeconds / 60);
   const seconds = Math.floor(timeRemainingSeconds % 60);
   const ms = Math.floor((timeRemainingSeconds % 1) * 10);
@@ -35,11 +35,11 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const isTimeZero = timeRemainingSeconds === 0;
 
   return (
-    <div className="flex items-center justify-between px-2.5 py-1.5 bg-[#21201d] rounded-xl border border-[#302e2b] select-none shadow-sm">
+    <div className="flex items-center justify-between px-2 sm:px-3 py-1 sm:py-1.5 bg-[#211f1c] rounded-xl border border-[#35322b] select-none shadow-sm min-h-[38px] max-h-[42px] w-full">
       {/* Player Profile & Captures */}
       <div className="flex items-center gap-2 min-w-0">
         <div className="relative shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-[#2d2a26] border border-[#403c37] overflow-hidden flex items-center justify-center text-lg shadow">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#282522] border border-[#38342e] shadow-sm overflow-hidden flex items-center justify-center text-sm">
             {player.avatar && player.avatar.startsWith('http') ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
@@ -48,20 +48,20 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
             )}
           </div>
           {player.title && (
-            <span className="absolute -top-1.5 -right-1.5 text-[9px] font-black bg-[#e6912c] text-black px-1 rounded shadow-sm">
+            <span className="absolute -top-1 -right-1 text-[8px] font-black bg-[#f59e0b] border border-amber-600 text-black px-1 rounded-full">
               {player.title}
             </span>
           )}
         </div>
 
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0 justify-center">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-xs font-bold text-white truncate tracking-tight">
+            <span className="text-[11px] sm:text-xs font-black text-white truncate tracking-tight">
               {player.name}
             </span>
-            <span className="text-[11px] text-zinc-400 font-mono">({player.rating})</span>
+            <span className="text-[10px] text-zinc-400 font-mono font-bold">({player.rating})</span>
             {player.country && (
-              <span className="text-xs shrink-0" title={player.country}>
+              <span className="text-[10px] shrink-0" title={player.country}>
                 {player.country === 'US'
                   ? '🇺🇸'
                   : player.country === 'DE'
@@ -75,11 +75,11 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
             )}
           </div>
 
-          {/* Captured Pieces & Material Differential (Matches Screenshot 1) */}
-          <div className="flex items-center gap-1 mt-0.5 min-h-[16px]">
+          {/* Captured Pieces & Material Differential */}
+          <div className="flex items-center gap-1 min-h-[14px]">
             <div className="flex -space-x-1.5 items-center">
               {capturedPieces.slice(0, 10).map((pieceType, idx) => (
-                <div key={idx} className="w-3.5 h-3.5">
+                <div key={idx} className="w-3 h-3">
                   <PieceIcon
                     type={pieceType}
                     color={color === 'w' ? 'b' : 'w'}
@@ -89,7 +89,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               ))}
             </div>
             {materialAdvantage > 0 && (
-              <span className="text-[10px] font-black text-zinc-300 ml-1">
+              <span className="text-[9px] font-black text-zinc-300 ml-1">
                 +{materialAdvantage}
               </span>
             )}
@@ -97,21 +97,21 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         </div>
       </div>
 
-      {/* Digital Chess Clock (Screenshot 1: White pill when active turn, dark when inactive) */}
+      {/* Tactile Capsule Chess Clock */}
       <div
-        className={`px-3 py-1.5 rounded-lg font-mono font-black text-base tracking-tight min-w-[76px] flex items-center justify-center gap-1.5 border transition-all ${
+        className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-lg font-mono font-black text-xs sm:text-sm tracking-tight min-w-[70px] sm:min-w-[76px] flex items-center justify-center gap-1 border transition-all ${
           isTimeZero
-            ? 'bg-red-950/90 text-red-400 border-red-600 animate-pulse'
+            ? 'bg-rose-950/90 text-rose-300 border-rose-600 shadow-sm animate-pulse'
             : isLowTime && isActiveTurn
-            ? 'bg-red-900/80 text-red-200 border-red-500 animate-pulse shadow-lg shadow-red-500/20'
+            ? 'bg-rose-500 text-white border-rose-600 shadow-sm animate-pulse'
             : isActiveTurn
-            ? 'bg-[#ffffff] text-zinc-950 border-white shadow-md font-black'
-            : 'bg-[#141311] text-zinc-300 border-[#2b2926]'
+            ? 'bg-white text-zinc-950 border-zinc-300 shadow-sm'
+            : 'bg-[#141311] text-zinc-300 border-[#35322b]'
         }`}
       >
-        <Clock className={`w-3.5 h-3.5 ${isActiveTurn ? 'text-zinc-900' : 'text-zinc-500'}`} />
+        <Clock className={`w-3 h-3 ${isActiveTurn ? 'text-zinc-900' : 'text-zinc-500'}`} />
         <span>{formattedTime}</span>
       </div>
     </div>
   );
-};
+});

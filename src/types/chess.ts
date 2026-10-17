@@ -21,7 +21,7 @@ export type Square =
 
 export type BoardTheme = 'green' | 'wood' | 'glass' | 'neon' | 'marble' | 'arcade' | 'high_contrast' | 'low_vision_amber';
 export type PieceTheme = 'neo' | 'staunton' | '8bit' | 'alpha';
-export type SoundTheme = 'classic' | 'wood' | 'marble' | 'arcade' | 'silman';
+export type SoundTheme = 'classic' | 'wood' | 'marble' | 'arcade' | 'silman' | 'duolingo';
 export type LowTimeRegister = 'tick' | 'shrill' | 'beep' | 'voice';
 export type SoundPreset = 'focus' | 'casual' | 'commentary';
 
@@ -37,6 +37,7 @@ export interface AudioSettings {
 }
 
 export type AnimationSpeed = 'instant' | 'fast' | 'normal';
+export type MoveInputMode = 'both' | 'drag' | 'click';
 
 export type ChessVariant = 'standard' | 'chess960' | '3check' | 'kingofthehill' | 'crazyhouse' | 'solochess';
 
@@ -80,6 +81,12 @@ export interface MoveRecord {
   bestMoveSan?: string;
   bestMoveUci?: string;
   isCheck?: boolean;
+  accuracy?: number;
+  winProbLoss?: number;
+  motif?: {
+    type: string;
+    description: string;
+  };
 }
 
 export interface GamePlayer {
@@ -107,8 +114,8 @@ export interface GameResultDetails {
   reason: 'resignation' | 'checkmate' | 'timeout' | 'stalemate' | 'insufficient' | 'agreement';
   ratingDelta: number;
   newRating: number;
-  league: string;
-  trophiesDelta: number;
+  league?: string;
+  trophiesDelta?: number;
   achievementToast?: {
     title: string;
     subtitle: string;
@@ -170,6 +177,47 @@ export interface OpeningInfo {
   keyIdeas?: string[];
 }
 
+export interface EndgameStudy {
+  id: string;
+  title: string;
+  category: 'king_pawn' | 'rook_endgame' | 'queen_endgame' | 'minor_piece' | 'grandmaster_study';
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Master';
+  rating: number;
+  fen: string;
+  turn: PieceColor;
+  objective: 'Win' | 'Draw';
+  keyTechnique: string;
+  moves: string[]; // Solution line (e.g. ['g1f2', 'd7d6'])
+  tablebaseEvaluation?: string; // e.g. "Tablebase: Mate in 14"
+  description: string;
+}
+
+export interface LearningPathNode {
+  id: string;
+  title: string;
+  type: 'puzzle' | 'opening' | 'endgame' | 'chest';
+  targetId: string;
+  xpReward: number;
+  iconName?: string;
+  description?: string;
+}
+
+export interface LearningUnit {
+  id: string;
+  unitNumber: number;
+  title: string;
+  subtitle: string;
+  category: 'tactics' | 'openings' | 'endgames';
+  themeColor: string;
+  guidebook: {
+    title: string;
+    summary: string;
+    keyPoints: string[];
+    exampleFen?: string;
+  };
+  nodes: LearningPathNode[];
+}
+
 export type MembershipTier = 'free' | 'gold' | 'platinum' | 'diamond';
 
 export interface ClassificationTallies {
@@ -210,6 +258,30 @@ export interface GamePhaseScore {
   plies: number;
 }
 
+export interface PhaseAccuracyBreakdown {
+  opening: { whiteAccuracy: number; blackAccuracy: number };
+  middlegame: { whiteAccuracy: number; blackAccuracy: number };
+  endgame: { whiteAccuracy: number; blackAccuracy: number };
+}
+
+export interface AdvancedStatDetail {
+  score: number; // 0 - 100
+  classification: MoveClassification;
+  summary: string;
+}
+
+export interface PlayerAdvancedStats {
+  opening: AdvancedStatDetail;
+  tactics: AdvancedStatDetail;
+  strategy: AdvancedStatDetail;
+  endgame: AdvancedStatDetail;
+}
+
+export interface GameAdvancedStats {
+  white: PlayerAdvancedStats;
+  black: PlayerAdvancedStats;
+}
+
 export interface ParsedPgn {
   headers: Record<string, string>;
   moves: string[];
@@ -221,6 +293,8 @@ export interface ParsedPgn {
   opening?: string;
 }
 
+export type AnalysisEngineMode = 'torch_human' | 'stockfish';
+
 export interface GameReviewReport {
   id: string;
   gameId: string;
@@ -228,10 +302,14 @@ export interface GameReviewReport {
   blackPlayer: GamePlayer;
   whiteAccuracy: number;
   blackAccuracy: number;
+  stockfishWhiteAccuracy?: number;
+  stockfishBlackAccuracy?: number;
   whiteEstimatedElo?: number;
   blackEstimatedElo?: number;
   whiteAcpl?: number;
   blackAcpl?: number;
+  engineMode?: AnalysisEngineMode;
+  engineDescription?: string;
   opening?: OpeningInfo;
   phaseBreakdown?: {
     opening: GamePhaseScore;
@@ -253,10 +331,17 @@ export interface GameReviewReport {
   keyMoments: KeyMoment[];
   moves: MoveRecord[];
   summaryComment: string;
+  advancedStats?: GameAdvancedStats;
+  isDeepReview?: boolean;
+  reviewVersion?: string;
 }
 
 export interface GameSession {
   id: string;
+  source?: 'checkmate' | 'chesscom';
+  pgn?: string;
+  movesCount?: number;
+  engineMode?: AnalysisEngineMode;
   whitePlayer: GamePlayer;
   blackPlayer: GamePlayer;
   timeControl: number;

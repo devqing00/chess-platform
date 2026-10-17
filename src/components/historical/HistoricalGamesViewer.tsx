@@ -4,7 +4,8 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Chess, Square } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
 import { HISTORICAL_GAMES, GrandmasterGame } from '@/lib/historicalGames';
-import { BoardTheme, PieceTheme } from '@/types/chess';
+import { BoardTheme, PieceTheme, GameSession, MoveRecord } from '@/types/chess';
+import { GameSessionStore } from '@/lib/gameSessionStore';
 import {
   ChevronFirst,
   ChevronLeft,
@@ -128,10 +129,79 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
     setIsPlaying(false);
   };
 
+  const handleAnalyzeInReview = useCallback(() => {
+    const c = new Chess();
+    const moveRecords: MoveRecord[] = [];
+
+    for (let i = 0; i < parsedMoves.length; i++) {
+      const fenBefore = c.fen();
+      try {
+        const m = c.move(parsedMoves[i]);
+        if (!m) break;
+        const fenAfter = c.fen();
+        moveRecords.push({
+          san: m.san,
+          from: m.from as Square,
+          to: m.to as Square,
+          captured: m.captured as any,
+          promotion: m.promotion as any,
+          fenBefore,
+          fenAfter,
+          evalBefore: 0,
+          evalAfter: 0,
+          isCheck: c.inCheck(),
+        });
+      } catch {
+        break;
+      }
+    }
+
+    const winner = selectedGame.result === '1-0' ? 'w' : selectedGame.result === '0-1' ? 'b' : 'draw';
+
+    const session: GameSession = {
+      id: selectedGame.id,
+      whitePlayer: {
+        id: `gm-w-${selectedGame.id}`,
+        name: selectedGame.white.name,
+        rating: selectedGame.white.rating,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=128&q=80',
+        title: (selectedGame.white.title as 'GM' | 'IM') || 'GM',
+        isBot: false,
+      },
+      blackPlayer: {
+        id: `gm-b-${selectedGame.id}`,
+        name: selectedGame.black.name,
+        rating: selectedGame.black.rating,
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=128&q=80',
+        title: (selectedGame.black.title as 'GM' | 'IM') || 'GM',
+        isBot: false,
+      },
+      timeControl: 180,
+      variant: 'standard',
+      moves: moveRecords,
+      fen: c.fen(),
+      isGameOver: true,
+      gameResult: selectedGame.result === '1-0' ? '1-0' : selectedGame.result === '0-1' ? '0-1' : '1/2-1/2',
+      resultDetails: {
+        winner,
+        reason: 'resignation',
+        ratingDelta: 0,
+        newRating: selectedGame.white.rating,
+        league: 'Grandmaster Immortal Series',
+      },
+      reviewReport: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    GameSessionStore.saveSession(session);
+    router.push(`/game/review/${selectedGame.id}`);
+  }, [parsedMoves, selectedGame, router]);
+
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center p-2 sm:p-4 select-none">
+    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 sm:gap-6 items-center lg:items-start justify-center p-1 sm:p-4 select-none">
       {/* Board Column */}
-      <div className="w-[min(100%,calc(100vh-220px),480px)] shrink-0 flex flex-col items-center gap-3">
+      <div className="w-[min(calc(100vw-2rem),calc(100vh-220px),560px)] lg:w-[460px] xl:w-[490px] shrink-0 flex flex-col items-center gap-3">
         <div className="w-full aspect-square">
           <ChessBoard
             chess={currentChess}
@@ -144,55 +214,55 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
         </div>
 
         {/* Playback & Stepper Controls */}
-        <div className="w-full bg-[#1f1d1a] px-4 py-2.5 rounded-2xl border border-[#2d2a26] flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-1.5">
+        <div className="w-full bg-[#1f1d1a] px-3 sm:px-4 py-2.5 sm:py-3 rounded-3xl border-2 border-[#35322b] flex items-center justify-between shadow-[0_4px_0_0_#141311]">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => handleStep(-1)}
               disabled={currentMoveIdx === -1}
-              className="p-1.5 rounded-lg hover:bg-[#2b2824] disabled:opacity-30 text-zinc-300 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-full border-2 border-[#35322b] bg-[#262420] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-30 disabled:transform-none text-zinc-300 transition-all cursor-pointer"
               title="First Move"
             >
-              <ChevronFirst className="w-5 h-5" />
+              <ChevronFirst className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={() => handleStep(Math.max(-1, currentMoveIdx - 1))}
               disabled={currentMoveIdx === -1}
-              className="p-1.5 rounded-lg hover:bg-[#2b2824] disabled:opacity-30 text-zinc-300 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-full border-2 border-[#35322b] bg-[#262420] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-30 disabled:transform-none text-zinc-300 transition-all cursor-pointer"
               title="Previous Move"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* Play/Pause Button */}
             <button
               onClick={() => setIsPlaying((p) => !p)}
-              className="p-2 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white shadow transition-all cursor-pointer mx-1"
+              className="p-2 sm:p-2.5 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer mx-0.5 sm:mx-1"
               title={isPlaying ? 'Pause' : 'Auto Play'}
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+              {isPlaying ? <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />}
             </button>
 
             <button
               onClick={() => handleStep(Math.min(parsedMoves.length - 1, currentMoveIdx + 1))}
               disabled={currentMoveIdx === parsedMoves.length - 1}
-              className="p-1.5 rounded-lg hover:bg-[#2b2824] disabled:opacity-30 text-zinc-300 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-full border-2 border-[#35322b] bg-[#262420] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-30 disabled:transform-none text-zinc-300 transition-all cursor-pointer"
               title="Next Move"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={() => handleStep(parsedMoves.length - 1)}
               disabled={currentMoveIdx === parsedMoves.length - 1}
-              className="p-1.5 rounded-lg hover:bg-[#2b2824] disabled:opacity-30 text-zinc-300 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-full border-2 border-[#35322b] bg-[#262420] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-30 disabled:transform-none text-zinc-300 transition-all cursor-pointer"
               title="Final Move"
             >
-              <ChevronLast className="w-5 h-5" />
+              <ChevronLast className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Speed toggle */}
-            <div className="flex items-center gap-1 bg-[#161512] p-1 rounded-lg border border-[#2b2824] text-[10px] font-mono">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-[#161512] p-0.5 sm:p-1 rounded-full border-2 border-[#35322b] text-[9px] sm:text-[10px] font-mono">
               {[
                 { label: '1s', ms: 1000 },
                 { label: '1.5s', ms: 1500 },
@@ -201,8 +271,10 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                 <button
                   key={s.ms}
                   onClick={() => setPlaySpeedMs(s.ms)}
-                  className={`px-1.5 py-0.5 rounded font-bold cursor-pointer transition-colors ${
-                    playSpeedMs === s.ms ? 'bg-[#81b64c] text-white' : 'text-zinc-400 hover:text-white'
+                  className={`px-1.5 sm:px-2 py-0.5 rounded-full font-black cursor-pointer transition-all ${
+                    playSpeedMs === s.ms
+                      ? 'bg-[#81b64c] text-white border border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   {s.label}
@@ -210,7 +282,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
               ))}
             </div>
 
-            <span className="text-xs font-mono font-bold text-zinc-400">
+            <span className="text-[11px] sm:text-xs font-mono font-black text-zinc-400">
               {currentMoveIdx === -1 ? '0' : currentMoveIdx + 1} / {parsedMoves.length}
             </span>
           </div>
@@ -218,23 +290,23 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
       </div>
 
       {/* Game Details & Moves List */}
-      <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 min-w-0 flex flex-col gap-3">
+      <div className="w-full max-w-[min(calc(100vw-2rem),560px)] lg:max-w-none lg:w-[380px] xl:w-[420px] shrink-0 min-w-0 flex flex-col gap-4">
         {/* Era Category Pills */}
-        <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Trophy className="w-4 h-4 text-amber-400" />
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-3xl p-3.5 sm:p-4 flex flex-col gap-3 shadow-[0_4px_0_0_#141311]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 truncate">
+              <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
               <span>Immortal Classics ({HISTORICAL_GAMES.length})</span>
             </span>
-            <div className="flex gap-1">
+            <div className="flex gap-1 shrink-0">
               {(['all', 'romantic', 'golden', 'modern'] as const).map((era) => (
                 <button
                   key={era}
                   onClick={() => setSelectedEra(era)}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                  className={`px-2 sm:px-2.5 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
                     selectedEra === era
-                      ? 'bg-[#81b64c] text-white shadow'
-                      : 'bg-[#161512] text-zinc-400 hover:text-white border border-[#2d2a26]'
+                      ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24]'
+                      : 'bg-[#161512] border-[#35322b] text-zinc-400 hover:text-white shadow-[0_2px_0_0_#141311]'
                   }`}
                 >
                   {era}
@@ -244,21 +316,21 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
           </div>
 
           {/* Horizontal scroll selector */}
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none touch-pan-x">
             {filteredGames.map((g) => {
               const isSel = selectedGame.id === g.id;
               return (
                 <button
                   key={g.id}
                   onClick={() => handleSelectGame(g)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex flex-col items-start gap-0.5 shrink-0 ${
+                  className={`px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex flex-col items-start gap-1 shrink-0 border-2 ${
                     isSel
-                      ? 'bg-[#81b64c] text-white shadow-lg shadow-[#81b64c]/20 ring-1 ring-[#81b64c]'
-                      : 'bg-[#161512] text-zinc-300 hover:bg-[#25221d] border border-[#2d2a26]'
+                      ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_3px_0_0_#4d7a24]'
+                      : 'bg-[#161512] border-[#35322b] text-zinc-300 hover:bg-[#25221d] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
                   }`}
                 >
-                  <span className="text-xs font-bold leading-none">{g.white.name.split(' ')[1] || g.white.name} vs {g.black.name.split(' ')[1] || g.black.name}</span>
-                  <span className="text-[10px] opacity-75 font-mono">{g.year} &bull; {g.eco}</span>
+                  <span className="text-xs font-black leading-none">{g.white.name.split(' ')[1] || g.white.name} vs {g.black.name.split(' ')[1] || g.black.name}</span>
+                  <span className="text-[10px] opacity-80 font-mono font-bold">{g.year} &bull; {g.eco}</span>
                 </button>
               );
             })}
@@ -266,13 +338,13 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
         </div>
 
         {/* Active Game Info Card */}
-        <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-          <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
-            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-[0_6px_0_0_#141311]">
+          <div className="flex items-center justify-between pb-3 border-b-2 border-[#282622]">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium">
               <Calendar className="w-3.5 h-3.5 text-zinc-500" />
               <span>{selectedGame.event} ({selectedGame.year})</span>
             </div>
-            <span className="text-xs font-bold font-mono text-[#81b64c] bg-[#161512] px-2.5 py-0.5 rounded-lg border border-[#302e2b]">
+            <span className="text-xs font-black font-mono text-[#81b64c] bg-[#161512] px-3 py-0.5 rounded-full border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]">
               {selectedGame.result}
             </span>
           </div>
@@ -280,30 +352,30 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-black text-white">⚪ {selectedGame.white.name}</span>
-              <span className="text-zinc-400 font-mono text-[11px]">
+              <span className="text-zinc-400 font-mono font-bold text-[11px]">
                 {selectedGame.white.title} ({selectedGame.white.rating})
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="font-black text-white">⚫ {selectedGame.black.name}</span>
-              <span className="text-zinc-400 font-mono text-[11px]">
+              <span className="text-zinc-400 font-mono font-bold text-[11px]">
                 {selectedGame.black.title} ({selectedGame.black.rating})
               </span>
             </div>
           </div>
 
-          <div className="p-3 bg-[#161512] rounded-xl border border-[#282622] text-xs text-zinc-300 leading-relaxed font-sans">
-            <strong className="text-amber-400 block mb-1 font-bold flex items-center gap-1">
-              <BookOpen className="w-3.5 h-3.5" />
+          <div className="p-3 bg-[#161512] rounded-2xl border-2 border-[#282622] text-xs text-zinc-300 leading-relaxed font-sans shadow-inner">
+            <strong className="text-amber-400 block mb-1 font-black flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
               {selectedGame.opening} ({selectedGame.eco})
             </strong>
-            {selectedGame.description}
+            <p className="font-medium">{selectedGame.description}</p>
           </div>
 
           {/* Moves List Grid */}
           <div
             ref={movesContainerRef}
-            className="h-[180px] overflow-y-auto p-2 bg-[#161512] rounded-xl border border-[#282622] grid grid-cols-2 gap-1.5 font-mono text-xs"
+            className="h-[180px] overflow-y-auto p-2 bg-[#161512] rounded-2xl border-2 border-[#282622] grid grid-cols-2 gap-1.5 font-mono text-xs shadow-inner"
           >
             {parsedMoves.map((m, idx) => {
               const isCurrent = currentMoveIdx === idx;
@@ -315,16 +387,16 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                   key={idx}
                   ref={isCurrent ? activeMoveButtonRef : null}
                   onClick={() => handleStep(idx)}
-                  className={`px-2 py-1 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer border ${
                     isCurrent
-                      ? 'bg-[#81b64c] text-white font-bold shadow'
-                      : 'text-zinc-300 hover:bg-[#282622]'
+                      ? 'bg-[#81b64c] border-[#4d7a24] text-white font-black shadow-[0_2px_0_0_#4d7a24]'
+                      : 'border-transparent text-zinc-300 hover:bg-[#282622] hover:border-[#35322b]'
                   }`}
                 >
-                  <span className="text-zinc-500 font-sans text-[11px]">
+                  <span className="text-zinc-500 font-sans text-[11px] font-bold">
                     {isWhite ? `${turnNum}.` : ''}
                   </span>
-                  <span className="font-bold">{m}</span>
+                  <span className="font-black">{m}</span>
                 </button>
               );
             })}
@@ -332,12 +404,12 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
 
           {/* Analyze in Game Review button */}
           <button
-            onClick={() => router.push('/game/review/demo-game-masterpiece')}
-            className="w-full py-2.5 rounded-xl bg-[#282622] hover:bg-[#34312b] border border-[#383530] text-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            onClick={handleAnalyzeInReview}
+            className="w-full py-3 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white border-2 border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
+            <Sparkles className="w-4 h-4 text-white" />
             <span>Analyze in Deep Engine Review</span>
-            <ExternalLink className="w-3 h-3 text-zinc-400" />
+            <ExternalLink className="w-3.5 h-3.5 text-white/80" />
           </button>
         </div>
       </div>

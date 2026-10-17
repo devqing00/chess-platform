@@ -5,6 +5,7 @@ import { User } from 'firebase/auth';
 import { AuthService } from '@/lib/firebase/authService';
 import { UserProfile } from '@/lib/firebase/types';
 import { MembershipTier } from '@/types/chess';
+import { XpSystem } from '@/lib/xpSystem';
 
 export interface SyncedChessComAccount {
   username: string;
@@ -62,30 +63,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedStats = storedStats ? JSON.parse(storedStats) : null;
         setSyncedChessCom({
           ...parsedProfile,
-          countryCode: parsedProfile.countryCode || parsedProfile.country?.toLowerCase() || 'ng',
+          countryCode: parsedProfile.countryCode || parsedProfile.country?.toLowerCase() || 'us',
           ratings: {
-            rapid: parsedStats?.rapid?.rating || 429,
-            blitz: parsedStats?.blitz?.rating || 370,
-            bullet: parsedStats?.bullet?.rating || 300,
+            rapid: parsedStats?.rapid?.rating || 1200,
+            blitz: parsedStats?.blitz?.rating || 1200,
+            bullet: parsedStats?.bullet?.rating || 1200,
           },
           stats: parsedStats,
         });
       } else {
-        // Default to rapid_qing if no profile has been synced yet
-        setSyncedChessCom({
-          username: 'rapid_qing',
-          name: 'Qing',
-          country: 'NG',
-          countryCode: 'ng',
-          ratings: {
-            rapid: 429,
-            blitz: 370,
-            bullet: 300,
-          },
-        });
+        setSyncedChessCom(null);
       }
     } catch (e) {
       console.warn('Failed to parse stored Chess.com profile:', e);
+      setSyncedChessCom(null);
     }
   }, []);
 
@@ -126,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = AuthService.onAuthChange(async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
+        XpSystem.syncWithFirestore(firebaseUser.uid).catch(() => {});
         const prof = await AuthService.getUserProfile(firebaseUser.uid);
         if (prof) {
           setProfile(prof);
@@ -185,12 +177,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncedChessCom?.username ||
     profile?.displayName ||
     user?.displayName ||
-    'rapid_qing';
+    'Guest';
 
   const effectiveRating =
     syncedChessCom?.ratings?.rapid ||
     profile?.ratings?.rapid ||
-    429;
+    1200;
 
   const effectiveAvatar =
     syncedChessCom?.avatar ||
@@ -200,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const effectiveCountry =
     syncedChessCom?.countryCode ||
-    'ng';
+    'us';
 
   return (
     <AuthContext.Provider

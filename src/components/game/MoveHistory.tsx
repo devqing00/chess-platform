@@ -8,6 +8,7 @@ interface MoveHistoryProps {
   moves: MoveRecord[];
   currentMoveIndex: number; // -1 means initial starting position
   onSelectMove: (index: number) => void;
+  showClassifications?: boolean;
 }
 
 const CLASSIFICATION_BADGES: Record<MoveClassification, { label: string; color: string; bg: string }> = {
@@ -27,7 +28,18 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
   moves,
   currentMoveIndex,
   onSelectMove,
+  showClassifications = false,
 }) => {
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const activeMoveRef = React.useRef<HTMLButtonElement>(null);
+
+  // Auto-scroll to active move whenever it changes
+  React.useEffect(() => {
+    if (activeMoveRef.current && scrollContainerRef.current) {
+      activeMoveRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [currentMoveIndex]);
+
   // Pair moves into turns: [ { whiteMove, blackMove, turnNumber } ]
   const turns = [];
   for (let i = 0; i < moves.length; i += 2) {
@@ -51,7 +63,7 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
       </div>
 
       {/* Move List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs font-medium font-mono">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-2 space-y-1 text-xs font-medium font-mono">
         {turns.length === 0 ? (
           <div className="h-full flex items-center justify-center text-zinc-500 italic text-xs">
             Game moves will appear here...
@@ -61,12 +73,23 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
             const isWhiteActive = currentMoveIndex === turn.whiteIndex;
             const isBlackActive = currentMoveIndex === turn.blackIndex;
 
-            const whiteBadge = turn.white.classification
-              ? CLASSIFICATION_BADGES[turn.white.classification]
-              : null;
-            const blackBadge = turn.black?.classification
-              ? CLASSIFICATION_BADGES[turn.black.classification]
-              : null;
+            const whiteClassKey =
+              typeof turn.white.classification === 'string'
+                ? turn.white.classification
+                : (turn.white.classification as any)?.classification;
+            const blackClassKey =
+              typeof turn.black?.classification === 'string'
+                ? turn.black.classification
+                : (turn.black?.classification as any)?.classification;
+
+            const whiteBadge =
+              showClassifications && whiteClassKey
+                ? CLASSIFICATION_BADGES[whiteClassKey as keyof typeof CLASSIFICATION_BADGES]
+                : null;
+            const blackBadge =
+              showClassifications && blackClassKey
+                ? CLASSIFICATION_BADGES[blackClassKey as keyof typeof CLASSIFICATION_BADGES]
+                : null;
 
             return (
               <div
@@ -80,6 +103,7 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
 
                 {/* White Move */}
                 <button
+                  ref={isWhiteActive ? activeMoveRef : null}
                   onClick={() => onSelectMove(turn.whiteIndex)}
                   className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors ${
                     isWhiteActive
@@ -100,6 +124,7 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
                 {/* Black Move */}
                 {turn.black ? (
                   <button
+                    ref={isBlackActive ? activeMoveRef : null}
                     onClick={() => onSelectMove(turn.blackIndex)}
                     className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors ${
                       isBlackActive

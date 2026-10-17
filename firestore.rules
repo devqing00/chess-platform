@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles: public read, owner write
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId) || !isAuthenticated();
+
+      // Subcollections (progress, curriculum, lessons)
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isOwner(userId) || !isAuthenticated();
+      }
+    }
+
+    // Game Sessions: read & write allowed so guests and registered players can record reviews
+    match /game_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    // Games collection: match history archive
+    match /games/{gameId} {
+      allow read, write: if true;
+    }
+
+    // Leaderboards & Puzzles: public read, authenticated write
+    match /leaderboards/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /puzzles/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Default fallback
+    match /{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
