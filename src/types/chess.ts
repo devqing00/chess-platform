@@ -154,6 +154,9 @@ export interface BotPersonality {
   };
 }
 
+export type PuzzlePillar = 'tactics' | 'strategy' | 'endgame';
+export type PuzzleTier = 'fundamentals' | 'club' | 'advanced' | 'master';
+
 export interface TacticalPuzzle {
   id: string;
   title: string;
@@ -162,6 +165,31 @@ export interface TacticalPuzzle {
   fen: string;
   moves: string[]; // UCI or SAN sequence
   solutionDescription: string;
+  pillar?: PuzzlePillar;
+  tier?: PuzzleTier;
+  xpReward?: number;
+  coachHint?: string;
+  teachingNotes?: string;
+}
+
+export interface CounterOpeningStrategy {
+  id: string;
+  counterName: string;
+  counterMoves: string;
+  whyItWorks: string;
+  recommendedPlan: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Master';
+  winRateAdvantage: string;
+  keyPawnBreaks: string[];
+}
+
+export interface OpeningContinuationBranch {
+  id: string;
+  moveSan: string;
+  responseSan: string;
+  coachNote: string;
+  evaluation: string;
+  pitfallWarning?: string;
 }
 
 export interface OpeningInfo {
@@ -175,6 +203,10 @@ export interface OpeningInfo {
   description: string;
   variation?: string;
   keyIdeas?: string[];
+  counterOpenings?: CounterOpeningStrategy[];
+  continuationTree?: OpeningContinuationBranch[];
+  winningPlan?: string;
+  commonTraps?: string[];
 }
 
 export interface EndgameStudy {

@@ -343,7 +343,7 @@ export function analyzeUserChessDna(
       category: 'endgames',
       difficulty: 'Intermediate',
       description: `Practice active king positioning and opposition in king and pawn endings.`,
-      actionRoute: '/endgames',
+      actionRoute: '/puzzles?pillar=endgame',
       xpReward: 45,
       estimatedMinutes: 6,
       isCompleted: false,

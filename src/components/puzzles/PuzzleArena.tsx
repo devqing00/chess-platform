@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
-import { TACTICAL_PUZZLES } from '@/lib/puzzlesData';
-import { TacticalPuzzle, BoardTheme, PieceTheme } from '@/types/chess';
+import { TacticalPuzzle, BoardTheme, PieceTheme, PuzzlePillar, PuzzleTier } from '@/types/chess';
+import { PuzzleEngineService } from '@/lib/server/puzzleEngineService';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
 import { useRouter } from 'next/navigation';
@@ -17,17 +17,15 @@ import {
   Eye,
   CheckCircle2,
   XCircle,
-  TrendingUp,
-  Calendar,
-  Filter,
   Sparkles,
-  Microscope,
-  Bot,
+  Zap,
+  Target,
+  Brain,
+  Crown,
+  Layers,
+  HelpCircle,
 } from 'lucide-react';
-
 import { useAuth } from '@/context/AuthContext';
-import { FirestoreService } from '@/lib/firebase/firestoreService';
-import { LearningProgressStore } from '@/lib/learningPathData';
 import { useXpSystem } from '@/hooks/useXpSystem';
 import { XpGainToast } from '@/components/xp/XpGainToast';
 
@@ -35,6 +33,7 @@ interface PuzzleArenaProps {
   boardTheme: BoardTheme;
   pieceTheme: PieceTheme;
   initialPuzzleId?: string;
+  initialPillar?: PuzzlePillar;
   onSolve?: (puzzleId: string) => void;
 }
 
@@ -42,102 +41,81 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   boardTheme,
   pieceTheme,
   initialPuzzleId,
+  initialPillar = 'tactics',
   onSolve,
 }) => {
   const router = useRouter();
   const { user } = useAuth();
   const { awardXp, recentGain } = useXpSystem();
-  const [puzzleIndex, setPuzzleIndex] = useState(0);
 
-  // Jump to requested puzzle if initialPuzzleId passed
-  useEffect(() => {
-    if (initialPuzzleId) {
-      const idx = TACTICAL_PUZZLES.findIndex((p) => p.id === initialPuzzleId);
-      if (idx !== -1) {
-        setPuzzleIndex(idx);
-      }
-    }
-  }, [initialPuzzleId]);
-  const [rushMode, setRushMode] = useState(false);
-  const [rushTimeRemaining, setRushTimeRemaining] = useState(180); // 3 minutes
-  const [rushActive, setRushActive] = useState(false);
-  const [score, setScore] = useState(0);
-  const [strikes, setStrikes] = useState(0);
+  // Active training pillar: tactics | strategy | endgame
+  const [activePillar, setActivePillar] = useState<PuzzlePillar>(initialPillar);
+  const [selectedTier, setSelectedTier] = useState<PuzzleTier>('club');
+
+  // Master SRS puzzle state
+  const [currentPuzzle, setCurrentPuzzle] = useState<TacticalPuzzle>(() => {
+    return PuzzleEngineService.getNextPuzzle(initialPillar, 'club');
+  });
+
+  const [chess, setChess] = useState<Chess>(() => new Chess(currentPuzzle.fen));
+  const [moveStepIndex, setMoveStepIndex] = useState(0);
   const [statusMessage, setStatusMessage] = useState<'idle' | 'correct' | 'incorrect' | 'solved'>('idle');
   const [showSolution, setShowSolution] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [selectedLevel, setSelectedLevel] = useState<'all' | 'beginner' | 'club' | 'advanced' | 'master'>('all');
+  const [masteryNotice, setMasteryNotice] = useState<string | null>(null);
 
-  // Live Glicko-2 Rating & Remote Puzzle State
-  const [playerRating, setPlayerRating] = useState({ rating: 1500, rd: 350, vol: 0.06 });
-  const [ratingDelta, setRatingDelta] = useState<number | null>(null);
-  const [selectedTheme, setSelectedTheme] = useState<string>('all');
-  const [isDailyMode, setIsDailyMode] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Sync puzzle rating and streak from Firestore for authenticated users
+  // Sync initialPillar prop changes
   useEffect(() => {
-    if (!user?.uid) return;
-    FirestoreService.getUserPuzzleStats(user.uid).then((stats) => {
-      if (stats) {
-        if (typeof stats.rating === 'number') {
-          setPlayerRating((prev) => ({ ...prev, rating: stats.rating }));
-        }
-        if (typeof stats.streak === 'number') {
-          setStreak(stats.streak);
-        }
-      }
-    });
-  }, [user?.uid]);
-  const [remotePuzzle, setRemotePuzzle] = useState<TacticalPuzzle | null>(null);
-  const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
+    if (initialPillar && initialPillar !== activePillar) {
+      setActivePillar(initialPillar);
+      const nextPuz = PuzzleEngineService.getNextPuzzle(initialPillar, selectedTier);
+      setCurrentPuzzle(nextPuz);
+      setChess(new Chess(nextPuz.fen));
+      setMoveStepIndex(0);
+      setStatusMessage('idle');
+      setShowSolution(false);
+      setHintLevel(0);
+      setMasteryNotice(null);
+    }
+  }, [initialPillar, selectedTier, activePillar]);
 
-  // Filtered local puzzles based on category and level
-  const filteredLocalPuzzles = useMemo(() => {
-    return TACTICAL_PUZZLES.filter((p) => {
-      if (selectedTheme !== 'all' && !p.theme.toLowerCase().includes(selectedTheme.replace('_', ' ').toLowerCase())) {
-        return false;
-      }
-      if (selectedLevel === 'beginner') return p.rating <= 900;
-      if (selectedLevel === 'club') return p.rating > 900 && p.rating <= 1400;
-      if (selectedLevel === 'advanced') return p.rating > 1400 && p.rating <= 1800;
-      if (selectedLevel === 'master') return p.rating > 1800;
-      return true;
-    });
-  }, [selectedTheme, selectedLevel]);
-
-  // Active puzzle: fallback to static array if remote not loaded
-  const availablePool = filteredLocalPuzzles.length > 0 ? filteredLocalPuzzles : TACTICAL_PUZZLES;
-  const currentPuzzle = remotePuzzle || availablePool[puzzleIndex % availablePool.length];
-
-  // Normalized solution sequence from either remote API or local data
-  const solutionSequence: string[] = useMemo(() => {
-    const raw = (currentPuzzle as any).solutionMoves || (currentPuzzle as any).moves || [];
-    return Array.isArray(raw) ? raw : [];
+  // Solution moves parsed
+  const solutionSequence = useMemo(() => {
+    return currentPuzzle.moves || [];
   }, [currentPuzzle]);
 
-  // Chess instance for current puzzle
-  const [chess, setChess] = useState(() => new Chess(currentPuzzle.fen));
-  const [moveStepIndex, setMoveStepIndex] = useState(0);
-  const [playedMoves, setPlayedMoves] = useState<string[]>([]);
-
-  // Reset and load next puzzle
-  const handleNextPuzzle = useCallback(() => {
-    setRemotePuzzle(null);
-    setPuzzleIndex((prev) => prev + 1);
-    setHintLevel(0);
-    setShowSolution(false);
-    setStatusMessage('idle');
+  const loadPuzzle = useCallback((puz: TacticalPuzzle) => {
+    setCurrentPuzzle(puz);
+    setChess(new Chess(puz.fen));
     setMoveStepIndex(0);
-    setPlayedMoves([]);
-    setRatingDelta(null);
+    setStatusMessage('idle');
+    setShowSolution(false);
+    setHintLevel(0);
+    setMasteryNotice(null);
   }, []);
 
-  // Advance to next puzzle with Spacebar or Enter when solved
+  const handleNextPuzzle = useCallback(() => {
+    const nextPuz = PuzzleEngineService.getNextPuzzle(activePillar, selectedTier);
+    loadPuzzle(nextPuz);
+  }, [activePillar, selectedTier, loadPuzzle]);
+
+  const handlePillarChange = (newPillar: PuzzlePillar) => {
+    setActivePillar(newPillar);
+    const nextPuz = PuzzleEngineService.getNextPuzzle(newPillar, selectedTier);
+    loadPuzzle(nextPuz);
+  };
+
+  const handleTierChange = (newTier: PuzzleTier) => {
+    setSelectedTier(newTier);
+    const nextPuz = PuzzleEngineService.getNextPuzzle(activePillar, newTier);
+    loadPuzzle(nextPuz);
+  };
+
+  // Keyboard shortcut listener for spacebar to next puzzle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.code === 'Space' || e.key === 'Enter') && statusMessage === 'solved') {
+      if (e.code === 'Space' && statusMessage === 'solved') {
         e.preventDefault();
         handleNextPuzzle();
       }
@@ -146,773 +124,306 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [statusMessage, handleNextPuzzle]);
 
-  // Fetch puzzle from backend API
-  const fetchPuzzle = useCallback(async (theme: string, daily: boolean) => {
-    setIsLoadingPuzzle(true);
-    setRatingDelta(null);
+  // Execute and validate player move
+  const handleMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
+    if (statusMessage === 'solved') return;
+
     try {
-      const endpoint = daily
-        ? '/api/puzzles/daily'
-        : `/api/puzzles/random?rating=${Math.round(playerRating.rating)}${
-            theme !== 'all' ? `&theme=${theme}` : ''
-          }`;
-
-      const res = await fetch(endpoint);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.puzzle) {
-          setRemotePuzzle(json.puzzle);
-          setChess(new Chess(json.puzzle.fen));
-          setMoveStepIndex(0);
-          setPlayedMoves([]);
-          setStatusMessage('idle');
-          setShowSolution(false);
-          setHintLevel(0);
-          setIsLoadingPuzzle(false);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to fetch remote puzzle, using local fallback:', e);
-    }
-    // Fallback to local pool
-    const p = availablePool[puzzleIndex % availablePool.length];
-    setRemotePuzzle(null);
-    setChess(new Chess(p.fen));
-    setMoveStepIndex(0);
-    setPlayedMoves([]);
-    setStatusMessage('idle');
-    setShowSolution(false);
-    setHintLevel(0);
-    setIsLoadingPuzzle(false);
-  }, [playerRating.rating, puzzleIndex, availablePool]);
-
-  useEffect(() => {
-    fetchPuzzle(selectedTheme, isDailyMode);
-  }, [selectedTheme, isDailyMode, puzzleIndex, fetchPuzzle]);
-
-  // Rush mode timer
-  useEffect(() => {
-    if (!rushActive || rushTimeRemaining <= 0) return;
-    const interval = setInterval(() => {
-      setRushTimeRemaining((t) => {
-        if (t <= 1) {
-          setRushActive(false);
-          soundService.playCheckmate();
-          return 0;
-        }
-        return t - 1;
+      const copy = new Chess(chess.fen());
+      const move = copy.move({
+        from,
+        to,
+        promotion: promotion || 'q',
       });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [rushActive, rushTimeRemaining]);
+      if (!move) return;
 
-  const handleMove = async (from: Square, to: Square, promotion?: PieceSymbol) => {
-    if (statusMessage === 'solved' || statusMessage === 'incorrect') return;
-
-    try {
-      const originalFen = chess.fen();
-      const clone = new Chess(originalFen);
-      const moveResult = clone.move({ from, to, promotion: promotion || 'q' });
-      if (!moveResult) return;
-
-      const uciMove = `${from}${to}${moveResult.promotion || ''}`.toLowerCase();
-      const expected = solutionSequence[moveStepIndex] || '';
-
-      const cleanExpected = expected.toLowerCase().replace(/[+#x]/g, '');
-      const cleanSan = moveResult.san.toLowerCase().replace(/[+#x]/g, '');
+      const expectedUci = solutionSequence[moveStepIndex];
       const isExpected =
-        uciMove === expected.toLowerCase() ||
-        `${from}${to}` === expected.toLowerCase() ||
-        cleanSan === cleanExpected ||
-        moveResult.san === expected;
+        expectedUci &&
+        (move.san.toLowerCase() === expectedUci.toLowerCase() ||
+          `${move.from}${move.to}`.toLowerCase() === expectedUci.toLowerCase() ||
+          `${move.from}${move.to}${move.promotion || ''}`.toLowerCase() === expectedUci.toLowerCase());
 
-      // Update board state immediately so the piece visually moves!
-      setChess(clone);
-
-      const newPlayed = [...playedMoves, uciMove];
-      setPlayedMoves(newPlayed);
-
-      // Check if move matches puzzle solution
       if (isExpected) {
+        setChess(copy);
         soundService.playMove();
-        const nextStep = moveStepIndex + 1;
-        setMoveStepIndex(nextStep);
 
-        // Check if entire puzzle is solved
-        if (nextStep >= solutionSequence.length) {
+        const nextStepIndex = moveStepIndex + 1;
+        setMoveStepIndex(nextStepIndex);
+
+        if (nextStepIndex >= solutionSequence.length) {
+          // Fully solved!
           setStatusMessage('solved');
-          setScore((s) => s + 1);
-          if (hintLevel < 3 && !showSolution) {
-            setStreak((s) => s + 1);
-          }
-          soundService.playPuzzleSuccess();
-          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-          LearningProgressStore.completeNode(currentPuzzle.id, 25);
-          awardXp(hintLevel > 0 ? 'solve_puzzle_retry' : 'solve_puzzle_first_try', 'Tactical Puzzle Solved');
-          onSolve?.(currentPuzzle.id);
+          soundService.playGameEndWin();
+          const nextStreak = streak + 1;
+          setStreak(nextStreak);
 
-          // Submit solve to backend Glicko-2 engine
-          try {
-            const solveRes = await fetch('/api/puzzles/solve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                puzzleId: currentPuzzle.id,
-                submittedMoves: newPlayed,
-                playerRating,
-              }),
-            });
-            if (solveRes.ok) {
-              const solveData = await solveRes.json();
-              if (solveData.newRating) {
-                setPlayerRating(solveData.newRating);
-                setRatingDelta(solveData.ratingDelta);
-                if (user?.uid) {
-                  const newStreak = hintLevel < 3 && !showSolution ? streak + 1 : streak;
-                  FirestoreService.saveUserPuzzleStats(user.uid, Math.round(solveData.newRating.rating), newStreak);
-                  FirestoreService.savePuzzleAttempt(user.uid, currentPuzzle.id, true, Math.round(solveData.newRating.rating));
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Failed to submit puzzle rating update:', err);
-          }
+          // Update Leitner Spaced Repetition status
+          const result = PuzzleEngineService.recordSolveAttempt(
+            currentPuzzle.id,
+            true,
+            currentPuzzle.pillar || activePillar,
+            currentPuzzle.tier || selectedTier
+          );
 
-          if (rushActive) {
-            setTimeout(() => {
-              setPuzzleIndex((prev) => prev + 1);
-            }, 800);
-          }
-        } else {
-          // Play opponent response move automatically
-          const opponentMoveSpec = solutionSequence[nextStep];
-          setTimeout(() => {
+          // Award pure XP (No fake Elo)
+          awardXp(result.xpEarned, `${(currentPuzzle.pillar || activePillar).toUpperCase()}: ${currentPuzzle.theme}`);
+
+          if (result.graduatedToMastered) {
+            setMasteryNotice('🎓 Graduated to Mastered! Retiring from active rotation.');
             try {
-              const oppClone = new Chess(clone.fen());
-              let oppMove = null;
-              if (opponentMoveSpec.length >= 4 && /^[a-h][1-8][a-h][1-8]/.test(opponentMoveSpec)) {
-                oppMove = oppClone.move({
-                  from: opponentMoveSpec.slice(0, 2) as Square,
-                  to: opponentMoveSpec.slice(2, 4) as Square,
-                  promotion: opponentMoveSpec.length > 4 ? (opponentMoveSpec[4] as PieceSymbol) : undefined,
-                });
-              } else {
-                oppMove = oppClone.move(opponentMoveSpec);
-              }
+              confetti({ particleCount: 60, spread: 70, origin: { y: 0.65 } });
+            } catch {}
+          }
 
-              if (oppMove) {
-                soundService.playCapture();
-                setMoveStepIndex(nextStep + 1);
-                setPlayedMoves((prev) => [...prev, opponentMoveSpec]);
-                setChess(oppClone);
+          if (onSolve) onSolve(currentPuzzle.id);
+        } else {
+          // Opponent response in continuation
+          setStatusMessage('correct');
+          setTimeout(() => {
+            const oppUci = solutionSequence[nextStepIndex];
+            if (oppUci) {
+              const oppCopy = new Chess(copy.fen());
+              let oppMove = null;
+              if (oppUci.length >= 4) {
+                const oppFrom = oppUci.slice(0, 2) as Square;
+                const oppTo = oppUci.slice(2, 4) as Square;
+                const oppProm = (oppUci[4] as PieceSymbol) || undefined;
+                oppMove = oppCopy.move({ from: oppFrom, to: oppTo, promotion: oppProm });
               }
-            } catch (err) {
-              console.error('Error applying opponent puzzle move:', err);
+              if (!oppMove) {
+                oppMove = oppCopy.move(oppUci);
+              }
+              if (oppMove) {
+                setChess(oppCopy);
+                setMoveStepIndex(nextStepIndex + 1);
+                soundService.playMove();
+              }
             }
           }, 450);
         }
       } else {
-        // Blunder/Mistake in puzzle: play fail sound & revert after brief pause
-        soundService.playPuzzleFail();
+        // Incorrect move attempt: reset consecutive SRS progress
+        soundService.playGameEndLoss();
         setStatusMessage('incorrect');
         setStreak(0);
 
+        PuzzleEngineService.recordSolveAttempt(
+          currentPuzzle.id,
+          false,
+          currentPuzzle.pillar || activePillar,
+          currentPuzzle.tier || selectedTier
+        );
+
         setTimeout(() => {
-          setChess(new Chess(originalFen));
+          setChess(new Chess(currentPuzzle.fen));
+          setMoveStepIndex(0);
           setStatusMessage('idle');
-        }, 850);
-
-        // Submit failure to Glicko-2 engine if not in rush mode
-        if (!rushActive) {
-          try {
-            const solveRes = await fetch('/api/puzzles/solve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                puzzleId: currentPuzzle.id,
-                submittedMoves: ['fail'],
-                playerRating,
-              }),
-            });
-            if (solveRes.ok) {
-              const solveData = await solveRes.json();
-              if (solveData.newRating) {
-                setPlayerRating(solveData.newRating);
-                setRatingDelta(solveData.ratingDelta);
-                if (user?.uid) {
-                  FirestoreService.saveUserPuzzleStats(user.uid, Math.round(solveData.newRating.rating), 0);
-                  FirestoreService.savePuzzleAttempt(user.uid, currentPuzzle.id, false, Math.round(solveData.newRating.rating));
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Failed to submit puzzle failure update:', err);
-          }
-        }
-
-        if (rushActive) {
-          const nextStrikes = strikes + 1;
-          setStrikes(nextStrikes);
-          if (nextStrikes >= 3) {
-            setRushActive(false);
-            soundService.playGameEndLoss();
-          }
-        }
+        }, 1200);
       }
     } catch {
-      // Invalid move attempt
+      // Invalid chess.js move attempt ignored
     }
+  };
+
+  const handleReset = () => {
+    setChess(new Chess(currentPuzzle.fen));
+    setMoveStepIndex(0);
+    setStatusMessage('idle');
+    setShowSolution(false);
   };
 
   const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 lg:gap-8 items-center lg:items-start justify-center p-1 sm:p-4 select-none">
-      {/* Tactical Board Column - Bound cleanly by screen height & width, scaled on tablet */}
-      <div className="w-full max-w-[min(100vw-2rem,_560px)] lg:max-w-[460px] xl:max-w-[500px] 2xl:max-w-[540px] shrink-0 flex flex-col items-center gap-2.5 sm:gap-3 mx-auto lg:mx-0">
-        {/* Priority Tactical Directive Banner - Unmistakable Visual Guidance */}
-        <div
-          className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl border-2 flex items-center justify-between gap-2.5 sm:gap-3 shadow-[0_4px_0_0_#141311] transition-all duration-200 ${
-            statusMessage === 'solved'
-              ? 'bg-[#182c14] border-[#58cc02] text-white shadow-[0_4px_0_0_#2b7300]'
-              : statusMessage === 'incorrect'
-              ? 'bg-[#2f1418] border-rose-500 text-white shadow-[0_4px_0_0_#881337]'
-              : 'bg-[#1f1d1a] border-[#35322b] text-white'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <span
-              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 shrink-0 ${
-                puzzleTurn === 'w'
-                  ? 'bg-white border-zinc-400'
-                  : 'bg-zinc-950 border-zinc-600'
-              }`}
-            />
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-black uppercase tracking-wider text-white truncate flex items-center gap-1.5">
-                {statusMessage === 'solved' ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-[#58cc02] shrink-0" />
-                    <span>Puzzle Solved! +15 XP</span>
-                  </>
-                ) : statusMessage === 'incorrect' ? (
-                  <>
-                    <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                    <span>Wrong Move &bull; Try Another</span>
-                  </>
-                ) : (
-                  <span>{puzzleTurn === 'w' ? 'White to Move' : 'Black to Move'}</span>
-                )}
-              </span>
-              <span className="text-[10px] sm:text-[11px] text-zinc-300 font-medium truncate">
-                {statusMessage === 'solved'
-                  ? 'Spacebar or Continue for next puzzle'
-                  : statusMessage === 'incorrect'
-                  ? 'Board reverted to initial position'
-                  : `Find the winning tactic (${Math.min(moveStepIndex + 1, Math.ceil(solutionSequence.length / 2))} of ${Math.max(1, Math.ceil(solutionSequence.length / 2))})`}
-              </span>
-            </div>
-          </div>
+    <div className="w-full h-full min-h-0 flex flex-col justify-between gap-3 select-none text-zinc-100">
+      {recentGain && <XpGainToast gain={recentGain} />}
 
-          {statusMessage === 'solved' ? (
-            <button
-              onClick={handleNextPuzzle}
-              className="px-3.5 sm:px-4 py-1.5 rounded-xl bg-[#58cc02] hover:bg-[#4cad02] border-2 border-[#3da300] text-white text-xs font-black uppercase tracking-wider shadow-[0_3px_0_0_#2b7300] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-            >
-              <span>Next</span>
-              <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-1 font-mono text-xs text-zinc-400 shrink-0">
-              <span className="text-zinc-500 font-bold text-[10px] sm:text-xs">ELO</span>
-              <strong className="text-[#81b64c] text-xs sm:text-sm">{currentPuzzle.rating}</strong>
-            </div>
-          )}
-        </div>
-
-        {/* Board */}
-        <div className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-[#332f28] shadow-[0_6px_0_0_#141311]">
-          <ChessBoard
-            chess={chess}
-            orientation={puzzleTurn}
-            boardTheme={boardTheme}
-            pieceTheme={pieceTheme}
-            onMove={handleMove}
-            disabled={statusMessage === 'solved'}
-          />
-        </div>
-
-        {/* Tactical Info Bar */}
-        <div className="w-full bg-[#1a1815] border-2 border-[#2b2824] rounded-2xl px-3 sm:px-3.5 py-2 flex items-center justify-between text-xs shadow-[0_2px_0_0_#141311]">
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 font-black uppercase text-[10px] tracking-wider">Motif:</span>
-            <span className="font-black text-white text-[11px] capitalize">
-              {currentPuzzle.theme ? currentPuzzle.theme.replace(/_/g, ' ') : 'Tactical Sequence'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 font-mono text-[10px] sm:text-[11px] text-zinc-400">
-            <span>Puzzle #{currentPuzzle.id}</span>
-          </div>
-        </div>
-
-        {/* Quick Tactical Action Ribbon (Immediate under-board actions on mobile) */}
-        <div className="w-full flex lg:hidden items-center justify-between gap-1.5 p-1.5 bg-[#1a1815] border-2 border-[#2b2824] rounded-2xl shadow-[0_2px_0_0_#141311]">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                setChess(new Chess(currentPuzzle.fen));
-                setMoveStepIndex(0);
-                setPlayedMoves([]);
-                setStatusMessage('idle');
-              }}
-              className="px-2.5 py-1.5 rounded-xl bg-[#262420] text-zinc-300 text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#35322b] shadow-sm active:translate-y-[1px] cursor-pointer"
-              title="Reset"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset</span>
-            </button>
-            <button
-              onClick={() => setHintLevel((lvl) => (lvl >= 3 ? 0 : lvl + 1))}
-              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all cursor-pointer ${
-                hintLevel > 0
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                  : 'bg-[#262420] text-zinc-300 border-[#35322b] shadow-sm'
-              }`}
-              title="Hint"
-            >
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>{hintLevel > 0 ? `Hint ${hintLevel}/3` : 'Hint'}</span>
-            </button>
-            <button
-              onClick={() => setShowSolution((prev) => !prev)}
-              className="px-2.5 py-1.5 rounded-xl bg-[#262420] text-zinc-300 text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#35322b] shadow-sm cursor-pointer"
-              title="Solution"
-            >
-              <Eye className="w-3 h-3 text-zinc-400" />
-              <span>{showSolution ? 'Hide' : 'Sol'}</span>
-            </button>
-          </div>
+      {/* TOP PILLAR & TIER CONTROLLER (Tactics | Strategy | Endgames) */}
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mr-1">
+            Mastery Pillar:
+          </span>
           <button
-            onClick={handleNextPuzzle}
-            className="px-3.5 py-1.5 rounded-xl bg-[#81b64c] text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#4d7a24] shadow-sm active:translate-y-[1px] cursor-pointer"
+            onClick={() => handlePillarChange('tactics')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+              activePillar === 'tactics'
+                ? 'bg-[#81b64c] text-black shadow-sm font-black'
+                : 'bg-white/5 text-zinc-400 hover:text-white'
+            }`}
           >
-            <span>Next</span>
-            <ArrowRight className="w-3 h-3" />
+            <Target className="w-3.5 h-3.5" />
+            <span>Tactics</span>
+          </button>
+
+          <button
+            onClick={() => handlePillarChange('strategy')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+              activePillar === 'strategy'
+                ? 'bg-amber-600 text-white shadow-sm font-black'
+                : 'bg-white/5 text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5" />
+            <span>Strategy</span>
+          </button>
+
+          <button
+            onClick={() => handlePillarChange('endgame')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+              activePillar === 'endgame'
+                ? 'bg-purple-600 text-white shadow-sm font-black'
+                : 'bg-white/5 text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5" />
+            <span>Endgames</span>
           </button>
         </div>
-      </div>
 
-      {/* Control Hub & Tactical Rating Sidebar */}
-      <div className="w-full max-w-[min(100vw-2rem,_560px)] lg:w-[360px] xl:w-[380px] shrink-0 min-w-0 flex flex-col gap-3.5 sm:gap-4 mx-auto lg:mx-0">
-        {/* Rating & Mode Header Card */}
-        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-3.5 shadow-[0_6px_0_0_#141311] overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center shrink-0 shadow-[0_2px_0_0_#4d7a24]">
-                <Award className="w-5 h-5 text-[#81b64c]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                  Tactical Rating
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black text-white font-mono leading-none">
-                    {Math.round(playerRating.rating)}
-                  </span>
-                  {ratingDelta !== null && (
-                    <span
-                      className={`text-xs font-mono font-black px-2.5 py-0.5 rounded-xl border-2 ${
-                        ratingDelta >= 0
-                          ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]/50'
-                          : 'bg-rose-500/20 text-rose-400 border-rose-500/50'
-                      }`}
-                    >
-                      {ratingDelta >= 0 ? `+${ratingDelta}` : ratingDelta}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Smart Streak Badge */}
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#f59e0b]/15 border-2 border-[#f59e0b] text-amber-300 shadow-[0_2px_0_0_#92400e] shrink-0"
-              title={`Current puzzle streak: ${streak}`}
-            >
-              <Flame className="w-4 h-4 text-amber-400 fill-amber-400/20 shrink-0" />
-              <span className="text-sm font-mono font-black">{streak}</span>
-              <span className="text-[10px] uppercase font-black tracking-wider text-amber-300">streak</span>
-            </div>
+        {/* Tier Range Selector & Streak Badge */}
+        <div className="flex items-center gap-2 self-end sm:self-center">
+          <div className="flex items-center gap-1 bg-[#141311] p-1 rounded-xl border border-white/5">
+            {(['fundamentals', 'club', 'advanced', 'master'] as PuzzleTier[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => handleTierChange(t)}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                  selectedTier === t
+                    ? 'bg-white/20 text-white'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {t.slice(0, 4)}
+              </button>
+            ))}
           </div>
 
-          {/* Mode Toggle Tabs Container - Uniform balanced p-1.5 padding without excessive bottom void */}
-          <div className="grid grid-cols-3 gap-1.5 bg-[#141311] p-1.5 rounded-2xl border-2 border-[#2b2824] w-full shadow-[0_2px_0_0_#0f0e0c]">
-            <button
-              onClick={() => {
-                setIsDailyMode(false);
-                setRushMode(false);
-              }}
-              className={`py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer border-2 ${
-                !isDailyMode && !rushMode
-                  ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none'
-                  : 'text-zinc-400 hover:text-white border-transparent'
-              }`}
-            >
-              Rated
-            </button>
-            <button
-              onClick={() => {
-                setIsDailyMode(true);
-                setRushMode(false);
-              }}
-              className={`py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer flex items-center justify-center gap-1.5 border-2 ${
-                isDailyMode
-                  ? 'bg-amber-500 text-white border-amber-700 shadow-[0_2px_0_0_#b45309] active:translate-y-[1px] active:shadow-none'
-                  : 'text-zinc-400 hover:text-white border-transparent'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>Daily</span>
-            </button>
-            <button
-              onClick={() => {
-                setRushMode(true);
-                setIsDailyMode(false);
-                setRushActive(true);
-                setRushTimeRemaining(180);
-                setScore(0);
-                setStrikes(0);
-              }}
-              className={`py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer flex items-center justify-center gap-1.5 border-2 ${
-                rushMode
-                  ? 'bg-orange-500 text-white border-orange-700 shadow-[0_2px_0_0_#c2410c] active:translate-y-[1px] active:shadow-none'
-                  : 'text-zinc-400 hover:text-white border-transparent'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 shrink-0" />
-              <span>Rush</span>
-            </button>
-          </div>
-
-          {/* Collapsible Filter Bar Toggle */}
-          <div className="pt-2 border-t-2 border-[#2b2824] flex items-center justify-between">
-            <button
-              onClick={() => setShowFilters((prev) => !prev)}
-              className="flex items-center gap-1.5 text-xs font-black text-zinc-300 hover:text-white transition cursor-pointer"
-            >
-              <Filter className="w-3.5 h-3.5 text-[#81b64c]" />
-              <span>
-                Filters:{' '}
-                <span className="text-white capitalize">
-                  {selectedLevel === 'all' ? 'All ELO' : `${selectedLevel}`} &bull;{' '}
-                  {selectedTheme === 'all' ? 'Any Motif' : selectedTheme.replace('_', ' ')}
-                </span>
-              </span>
-            </button>
-            <button
-              onClick={() => setShowFilters((prev) => !prev)}
-              className="text-[10px] font-mono text-zinc-400 hover:text-white cursor-pointer px-2 py-0.5 rounded-md bg-[#161512] border border-[#2b2824]"
-            >
-              {showFilters ? 'Hide ▲' : 'Edit ▼'}
-            </button>
-          </div>
-
-          {/* Level & Motif Filters (Collapsible to eliminate screen bloat) */}
-          {showFilters && (
-            <div className="flex flex-col gap-2.5 pt-2 border-t border-[#2b2824] animate-in fade-in slide-in-from-top-1">
-              {/* Level Filter Bar */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                  Difficulty Level
-                </span>
-                <div className="grid grid-cols-5 gap-1 w-full">
-                  {(['all', 'beginner', 'club', 'advanced', 'master'] as const).map((lvl) => (
-                    <button
-                      key={lvl}
-                      onClick={() => {
-                        setSelectedLevel(lvl);
-                        handleNextPuzzle();
-                      }}
-                      className={`py-1 px-0.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer border-2 truncate ${
-                        selectedLevel === lvl
-                          ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
-                          : 'bg-[#161512] text-zinc-400 border-[#272522] hover:text-white'
-                      }`}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tactical Motif Filters (Rated Mode) */}
-              {!rushMode && !isDailyMode && (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                    Tactical Motif
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      { id: 'all', label: 'Any' },
-                      { id: 'fork', label: 'Fork' },
-                      { id: 'pin', label: 'Pin' },
-                      { id: 'skewer', label: 'Skewer' },
-                      { id: 'mate', label: 'Mate' },
-                      { id: 'back_rank', label: 'Back Rank' },
-                    ].map((th) => (
-                      <button
-                        key={th.id}
-                        onClick={() => setSelectedTheme(th.id)}
-                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer border-2 ${
-                          selectedTheme === th.id
-                            ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]'
-                            : 'bg-[#161512] text-zinc-400 border-[#272522] hover:text-zinc-200'
-                        }`}
-                      >
-                        {th.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {streak > 0 && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold">
+              <Flame className="w-3.5 h-3.5 fill-amber-400" />
+              <span>{streak}x</span>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Rush Mode Status Header */}
-        {rushMode && (
-          <div className="p-3 sm:p-3.5 bg-orange-500/10 border-2 border-orange-500/30 rounded-2xl flex items-center justify-between text-xs shadow-[0_3px_0_0_#7c2d12]">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-orange-400" />
-              <span className="font-mono font-black text-white text-base">
-                {Math.floor(rushTimeRemaining / 60)}:
-                {rushTimeRemaining % 60 < 10 ? '0' : ''}
-                {rushTimeRemaining % 60}
+      {/* MAIN VIEWPORT DUAL-PANE ARENA */}
+      <div className="flex-1 w-full min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+        {/* Left (7 Cols): Tactical Board */}
+        <div className="lg:col-span-7 h-full flex flex-col items-center justify-center min-h-0">
+          <div className="h-full max-h-[460px] aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative bg-[#1c1a17]">
+            <ChessBoard
+              chess={chess}
+              orientation={puzzleTurn}
+              boardTheme={boardTheme}
+              pieceTheme={pieceTheme}
+              onMove={handleMove}
+              disabled={statusMessage === 'solved'}
+            />
+
+            {/* In-Board Status Overlay */}
+            {statusMessage === 'solved' && (
+              <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-sm animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                <span>Solved! +{currentPuzzle.xpReward || 25} XP</span>
+              </div>
+            )}
+            {statusMessage === 'incorrect' && (
+              <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-rose-500/90 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-sm animate-in fade-in">
+                <XCircle className="w-4 h-4" />
+                <span>Incorrect Move</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right (5 Cols): Smart Teaching, Danny Coach Insight & Single P1 Anchor */}
+        <div className="lg:col-span-5 h-full max-h-[460px] p-5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
+          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#81b64c] flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" />
+                <span>Theme: {currentPuzzle.theme}</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/5 text-zinc-300">
+                {(currentPuzzle.tier || selectedTier).toUpperCase()}
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="font-mono font-black text-[#81b64c] text-sm">Score: {score}</span>
-              <div className="flex gap-1.5">
-                {[0, 1, 2].map((s) => (
-                  <span key={s} className={s < strikes ? 'text-red-500 font-black' : 'text-zinc-700'}>
-                    ✕
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Puzzle Card & Details */}
-        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-3.5 shadow-[0_6px_0_0_#141311] overflow-hidden">
-          <div className="flex items-center justify-between min-h-[24px]">
-            <span className="text-sm font-black text-white">
-              {currentPuzzle.title?.trim() || 'Find the Winning Move'}
-            </span>
-            {currentPuzzle.theme && currentPuzzle.theme.trim().length > 0 ? (
-              <span className="text-[10px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-300 px-3 py-1 rounded-xl border-2 border-blue-500/40 shadow-[0_2px_0_0_#141311]">
-                {currentPuzzle.theme.replace(/_/g, ' ')}
-              </span>
-            ) : null}
-          </div>
-
-          <p className="text-xs text-zinc-300 leading-relaxed font-medium">
-            Find the best continuation for{' '}
-            <strong className="text-white font-black">
-              {puzzleTurn === 'w' ? 'White' : 'Black'}
-            </strong>
-            . Look for forcing checks, tactical pins, double attacks, and mating nets.
-          </p>
-
-          {/* Feedback Badges */}
-          {statusMessage === 'solved' && (
-            <div className="p-3.5 bg-emerald-500/15 border-2 border-emerald-500/40 rounded-2xl flex items-center gap-2.5 text-emerald-300 text-xs font-black animate-in fade-in shadow-[0_3px_0_0_#064e3b]">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Brilliant! Tactical continuation verified! (+15 XP)</span>
-            </div>
-          )}
-
-          {statusMessage === 'incorrect' && (
-            <div className="p-3.5 bg-rose-500/15 border-2 border-rose-500/40 rounded-2xl flex items-center gap-2.5 text-rose-300 text-xs font-black animate-in fade-in shadow-[0_3px_0_0_#4c0519]">
-              <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>Incorrect move. That lets the opponent escape or loses material!</span>
-            </div>
-          )}
-
-          {/* Progressive Hint Display */}
-          {hintLevel > 0 && (
-            <div className="p-3.5 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl text-xs text-amber-200 flex flex-col gap-1.5 shadow-[0_2px_0_0_#78350f]">
-              <div className="flex items-center gap-1.5 font-black text-amber-400 uppercase tracking-wider text-[11px]">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Tactical Hint ({hintLevel}/3):</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-zinc-300 font-medium">
-                {hintLevel === 1 && (
-                  <>
-                    Notice the piece alignment and unprotected units. Consider moving your{' '}
-                    <strong className="text-white font-bold">
-                      {solutionSequence[0]?.slice(0, 2) ? 'tactical piece' : 'active piece'}
-                    </strong>
-                    .
-                  </>
-                )}
-                {hintLevel === 2 && (
-                  <>
-                    Look specifically at the square{' '}
-                    <strong className="text-amber-300 font-mono font-bold">
-                      {solutionSequence[0]?.length >= 4
-                        ? solutionSequence[0].slice(2, 4)
-                        : solutionSequence[0]}
-                    </strong>
-                    . Is there a forcing tempo or check?
-                  </>
-                )}
-                {hintLevel === 3 && (
-                  <>
-                    The winning first move is{' '}
-                    <strong className="text-[#81b64c] font-mono font-bold">
-                      {solutionSequence[0]}
-                    </strong>
-                    ! Execute it to continue the attack.
-                  </>
-                )}
+            <div>
+              <h3 className="text-base font-extrabold text-white">{currentPuzzle.title}</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {puzzleTurn === 'w' ? '⚪ White to move' : '⚫ Black to move'} &bull; Find the winning continuation.
               </p>
             </div>
-          )}
 
-          {/* Solution Breakdown */}
-          {showSolution && (
-            <div className="p-3.5 bg-[#161512] rounded-2xl border-2 border-[#2b2824] text-xs text-zinc-300 leading-relaxed font-sans shadow-inner">
-              <strong className="text-[#81b64c] block mb-1 font-black uppercase tracking-wider text-[11px]">Solution Breakdown:</strong>
-              {currentPuzzle.solutionDescription}
-              <div className="mt-2 text-[11px] font-mono font-bold text-zinc-400">
-                Moves: {solutionSequence.join(' → ')}
+            {/* Coach Danny Rensch Commentary */}
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-relaxed font-medium">
+              <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Coach Danny Rensch</span>
               </div>
+              <p>
+                {statusMessage === 'solved'
+                  ? currentPuzzle.teachingNotes || currentPuzzle.solutionDescription
+                  : hintLevel > 0
+                  ? currentPuzzle.coachHint || 'Identify undefended pieces and potential pins.'
+                  : 'Look for tactical weaknesses, overworked defenders, and king exposure.'}
+              </p>
             </div>
-          )}
 
-          {/* Action Buttons - Priority Visual Hierarchy */}
-          {statusMessage === 'solved' ? (
-            <div className="pt-3 border-t-2 border-[#2d2a26] flex flex-col gap-2.5">
+            {/* Spaced Repetition Mastery Notice */}
+            {masteryNotice && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                <Award className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{masteryNotice}</span>
+              </div>
+            )}
+
+            {/* Helper Controls: Reset & Hint */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={handleReset}
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+
+              <button
+                onClick={() => setHintLevel((prev) => prev + 1)}
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Hint</span>
+              </button>
+            </div>
+          </div>
+
+          {/* P1 PRIMARY ACTION ANCHOR - EXACTLY ONE PER SCREEN */}
+          <div className="pt-2 border-t border-white/5 shrink-0">
+            {statusMessage === 'solved' ? (
               <button
                 onClick={handleNextPuzzle}
-                className="w-full py-3.5 px-6 rounded-2xl bg-[#58cc02] hover:bg-[#4bad02] text-white text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 border-2 border-[#3da300] shadow-[0_5px_0_0_#2b7300] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
+                className="w-full py-3.5 px-5 rounded-xl bg-[#81b64c] hover:bg-[#92cb56] text-black font-black text-xs sm:text-sm tracking-tight shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <span>Continue to Next Puzzle</span>
+                <span>Next Challenge (Spacebar)</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
               </button>
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  onClick={() => {
-                    setChess(new Chess(currentPuzzle.fen));
-                    setMoveStepIndex(0);
-                    setPlayedMoves([]);
-                    setStatusMessage('idle');
-                  }}
-                  className="px-4 py-2 rounded-xl bg-[#262420] hover:bg-[#2d2a26] text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Try Again</span>
-                </button>
-                <button
-                  onClick={() => setShowSolution((prev) => !prev)}
-                  className="px-4 py-2 rounded-xl bg-[#262420] hover:bg-[#2d2a26] text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>{showSolution ? 'Hide Analysis' : 'Show Analysis'}</span>
-                </button>
-
-                <button
-                  onClick={() => router.push(`/analysis?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
-                  className="px-3.5 py-2 rounded-xl bg-[#201e1a] hover:bg-[#2a2722] text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-cyan-500/30 hover:border-cyan-500 shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
-                  title="Deep calculate this puzzle in Analysis Studio"
-                >
-                  <Microscope className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Studio</span>
-                </button>
-
-                <button
-                  onClick={() => router.push(`/bots?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
-                  className="px-3.5 py-2 rounded-xl bg-[#201e1a] hover:bg-[#2a2722] text-amber-300 hover:text-white text-xs font-bold flex items-center gap-1.5 border-2 border-amber-500/40 hover:border-amber-500 shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
-                  title="Practice converting this winning tactical position against a Bot"
-                >
-                  <Bot className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Spar Bot</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t-2 border-[#2d2a26]">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  onClick={() => {
-                    setChess(new Chess(currentPuzzle.fen));
-                    setMoveStepIndex(0);
-                    setPlayedMoves([]);
-                    setStatusMessage('idle');
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-
-                <button
-                  onClick={() => setHintLevel((lvl) => (lvl >= 3 ? 0 : lvl + 1))}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 transition-all cursor-pointer ${
-                    hintLevel > 0
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_2px_0_0_#92400e]'
-                      : 'bg-[#262420] hover:bg-[#2e2a25] text-zinc-300 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{hintLevel > 0 ? `Hint ${hintLevel}/3` : 'Hint'}</span>
-                </button>
-
-                <button
-                  onClick={() => setShowSolution((prev) => !prev)}
-                  className="px-3.5 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>{showSolution ? 'Hide' : 'Solution'}</span>
-                </button>
-
-                <button
-                  onClick={() => router.push(`/analysis?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
-                  className="px-3 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-cyan-300 text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-cyan-500/30 hover:border-cyan-500 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                  title="Deep calculate this puzzle in Analysis Studio"
-                >
-                  <Microscope className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="hidden sm:inline">Studio</span>
-                </button>
-
-                <button
-                  onClick={() => router.push(`/bots?fen=${encodeURIComponent(currentPuzzle.fen)}`)}
-                  className="px-3 py-2 rounded-xl bg-[#262420] hover:bg-[#2e2a25] text-amber-300 text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-amber-500/30 hover:border-amber-500 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-                  title="Practice converting this position against a Bot"
-                >
-                  <Bot className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Spar Bot</span>
-                </button>
-              </div>
-
+            ) : (
               <button
                 onClick={handleNextPuzzle}
-                className="px-5 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#5c8a32] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <span>Next</span>
+                <span>Skip to Next Due Puzzle</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Tactile XP Gain Toast */}
-      <XpGainToast gain={recentGain} />
     </div>
   );
 };

@@ -128,13 +128,13 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
     },
     {
       id: 'endgames',
-      label: 'Endgame Study',
-      sublabel: 'Winning final positions',
+      label: 'Endgame Mastery',
+      sublabel: 'Tablebase precision & bridges',
       icon: Award,
-      href: '/endgames',
+      href: '/puzzles?pillar=endgame',
       color: 'rose',
       diagonal: 'br',
-      badge: 'Practice',
+      badge: 'SRS Mastery',
     },
     {
       id: 'players',
