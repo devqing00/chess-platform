@@ -751,7 +751,7 @@ export default function AnalysisPage() {
         <div className={`flex-1 flex flex-col items-center justify-start lg:justify-center p-1 sm:p-4 bg-[#161512] relative overflow-hidden shrink-0 ${mobileView === 'lines' ? 'hidden lg:flex' : 'flex'}`}>
           <div className="flex items-center gap-2 max-w-full justify-center">
             <EvalBar score={currentEvalScore} orientation={orientation} />
-            <div className="w-[min(100vw,calc(100dvh-175px),540px)] aspect-square">
+            <div className="w-[min(calc(100vw-3.25rem),calc(100dvh-220px),520px)] aspect-square">
               <ChessBoard
                 chess={chess}
                 orientation={orientation}
@@ -767,7 +767,7 @@ export default function AnalysisPage() {
           {/* Opponent Threat Alert Banner */}
           {threatInfo && (
             <div
-              className={`mt-3 w-full max-w-[560px] p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
+              className={`mt-3 w-full max-w-[520px] p-2.5 sm:p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
                 threatInfo.severity === 'critical'
                   ? 'bg-rose-950/40 border-rose-600/50 text-rose-200'
                   : threatInfo.severity === 'moderate'
@@ -802,101 +802,105 @@ export default function AnalysisPage() {
             </div>
           )}
 
-          {/* Under-Board Toolbar */}
-          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 sm:mt-4 bg-[#211f1c] px-3 sm:px-4 py-2 rounded-2xl sm:rounded-full border-2 border-[#332f2b] shadow-[0_3px_0_0_#141311] max-w-full">
-            <button
-              onClick={() => jumpToMove(0)}
-              disabled={historyIndex === 0}
-              className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-full hover:bg-[#2c2925] transition-colors"
-              title="First Move (Up Arrow)"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => jumpToMove(historyIndex - 1)}
-              disabled={historyIndex === 0}
-              className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-full hover:bg-[#2c2925] transition-colors"
-              title="Previous Move (Left Arrow)"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-mono font-black text-zinc-200 px-2 uppercase">
-              Move {historyIndex === 0 ? 'Start' : Math.ceil(historyIndex / 2)} ({historyIndex}/{historyFens.length - 1})
-            </span>
-            <button
-              onClick={() => jumpToMove(historyIndex + 1)}
-              disabled={historyIndex >= historyFens.length - 1}
-              className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-full hover:bg-[#2c2925] transition-colors"
-              title="Next Move (Right Arrow)"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => jumpToMove(historyFens.length - 1)}
-              disabled={historyIndex >= historyFens.length - 1}
-              className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-full hover:bg-[#2c2925] transition-colors"
-              title="Last Move (Down Arrow)"
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </button>
+          {/* Under-Board Toolbar (Mobile 2-row clean stack, Tablet/Desktop single pill) */}
+          <div className="w-full max-w-[520px] mt-2.5 sm:mt-3 flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 bg-[#211f1c] p-1.5 sm:px-4 sm:py-2 rounded-2xl sm:rounded-full border-2 border-[#332f2b] shadow-[0_3px_0_0_#141311]">
+            {/* Move Navigation Cluster */}
+            <div className="flex items-center justify-center gap-1 w-full sm:w-auto">
+              <button
+                onClick={() => jumpToMove(0)}
+                disabled={historyIndex === 0}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="First Move"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => jumpToMove(historyIndex - 1)}
+                disabled={historyIndex === 0}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="Previous Move"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-[11px] sm:text-xs font-mono font-black text-zinc-200 px-2 uppercase text-center min-w-[120px]">
+                {historyIndex === 0 ? 'Start' : `Move ${Math.ceil(historyIndex / 2)}`} ({historyIndex}/{historyFens.length - 1})
+              </span>
+              <button
+                onClick={() => jumpToMove(historyIndex + 1)}
+                disabled={historyIndex >= historyFens.length - 1}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="Next Move"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => jumpToMove(historyFens.length - 1)}
+                disabled={historyIndex >= historyFens.length - 1}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="Last Move"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </div>
 
-            <div className="h-4 w-[1px] bg-[#332f2b] mx-1" />
+            <div className="hidden sm:block h-4 w-[1px] bg-[#332f2b] mx-0.5" />
 
-            {/* Best Move Arrow Toggle */}
-            <button
-              onClick={() => setShowBestMoveArrow(!showBestMoveArrow)}
-              className={`p-2 rounded-full cursor-pointer transition-colors ${
-                showBestMoveArrow
-                  ? 'text-[#81b64c] bg-[#81b64c]/15'
-                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#2c2925]'
-              }`}
-              title={showBestMoveArrow ? 'Hide Engine Best Move Arrow' : 'Show Engine Best Move Arrow'}
-            >
-              {showBestMoveArrow ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            </button>
+            {/* Analysis Tools Cluster */}
+            <div className="flex items-center justify-center gap-1 sm:gap-1.5 w-full sm:w-auto pt-1 sm:pt-0 border-t border-[#2d2a25] sm:border-t-0">
+              {/* Best Move Arrow Toggle */}
+              <button
+                onClick={() => setShowBestMoveArrow(!showBestMoveArrow)}
+                className={`p-1.5 sm:p-2 rounded-xl sm:rounded-full cursor-pointer transition-colors ${
+                  showBestMoveArrow
+                    ? 'text-[#81b64c] bg-[#81b64c]/15'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#2c2925]'
+                }`}
+                title={showBestMoveArrow ? 'Hide Engine Best Move Arrow' : 'Show Engine Best Move Arrow'}
+              >
+                {showBestMoveArrow ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
 
-            {/* Threat Detection Button */}
-            <button
-              onClick={handleDetectThreat}
-              disabled={isDetectingThreat}
-              className={`px-3 py-1 rounded-full cursor-pointer transition-all flex items-center gap-1.5 text-xs font-black uppercase tracking-wider border-2 ${
-                threatInfo
-                  ? 'bg-rose-500/20 text-rose-300 border-rose-500 shadow-[0_2px_0_0_#881337]'
-                  : 'bg-[#282622] text-zinc-300 border-[#383530] hover:text-white shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none'
-              }`}
-              title="Analyze opponent tactical threats using Null-Move search"
-            >
-              {isDetectingThreat ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-              ) : (
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              )}
-              <span>Threats</span>
-            </button>
+              {/* Threat Detection Button */}
+              <button
+                onClick={handleDetectThreat}
+                disabled={isDetectingThreat}
+                className={`px-2.5 sm:px-3 py-1 rounded-full cursor-pointer transition-all flex items-center gap-1 text-[11px] sm:text-xs font-black uppercase tracking-wider border-2 ${
+                  threatInfo
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500 shadow-[0_2px_0_0_#881337]'
+                    : 'bg-[#282622] text-zinc-300 border-[#383530] hover:text-white shadow-[0_2px_0_0_#141311] active:translate-y-[1px]'
+                }`}
+                title="Analyze opponent tactical threats using Null-Move search"
+              >
+                {isDetectingThreat ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                ) : (
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                )}
+                <span>Threats</span>
+              </button>
 
-            <div className="h-4 w-[1px] bg-[#332f2b] mx-1" />
-
-            <button
-              onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}
-              className="p-2 text-zinc-400 hover:text-white cursor-pointer rounded-full hover:bg-[#2c2925] transition-colors"
-              title="Flip Board"
-            >
-              <ArrowUpDown className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleReset}
-              className="p-2 text-zinc-400 hover:text-white cursor-pointer rounded-full hover:bg-[#2c2925] transition-colors"
-              title="Reset Board"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleCopyFen}
-              className="p-2 text-zinc-400 hover:text-white cursor-pointer rounded-full hover:bg-[#2c2925] transition-colors"
-              title="Copy FEN"
-            >
-              {copiedFen ? <Check className="w-4 h-4 text-[#81b64c]" /> : <Copy className="w-4 h-4" />}
-            </button>
+              <button
+                onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white cursor-pointer rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="Flip Board"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleReset}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white cursor-pointer rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="Reset Board"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleCopyFen}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white cursor-pointer rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
+                title="Copy FEN"
+              >
+                {copiedFen ? <Check className="w-4 h-4 text-[#81b64c]" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
 

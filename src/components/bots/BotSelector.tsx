@@ -79,11 +79,11 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none flex-nowrap sm:flex-wrap">
           {[
             { id: 'all', label: 'All Bots' },
-            { id: 'beginner', label: 'Beginner (250-700)' },
-            { id: 'intermediate', label: 'Intermediate (1300-1600)' },
-            { id: 'advanced', label: 'Advanced (1800)' },
-            { id: 'master', label: 'Master (2000-2200)' },
-            { id: 'grandmaster', label: 'Grandmaster (2800+)' },
+            { id: 'beginner', label: 'Beginner' },
+            { id: 'intermediate', label: 'Intermediate' },
+            { id: 'advanced', label: 'Advanced' },
+            { id: 'master', label: 'Master' },
+            { id: 'grandmaster', label: 'Grandmaster' },
           ].map((cat) => (
             <button
               key={cat.id}
@@ -141,7 +141,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
       </div>
 
       {/* Bot Grid */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
+      <div className="flex-1 overflow-y-auto p-2.5 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
         {filteredBots.map((bot) => {
           const isSelected = selectedBot.id === bot.id;
           const stars = botStarsMap[bot.id] || 0;
@@ -151,17 +151,17 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             <div
               key={bot.id}
               onClick={() => onSelectBot(bot)}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+              className={`p-3 sm:p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                 isSelected
                   ? 'bg-[#2a2824] border-[#81b64c] shadow-[0_4px_0_0_#4d7a24] -translate-y-0.5'
                   : 'bg-[#21201d] border-[#35322b] shadow-[0_3px_0_0_#141311] hover:border-[#423f39] hover:-translate-y-0.5'
               }`}
             >
-              <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#2d2a26] border-2 border-[#3f3b35] shadow-[0_2px_0_0_#141311] flex items-center justify-center text-2xl shrink-0 relative">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-[#2d2a26] border-2 border-[#3f3b35] shadow-[0_2px_0_0_#141311] flex items-center justify-center text-xl sm:text-2xl shrink-0 relative">
                   {bot.avatar}
                   {isDefeated && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#81b64c] border-2 border-[#1b1917] rounded-full flex items-center justify-center text-white text-[9px] font-black shadow">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#81b64c] border-2 border-[#1b1917] rounded-full flex items-center justify-center text-white text-[9px] font-black shadow">
                       ✓
                     </span>
                   )}
@@ -169,7 +169,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-black text-white truncate">{bot.name}</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {isDefeated && (
                         <div className="flex items-center gap-0.5" title={`${stars} Star Victory`}>
                           {[1, 2, 3].map((s) => (
@@ -192,21 +192,21 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                   <span className="text-[10px] uppercase font-black text-zinc-400 tracking-wider">
                     {bot.category}
                   </span>
-                  <p className="text-xs text-zinc-300 mt-1 line-clamp-2 leading-relaxed font-medium">
+                  <p className="text-xs text-zinc-300 mt-0.5 sm:mt-1 line-clamp-1 sm:line-clamp-2 leading-relaxed font-medium">
                     {bot.bio}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-3.5 pt-3 border-t-2 border-[#302e2b] flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="mt-2.5 sm:mt-3 pt-2.5 border-t-2 border-[#302e2b] flex items-center justify-between">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-[11px] text-zinc-400 italic line-clamp-1 font-medium">
                     {bot.playStyle}
                   </span>
                   {isDefeated && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/70 border-2 border-emerald-500/40 text-[10px] font-black uppercase text-emerald-400 shadow-[0_1px_0_0_#064e3b]">
+                    <span className="hidden xs:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-[9px] font-black uppercase text-emerald-400">
                       <CheckCircle className="w-2.5 h-2.5" />
-                      {stars === 3 ? 'Mastered' : `${stars}★ Won`}
+                      {stars === 3 ? 'Mastered' : `${stars}★`}
                     </span>
                   )}
                 </div>
@@ -215,7 +215,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                     e.stopPropagation();
                     onStartGameWithBot(bot, playAsColor);
                   }}
-                  className="px-4 py-1.5 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none shrink-0"
+                  className="px-3.5 sm:px-4 py-1.5 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none shrink-0"
                 >
                   <Swords className="w-3.5 h-3.5" />
                   <span>Challenge</span>

@@ -247,7 +247,7 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
         </div>
 
         {/* Board */}
-        <div className="w-[min(100%,calc(100vh-230px),560px)] aspect-square relative rounded-2xl overflow-hidden border-2 border-[#332f28] shadow-[0_6px_0_0_#141311]">
+        <div className="w-[min(calc(100vw-2.5rem),calc(100vh-230px),540px)] aspect-square relative rounded-2xl overflow-hidden border-2 border-[#332f28] shadow-[0_6px_0_0_#141311]">
           <ChessBoard
             chess={chess}
             orientation={currentStudy.turn}
@@ -259,7 +259,7 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
         </div>
 
         {/* Objective & Technique Chip Bar */}
-        <div className="w-[min(100%,calc(100vh-230px),560px)] bg-[#1a1815] border-2 border-[#2b2824] rounded-xl sm:rounded-2xl px-3 sm:px-3.5 py-2 flex items-center justify-between text-xs shadow-[0_2px_0_0_#141311]">
+        <div className="w-[min(calc(100vw-2.5rem),calc(100vh-230px),540px)] bg-[#1a1815] border-2 border-[#2b2824] rounded-xl sm:rounded-2xl px-3 sm:px-3.5 py-2 flex items-center justify-between text-xs shadow-[0_2px_0_0_#141311]">
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0" />
             <span className="text-zinc-300 text-[10px] sm:text-[11px] font-bold truncate">
@@ -270,6 +270,45 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
           <span className="font-mono text-[10px] sm:text-[11px] text-zinc-400 shrink-0">
             Rating: <strong className="text-purple-400 font-bold">{currentStudy.rating}</strong>
           </span>
+        </div>
+
+        {/* Mobile Quick Action Ribbon */}
+        <div className="w-[min(calc(100vw-2.5rem),calc(100vh-230px),540px)] lg:hidden flex items-center justify-between gap-2 p-2 bg-[#1a1815] border-2 border-[#2b2824] rounded-xl text-xs shadow-[0_2px_0_0_#141311]">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleReset}
+              className="px-2.5 py-1.5 rounded-lg border border-[#3b372e] bg-[#272521] text-zinc-300 text-xs font-bold flex items-center gap-1 active:translate-y-[1px] cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+            <button
+              onClick={handleShowHint}
+              className="px-2.5 py-1.5 rounded-lg border border-[#3b372e] bg-[#272521] text-zinc-300 text-xs font-bold flex items-center gap-1 active:translate-y-[1px] cursor-pointer"
+            >
+              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+              <span>Hint</span>
+            </button>
+            <button
+              onClick={handleShowSolution}
+              className="px-2.5 py-1.5 rounded-lg border border-[#3b372e] bg-[#272521] text-zinc-300 text-xs font-bold flex items-center gap-1 active:translate-y-[1px] cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Solution</span>
+            </button>
+          </div>
+
+          <button
+            onClick={handleNext}
+            className={`px-3.5 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition ${
+              status === 'solved'
+                ? 'bg-[#58cc02] border-[#3da300] text-white shadow-[0_2px_0_0_#2b7300]'
+                : 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24]'
+            }`}
+          >
+            <span>Next</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 

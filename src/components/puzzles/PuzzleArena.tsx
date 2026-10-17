@@ -74,6 +74,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
   const [ratingDelta, setRatingDelta] = useState<number | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<string>('all');
   const [isDailyMode, setIsDailyMode] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Sync puzzle rating and streak from Firestore for authenticated users
   useEffect(() => {
@@ -455,6 +456,52 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             <span>Puzzle #{currentPuzzle.id}</span>
           </div>
         </div>
+
+        {/* Quick Tactical Action Ribbon (Immediate under-board actions on mobile) */}
+        <div className="w-full flex lg:hidden items-center justify-between gap-1.5 p-1.5 bg-[#1a1815] border-2 border-[#2b2824] rounded-2xl shadow-[0_2px_0_0_#141311]">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setChess(new Chess(currentPuzzle.fen));
+                setMoveStepIndex(0);
+                setPlayedMoves([]);
+                setStatusMessage('idle');
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-[#262420] text-zinc-300 text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#35322b] shadow-sm active:translate-y-[1px] cursor-pointer"
+              title="Reset"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+            <button
+              onClick={() => setHintLevel((lvl) => (lvl >= 3 ? 0 : lvl + 1))}
+              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all cursor-pointer ${
+                hintLevel > 0
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                  : 'bg-[#262420] text-zinc-300 border-[#35322b] shadow-sm'
+              }`}
+              title="Hint"
+            >
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>{hintLevel > 0 ? `Hint ${hintLevel}/3` : 'Hint'}</span>
+            </button>
+            <button
+              onClick={() => setShowSolution((prev) => !prev)}
+              className="px-2.5 py-1.5 rounded-xl bg-[#262420] text-zinc-300 text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#35322b] shadow-sm cursor-pointer"
+              title="Solution"
+            >
+              <Eye className="w-3 h-3 text-zinc-400" />
+              <span>{showSolution ? 'Hide' : 'Sol'}</span>
+            </button>
+          </div>
+          <button
+            onClick={handleNextPuzzle}
+            className="px-3.5 py-1.5 rounded-xl bg-[#81b64c] text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#4d7a24] shadow-sm active:translate-y-[1px] cursor-pointer"
+          >
+            <span>Next</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       {/* Control Hub & Tactical Rating Sidebar */}
@@ -549,69 +596,87 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             </button>
           </div>
 
-          {/* Level Filter Bar */}
-          <div className="pt-2 border-t-2 border-[#2d2a26] flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                Difficulty Level
+          {/* Collapsible Filter Bar Toggle */}
+          <div className="pt-2 border-t-2 border-[#2b2824] flex items-center justify-between">
+            <button
+              onClick={() => setShowFilters((prev) => !prev)}
+              className="flex items-center gap-1.5 text-xs font-black text-zinc-300 hover:text-white transition cursor-pointer"
+            >
+              <Filter className="w-3.5 h-3.5 text-[#81b64c]" />
+              <span>
+                Filters:{' '}
+                <span className="text-white capitalize">
+                  {selectedLevel === 'all' ? 'All ELO' : `${selectedLevel}`} &bull;{' '}
+                  {selectedTheme === 'all' ? 'Any Motif' : selectedTheme.replace('_', ' ')}
+                </span>
               </span>
-              <span className="text-[10px] font-bold text-zinc-400 capitalize">
-                {selectedLevel === 'all' ? 'All ELO Ratings' : `${selectedLevel} Tier`}
-              </span>
-            </div>
-            <div className="grid grid-cols-5 gap-1 sm:gap-1.5 w-full">
-              {(['all', 'beginner', 'club', 'advanced', 'master'] as const).map((lvl) => (
-                <button
-                  key={lvl}
-                  onClick={() => {
-                    setSelectedLevel(lvl);
-                    handleNextPuzzle();
-                  }}
-                  className={`py-1 sm:py-1.5 px-0.5 sm:px-1 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer border-2 truncate ${
-                    selectedLevel === lvl
-                      ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] translate-y-0.5'
-                      : 'bg-[#161512] text-zinc-400 border-[#272522] shadow-[0_2px_0_0_#141311] hover:text-white hover:border-[#383530]'
-                  }`}
-                >
-                  {lvl}
-                </button>
-              ))}
-            </div>
+            </button>
+            <button
+              onClick={() => setShowFilters((prev) => !prev)}
+              className="text-[10px] font-mono text-zinc-400 hover:text-white cursor-pointer px-2 py-0.5 rounded-md bg-[#161512] border border-[#2b2824]"
+            >
+              {showFilters ? 'Hide ▲' : 'Edit ▼'}
+            </button>
           </div>
 
-          {/* Tactical Motif Filters (Rated Mode) */}
-          {!rushMode && !isDailyMode && (
-            <div className="pt-2 border-t-2 border-[#2d2a26] flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-[11px]">
+          {/* Level & Motif Filters (Collapsible to eliminate screen bloat) */}
+          {showFilters && (
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-[#2b2824] animate-in fade-in slide-in-from-top-1">
+              {/* Level Filter Bar */}
+              <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                  Tactical Motif
+                  Difficulty Level
                 </span>
-                <span className="text-[10px] font-bold text-zinc-400 capitalize">
-                  {selectedTheme === 'all' ? 'All Motifs' : selectedTheme.replace('_', ' ')}
-                </span>
+                <div className="grid grid-cols-5 gap-1 w-full">
+                  {(['all', 'beginner', 'club', 'advanced', 'master'] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => {
+                        setSelectedLevel(lvl);
+                        handleNextPuzzle();
+                      }}
+                      className={`py-1 px-0.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-150 text-center cursor-pointer border-2 truncate ${
+                        selectedLevel === lvl
+                          ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
+                          : 'bg-[#161512] text-zinc-400 border-[#272522] hover:text-white'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                {[
-                  { id: 'all', label: 'Any Motif' },
-                  { id: 'fork', label: 'Fork' },
-                  { id: 'pin', label: 'Pin' },
-                  { id: 'skewer', label: 'Skewer' },
-                  { id: 'mate', label: 'Mate' },
-                  { id: 'back_rank', label: 'Back Rank' },
-                ].map((th) => (
-                  <button
-                    key={th.id}
-                    onClick={() => setSelectedTheme(th.id)}
-                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer border-2 ${
-                      selectedTheme === th.id
-                        ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c] shadow-[0_2px_0_0_#4d7a24]'
-                        : 'bg-[#161512] text-zinc-400 border-[#272522] shadow-[0_2px_0_0_#141311] hover:text-zinc-200'
-                    }`}
-                  >
-                    {th.label}
-                  </button>
-                ))}
-              </div>
+
+              {/* Tactical Motif Filters (Rated Mode) */}
+              {!rushMode && !isDailyMode && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                    Tactical Motif
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { id: 'all', label: 'Any' },
+                      { id: 'fork', label: 'Fork' },
+                      { id: 'pin', label: 'Pin' },
+                      { id: 'skewer', label: 'Skewer' },
+                      { id: 'mate', label: 'Mate' },
+                      { id: 'back_rank', label: 'Back Rank' },
+                    ].map((th) => (
+                      <button
+                        key={th.id}
+                        onClick={() => setSelectedTheme(th.id)}
+                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer border-2 ${
+                          selectedTheme === th.id
+                            ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]'
+                            : 'bg-[#161512] text-zinc-400 border-[#272522] hover:text-zinc-200'
+                        }`}
+                      >
+                        {th.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

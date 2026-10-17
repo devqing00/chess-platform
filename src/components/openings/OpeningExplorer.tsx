@@ -770,23 +770,23 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
           )}
 
           {/* Practice Action CTAs & Cross-Page Hub Bridges */}
-          <div className="grid grid-cols-2 gap-2 w-full">
+          <div className="grid grid-cols-4 gap-1 sm:gap-2 w-full">
             <button
               onClick={() => router.push(`/analysis?fen=${encodeURIComponent(currentFen)}`)}
-              className="py-2.5 px-3 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-[#06b6d4] text-zinc-200 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              className="py-2 px-1.5 sm:px-2.5 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-[#06b6d4] text-zinc-200 text-[10px] sm:text-xs font-black uppercase tracking-wider flex flex-col sm:flex-row items-center justify-center gap-1 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
               title="Deep calculate this position in Analysis Studio"
             >
-              <Microscope className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Analysis</span>
+              <Microscope className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="truncate">Analysis</span>
             </button>
 
             <button
               onClick={() => router.push(`/bots?fen=${encodeURIComponent(currentFen)}`)}
-              className="py-2.5 px-3 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-amber-500 text-zinc-200 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              className="py-2 px-1.5 sm:px-2.5 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-amber-500 text-zinc-200 text-[10px] sm:text-xs font-black uppercase tracking-wider flex flex-col sm:flex-row items-center justify-center gap-1 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
               title="Spar against adaptive bot from this opening"
             >
-              <Bot className="w-3.5 h-3.5 text-amber-400" />
-              <span>Spar Bot</span>
+              <Bot className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">Bot</span>
             </button>
 
             <button
@@ -795,19 +795,20 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   startDrillMode(orientation === 'w' ? 'b' : 'w', selectedOpening);
                 }
               }}
-              className="py-2.5 px-3 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-[#81b64c] text-zinc-200 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              className="py-2 px-1.5 sm:px-2.5 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-[#81b64c] text-zinc-200 text-[10px] sm:text-xs font-black uppercase tracking-wider flex flex-col sm:flex-row items-center justify-center gap-1 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              title="Drill this line from the opponent's perspective"
             >
-              <Target className="w-3.5 h-3.5 text-[#81b64c]" />
-              <span>Drill Opponent</span>
+              <Target className="w-3.5 h-3.5 text-[#81b64c] shrink-0" />
+              <span className="truncate">Drill</span>
             </button>
 
             <button
               onClick={() => router.push('/puzzles')}
-              className="py-2.5 px-3 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-amber-500 text-zinc-200 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+              className="py-2 px-1.5 sm:px-2.5 rounded-xl bg-[#25221e] hover:bg-[#302c27] border-2 border-[#38342d] hover:border-amber-500 text-zinc-200 text-[10px] sm:text-xs font-black uppercase tracking-wider flex flex-col sm:flex-row items-center justify-center gap-1 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
               title="Practice tactical puzzles in this theme"
             >
-              <Puzzle className="w-3.5 h-3.5 text-amber-400" />
-              <span>Tactics</span>
+              <Puzzle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">Tactics</span>
             </button>
           </div>
         </div>

@@ -66,6 +66,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
   const [stepStatus, setStepStatus] = useState<'idle' | 'correct' | 'wrong' | 'completed'>('idle');
   const [showHint, setShowHint] = useState(false);
   const [customArrows, setCustomArrows] = useState<ArrowAnnotation[]>([]);
+  const [showCurriculumDrawer, setShowCurriculumDrawer] = useState(false);
 
   // Total lessons count across all tracks
   const totalLessonsCount = useMemo(() => {
@@ -288,6 +289,68 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Under-Board Immediate Action & Coach Ribbon */}
+        <div className="w-full bg-[#1a1815] border-2 border-[#35322b] rounded-2xl p-2.5 sm:p-3 flex flex-col gap-2 text-xs shadow-[0_3px_0_0_#141311]">
+          <div className="flex items-center gap-2">
+            <span className="text-base shrink-0">🧑‍🏫</span>
+            <p className="text-zinc-300 font-medium text-[11px] sm:text-xs line-clamp-2">
+              {stepStatus === 'wrong'
+                ? 'Not quite! That wasn’t the principled move. Board resetting...'
+                : stepStatus === 'correct'
+                ? 'Well played! You found the correct move!'
+                : stepStatus === 'completed'
+                ? 'Lesson complete! Master Trophy earned!'
+                : step.instruction}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#2b2824]">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => loadStep(step)}
+                className="px-3 py-1.5 rounded-xl bg-[#262420] hover:bg-[#322f29] text-zinc-300 text-xs font-bold flex items-center gap-1 border border-[#35322b] active:translate-y-[1px] transition-all cursor-pointer"
+                title="Reset this step"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+
+              <button
+                onClick={toggleHint}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all cursor-pointer active:translate-y-[1px] ${
+                  showHint
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-[#262420] hover:bg-[#322f29] text-zinc-300 border-[#35322b]'
+                }`}
+                title="View move hint"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                <span>Hint</span>
+              </button>
+            </div>
+
+            {stepStatus === 'correct' && (
+              <button
+                onClick={handleNextStep}
+                className="px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] animate-pulse cursor-pointer"
+              >
+                <span>Next Step</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {stepStatus === 'completed' && (
+              <button
+                onClick={handleNextLesson}
+                className="px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] animate-pulse cursor-pointer"
+              >
+                <span>Next Lesson</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Coach Dialogue, Instruction & Curriculum Sidebar */}
@@ -410,17 +473,25 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
         {/* Curriculum Tracks Directory Drawer */}
         <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_0_0_#141311]">
           {/* Progress Header */}
-          <div className="flex flex-col gap-2 pb-3 border-b-2 border-[#2d2a26]">
+          <div className="flex flex-col gap-2 pb-2.5 border-b-2 border-[#2d2a26]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
                 <BookOpen className="w-4 h-4 text-[#81b64c]" />
                 Curriculum Progress
               </span>
-              <span className="text-xs font-mono font-black text-[#81b64c]">
-                {completedLessonIds.length} / {totalLessonsCount} ({overallPercent}%)
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-black text-[#81b64c]">
+                  {completedLessonIds.length} / {totalLessonsCount} ({overallPercent}%)
+                </span>
+                <button
+                  onClick={() => setShowCurriculumDrawer((prev) => !prev)}
+                  className="lg:hidden px-2 py-0.5 rounded-lg bg-[#262420] hover:bg-[#322f29] text-[10px] font-bold text-zinc-300 border border-[#35322b] cursor-pointer"
+                >
+                  {showCurriculumDrawer ? 'Hide ▲' : 'Browse ▼'}
+                </button>
+              </div>
             </div>
-            <div className="w-full bg-[#141311] h-3 rounded-full overflow-hidden border-2 border-[#2b2824] p-0.5 shadow-inner">
+            <div className="w-full bg-[#141311] h-2.5 rounded-full overflow-hidden border border-[#2b2824] p-0.5 shadow-inner">
               <div
                 className="bg-gradient-to-r from-[#81b64c] to-[#a3d865] h-full transition-all duration-500 rounded-full shadow"
                 style={{ width: `${overallPercent}%` }}
@@ -428,61 +499,64 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between pb-1">
-            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">Track:</span>
-            <div className="flex gap-1.5">
-              {LESSON_TRACKS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setSelectedTrack(t);
-                    setSelectedLesson(t.lessons[0]);
-                    setCurrentStepIndex(0);
-                  }}
-                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
-                    selectedTrack.id === t.id
-                      ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
-                      : 'bg-[#161512] text-zinc-400 border-[#2d2a26] shadow-[0_2px_0_0_#141311] hover:text-white'
-                  }`}
-                >
-                  {t.difficulty}
-                </button>
-              ))}
+          <div className={`${showCurriculumDrawer ? 'flex' : 'hidden lg:flex'} flex-col gap-3`}>
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">Track:</span>
+              <div className="flex gap-1.5">
+                {LESSON_TRACKS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setSelectedTrack(t);
+                      setSelectedLesson(t.lessons[0]);
+                      setCurrentStepIndex(0);
+                    }}
+                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
+                      selectedTrack.id === t.id
+                        ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
+                        : 'bg-[#161512] text-zinc-400 border-[#2d2a26] shadow-[0_2px_0_0_#141311] hover:text-white'
+                    }`}
+                  >
+                    {t.difficulty}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="divide-y divide-[#282622]">
-            {selectedTrack.lessons.map((les) => {
-              const isCurrent = selectedLesson.id === les.id;
-              const isDone = completedLessonIds.includes(les.id);
-              return (
-                <button
-                  key={les.id}
-                  onClick={() => {
-                    setSelectedLesson(les);
-                    setCurrentStepIndex(0);
-                  }}
-                  className={`w-full text-left p-3 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
-                    isCurrent
-                      ? 'bg-[#262420] border-l-4 border-[#81b64c]'
-                      : 'hover:bg-[#23211e]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {isDone ? (
-                      <CheckCircle2 className="w-4 h-4 text-[#81b64c] shrink-0" />
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border border-zinc-600 shrink-0" />
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-white">{les.title}</span>
-                      <span className="text-[11px] text-zinc-400 line-clamp-1">{les.subtitle}</span>
+            <div className="divide-y divide-[#282622]">
+              {selectedTrack.lessons.map((les) => {
+                const isCurrent = selectedLesson.id === les.id;
+                const isDone = completedLessonIds.includes(les.id);
+                return (
+                  <button
+                    key={les.id}
+                    onClick={() => {
+                      setSelectedLesson(les);
+                      setCurrentStepIndex(0);
+                      setShowCurriculumDrawer(false);
+                    }}
+                    className={`w-full text-left p-2.5 sm:p-3 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                      isCurrent
+                        ? 'bg-[#262420] border-l-4 border-[#81b64c]'
+                        : 'hover:bg-[#23211e]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {isDone ? (
+                        <CheckCircle2 className="w-4 h-4 text-[#81b64c] shrink-0" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-zinc-600 shrink-0" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-white">{les.title}</span>
+                        <span className="text-[11px] text-zinc-400 line-clamp-1">{les.subtitle}</span>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
-                </button>
-              );
-            })}
+                    <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
