@@ -531,13 +531,9 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
           {/* Real Match History & Recent Games Table */}
           <div className="bg-[#21201d] border-2 border-[#35322b] rounded-2xl overflow-hidden shadow-[0_4px_0_0_#141311]">
             {/* Header & Source Switcher Tabs */}
-            <div className="p-3 sm:p-3.5 bg-[#1b1916] border-b-2 border-[#2d2a26] flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
-                <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-white shrink-0">
-                  <Clock className="w-4 h-4 text-[#81b64c]" />
-                  <span className="hidden xs:inline">Match History</span>
-                </div>
-
+            <div className="p-2.5 sm:p-3.5 bg-[#1b1916] border-b-2 border-[#2d2a26] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              {/* Top row on mobile / Left group on desktop: Source Tabs & Sync */}
+              <div className="flex items-center justify-between sm:justify-start gap-2 overflow-x-auto no-scrollbar">
                 {/* Tactile Segmented Source Tabs */}
                 <div className="flex items-center bg-[#141311] p-0.5 rounded-full border-2 border-[#2c2924] shrink-0">
                   <button
@@ -570,15 +566,15 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                   onClick={() => handleRefreshArchive(false)}
                   disabled={isRefreshingArchive}
                   title="Force refresh match archive from Chess.com"
-                  className="px-2 sm:px-2.5 py-1 rounded-full bg-[#272420] hover:bg-[#343029] text-zinc-300 hover:text-[#81b64c] border-2 border-[#3b3730] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider disabled:opacity-50 shrink-0"
+                  className="px-2.5 py-1 rounded-full bg-[#272420] hover:bg-[#343029] text-zinc-300 hover:text-[#81b64c] border-2 border-[#3b3730] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider disabled:opacity-50 shrink-0"
                 >
                   <RotateCw className={`w-3 h-3 ${isRefreshingArchive ? 'animate-spin text-[#81b64c]' : ''}`} />
-                  <span>{isRefreshingArchive ? 'Syncing...' : 'Sync'}</span>
+                  <span>Sync</span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
-                {/* Auto-Sync Status Badge */}
+              {/* Bottom row on mobile / Right group on desktop: Auto-Sync & Full Archive */}
+              <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                 <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-black uppercase tracking-wider bg-[#161513] px-2.5 py-1 rounded-full border-2 border-[#2b2823]">
                   <RotateCw className="w-3 h-3 text-[#81b64c]" />
                   <span>Auto-Sync</span>
@@ -641,7 +637,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                     : session.gameResult?.includes('1/2')
                     ? '½ - ½'
                     : session.isGameOver
-                    ? 'Finished'
+                    ? (isWin ? (isUserWhite ? '1 - 0' : '0 - 1') : isDraw ? '½ - ½' : (isUserWhite ? '0 - 1' : '1 - 0'))
                     : 'Live';
 
                   return (

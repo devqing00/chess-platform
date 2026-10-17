@@ -381,8 +381,8 @@ export default function PlayLobbyPage() {
       <div className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden p-2 sm:p-4 flex items-center justify-center">
         <div className="w-full max-w-5xl h-auto max-h-full flex flex-col lg:flex-row gap-4 items-stretch justify-center">
           
-          {/* LEFT / CENTER INTERACTIVE SECTION */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3 bg-[#1b1917] border border-[#2d2a26] rounded-2xl p-3.5 sm:p-5 shadow-xl overflow-hidden">
+          {/* LEFT / CENTER INTERACTIVE SECTION (Desktop Only) */}
+          <div className="hidden lg:flex flex-1 min-w-0 flex-col gap-3 bg-[#1b1917] border border-[#2d2a26] rounded-2xl p-3.5 sm:p-5 shadow-xl overflow-hidden">
             
             {/* Mode Switcher Tabs */}
             <div className="flex items-center justify-between pb-3 border-b border-[#2d2a26] gap-2">
@@ -573,9 +573,50 @@ export default function PlayLobbyPage() {
             )}
           </div>
 
-          {/* RIGHT ACTION & CONFIGURATION PANEL (Natural height, no empty voids) */}
-          <div className="w-full lg:w-80 xl:w-96 bg-[#1e1c19] border border-[#2d2a26] rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-3.5 shrink-0 justify-start">
+          {/* RIGHT / MAIN PLAY CONSOLE */}
+          <div className="w-full lg:w-80 xl:w-96 bg-[#1e1c19] border border-[#2d2a26] rounded-2xl p-3.5 sm:p-5 shadow-xl flex flex-col gap-3 shrink-0 justify-start">
             
+            {/* Mobile Mode Switcher Tabs (< lg screens) */}
+            <div className="flex lg:hidden items-center justify-between pb-2.5 border-b border-[#2d2a26] gap-2">
+              <div className="grid grid-cols-3 gap-1.5 w-full bg-[#141311] p-1 rounded-xl border border-[#282622]">
+                <button
+                  onClick={() => setSelectedMode('bot')}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    selectedMode === 'bot'
+                      ? 'bg-[#81b64c] text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>Bots</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedMode('online_pvp')}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    selectedMode === 'online_pvp'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Online</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedMode('pass_and_play')}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    selectedMode === 'pass_and_play'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Local</span>
+                </button>
+              </div>
+            </div>
+
             {/* Selected Opponent / Mode Banner */}
             <div className="p-3 bg-[#151412] border border-[#282622] rounded-xl flex items-center justify-between gap-3">
               {selectedMode === 'bot' ? (
@@ -594,17 +635,13 @@ export default function PlayLobbyPage() {
                       <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">{chosenBot.bio}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    {[1, 2, 3].map((s) => (
-                      <span
-                        key={s}
-                        className={`text-xs ${
-                          s <= (botStarsMap[chosenBot.id] || 0) ? 'text-amber-400' : 'text-zinc-700'
-                        }`}
-                      >
-                        ★
-                      </span>
-                    ))}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setIsBotModalOpen(true)}
+                      className="px-2.5 py-1 rounded-lg bg-[#272420] hover:bg-[#332f29] border border-[#3c372f] text-zinc-300 hover:text-white text-[10px] font-bold uppercase cursor-pointer"
+                    >
+                      Change
+                    </button>
                   </div>
                 </>
               ) : selectedMode === 'online_pvp' ? (
@@ -625,6 +662,33 @@ export default function PlayLobbyPage() {
                 </div>
               )}
             </div>
+
+            {/* Quick Bot Carousel (Mobile only, < lg) */}
+            {selectedMode === 'bot' && (
+              <div className="flex lg:hidden items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 -mt-1">
+                {CHESS_BOTS.slice(0, 8).map((b) => (
+                  <button
+                    key={b.id}
+                    onClick={() => setSelectedBotId(b.id)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 shrink-0 transition cursor-pointer border ${
+                      selectedBotId === b.id
+                        ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-sm'
+                        : 'bg-[#181614] text-zinc-400 hover:text-white border-[#2b2824]'
+                    }`}
+                  >
+                    <span>{b.avatar}</span>
+                    <span>{b.name}</span>
+                    <span className="opacity-75 font-mono text-[9px]">{b.rating}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setIsBotModalOpen(true)}
+                  className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-[#262420] text-amber-400 hover:text-amber-300 border border-amber-500/30 shrink-0 cursor-pointer"
+                >
+                  + All
+                </button>
+              </div>
+            )}
 
             {/* Time Control Pills */}
             <div className="flex flex-col gap-1.5">
@@ -913,6 +977,77 @@ export default function PlayLobbyPage() {
               >
                 Play as Black ♚
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* All Bots Modal */}
+      {isBotModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
+          <div className="bg-[#1f1d1a] border border-[#33302b] rounded-2xl w-full max-w-2xl p-4 sm:p-5 flex flex-col gap-3 shadow-2xl relative max-h-[85dvh] overflow-hidden">
+            <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-[#81b64c]" />
+                <h3 className="text-sm font-black text-white">Select Chess Bot</h3>
+              </div>
+              <button
+                onClick={() => setIsBotModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-[#282522] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Category filter pills */}
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-1">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'beginner', label: 'Beginner' },
+                { id: 'intermediate', label: 'Intermediate' },
+                { id: 'advanced', label: 'Advanced' },
+                { id: 'master', label: 'Master' },
+                { id: 'grandmaster', label: 'Grandmaster' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setBotCategoryFilter(cat.id as any)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shrink-0 transition cursor-pointer border ${
+                    botCategoryFilter === cat.id
+                      ? 'bg-[#81b64c] text-white border-[#5d8b32]'
+                      : 'bg-[#181614] text-zinc-400 hover:text-white border-[#2b2824]'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Bots grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar flex-1 min-h-0 pr-1">
+              {filteredBots.map((bot) => (
+                <button
+                  key={bot.id}
+                  onClick={() => {
+                    setSelectedBotId(bot.id);
+                    setIsBotModalOpen(false);
+                  }}
+                  className={`p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition cursor-pointer ${
+                    selectedBotId === bot.id
+                      ? 'bg-[#272420] border-[#81b64c] text-white ring-1 ring-[#81b64c]'
+                      : 'bg-[#181614] border-[#292622] text-zinc-300 hover:bg-[#22201d]'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#24211c] border border-[#363229] flex items-center justify-center text-xl shrink-0">
+                    {bot.avatar}
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-black text-white truncate">{bot.name}</span>
+                    <span className="text-[10px] text-amber-400 font-mono font-bold">{bot.rating} ELO</span>
+                    <span className="text-[10px] text-zinc-400 truncate mt-0.5">{bot.playStyle || 'Tactical'}</span>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

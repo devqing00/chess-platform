@@ -1225,7 +1225,12 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             </button>
 
             {isMoreMenuOpen && (
-              <div className="absolute top-full right-0 mt-1.5 w-56 bg-[#1e1c19] border-2 border-[#35322b] rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-100">
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]"
+                  onClick={() => setIsMoreMenuOpen(false)}
+                />
+                <div className="absolute top-full right-0 mt-1.5 w-56 bg-[#1e1c19] border-2 border-[#35322b] rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-100">
                 <div className="text-[10px] font-black text-zinc-400 uppercase tracking-wider px-1 pb-1 border-b border-[#2d2a26]">
                   Review Options
                 </div>
@@ -1327,7 +1332,8 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   <span>Settings</span>
                 </button>
               </div>
-            )}
+            </>
+          )}
           </div>
         </div>
       </header>
@@ -1357,10 +1363,10 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="relative shrink-0">
                     <div className="w-6 h-6 rounded bg-[#2c2924] flex items-center justify-center font-black text-[11px] text-zinc-300 overflow-hidden">
-                      {topPlayer.avatar ? (
+                      {topPlayer.avatar && (topPlayer.avatar.startsWith('http') || topPlayer.avatar.startsWith('/') || topPlayer.avatar.startsWith('data:')) ? (
                         <img src={topPlayer.avatar} alt={topPlayer.name} className="w-full h-full object-cover" />
                       ) : (
-                        topPlayer.name.charAt(0).toUpperCase()
+                        <span className="text-xs">{topPlayer.avatar || topPlayer.name.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
                     <span
@@ -1399,8 +1405,8 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               </div>
 
               {/* Center Board with EvalBar: Edge-to-Edge on Mobile, Responsive & Constrained to never overflow */}
-              <div className="w-full max-w-[min(100vw,calc(100dvh-200px),520px)] flex items-stretch gap-1 sm:gap-2 shrink-0 aspect-square relative">
-                <div className="w-3.5 sm:w-4.5 py-0.5 shrink-0">
+              <div className="w-full max-w-[min(100vw,calc(100dvh-200px),520px)] flex items-stretch gap-1.5 sm:gap-2 shrink-0 aspect-square relative">
+                <div className="w-5 sm:w-6 py-0.5 shrink-0">
                   <EvalBar score={activeMove ? activeMove.evalAfter : 0} orientation={orientation} />
                 </div>
                 <div className="flex-1 min-w-0 relative aspect-square">
@@ -1441,10 +1447,10 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="relative shrink-0">
                     <div className="w-6 h-6 rounded bg-[#2c2924] flex items-center justify-center font-black text-[11px] text-zinc-300 overflow-hidden">
-                      {bottomPlayer.avatar ? (
+                      {bottomPlayer.avatar && (bottomPlayer.avatar.startsWith('http') || bottomPlayer.avatar.startsWith('/') || bottomPlayer.avatar.startsWith('data:')) ? (
                         <img src={bottomPlayer.avatar} alt={bottomPlayer.name} className="w-full h-full object-cover" />
                       ) : (
-                        bottomPlayer.name.charAt(0).toUpperCase()
+                        <span className="text-xs">{bottomPlayer.avatar || bottomPlayer.name.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
                     <span

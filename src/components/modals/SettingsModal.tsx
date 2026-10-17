@@ -288,9 +288,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 select-none animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#1e1c19] border-2 border-[#35322b] rounded-3xl shadow-[0_12px_0_0_#141311] overflow-hidden flex flex-col max-h-[92vh] relative">
+      <div className="w-full max-w-2xl bg-[#1e1c19] border-2 border-[#35322b] rounded-3xl shadow-[0_12px_0_0_#141311] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] relative my-auto">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262421] border-b-2 border-[#35322b] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262421] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#81b64c] border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] flex items-center justify-center shrink-0">
               <Sliders className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
@@ -314,7 +314,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex bg-[#191815] border-b-2 border-[#35322b] px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-black overflow-x-auto scrollbar-none gap-1.5 sm:gap-2">
+        <div className="flex bg-[#191815] border-b-2 border-[#35322b] px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-black overflow-x-auto no-scrollbar scroll-smooth gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={() => handleRequestTabSwitch('accounts')}
             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
@@ -324,7 +324,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Accounts & Data</span>
+            <span>Accounts</span>
           </button>
           <button
             onClick={() => handleRequestTabSwitch('board')}
@@ -346,7 +346,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Audio & Sound</span>
+            <span>Audio</span>
           </button>
           <button
             onClick={() => handleRequestTabSwitch('mentors')}
@@ -1108,7 +1108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-[#161512] border-t-2 border-[#35322b] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#161512] border-t-2 border-[#35322b] flex items-center justify-between shrink-0">
           <span className="text-[10px] sm:text-[11px] text-zinc-500 font-mono font-bold">
             Check.mate Engine 2.0 • Active
           </span>

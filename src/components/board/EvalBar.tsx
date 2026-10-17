@@ -50,22 +50,22 @@ export const EvalBar: React.FC<EvalBarProps> = ({
   const isBlackAhead = (mateIn !== undefined && mateIn < 0) || score < 0;
 
   return (
-    <div className="relative flex flex-col w-6 sm:w-7 h-full bg-[#21201d] rounded-xl overflow-hidden select-none border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] shrink-0">
+    <div className="relative flex flex-col w-full h-full bg-[#21201d] rounded-lg sm:rounded-xl overflow-hidden select-none border border-[#35322b] sm:border-2 shadow-[0_2px_0_0_#141311] shrink-0">
       {/* Top section */}
       <div
-        className={`w-full transition-all duration-300 ease-out flex items-start justify-center pt-1.5 ${
+        className={`w-full transition-all duration-300 ease-out flex items-start justify-center pt-1 sm:pt-1.5 ${
           isWhiteOnBottom ? 'bg-[#1b1917]' : 'bg-[#ffffff]'
         }`}
         style={{ height: `${topHeight}%` }}
       >
         {isWhiteOnBottom
           ? isBlackAhead && (
-              <span className="text-[10px] font-bold text-zinc-300 tracking-tighter">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-300 tracking-tighter leading-none px-0.5 text-center truncate">
                 {label}
               </span>
             )
           : isWhiteAhead && (
-              <span className="text-[10px] font-bold text-zinc-900 tracking-tighter">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-900 tracking-tighter leading-none px-0.5 text-center truncate">
                 {label}
               </span>
             )}
@@ -73,19 +73,19 @@ export const EvalBar: React.FC<EvalBarProps> = ({
 
       {/* Bottom section */}
       <div
-        className={`w-full transition-all duration-300 ease-out flex items-end justify-center pb-1.5 shadow-sm ${
+        className={`w-full transition-all duration-300 ease-out flex items-end justify-center pb-1 sm:pb-1.5 shadow-sm ${
           isWhiteOnBottom ? 'bg-[#ffffff]' : 'bg-[#1b1917]'
         }`}
         style={{ height: `${bottomHeight}%` }}
       >
         {isWhiteOnBottom
           ? isWhiteAhead && (
-              <span className="text-[10px] font-bold text-zinc-900 tracking-tighter">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-900 tracking-tighter leading-none px-0.5 text-center truncate">
                 {label}
               </span>
             )
           : isBlackAhead && (
-              <span className="text-[10px] font-bold text-zinc-300 tracking-tighter">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-300 tracking-tighter leading-none px-0.5 text-center truncate">
                 {label}
               </span>
             )}

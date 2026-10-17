@@ -141,7 +141,11 @@ export function countMovesInPgn(pgn: string): number {
 export function isSessionUserWhite(session: GameSession, currentUsername?: string): boolean {
   const user = (currentUsername || '').toLowerCase().trim();
 
-  // 1. Authoritative check: PGN headers if available
+  // 1. Authoritative check: Bot vs Human match
+  if (session.blackPlayer?.isBot && !session.whitePlayer?.isBot) return true;
+  if (session.whitePlayer?.isBot && !session.blackPlayer?.isBot) return false;
+
+  // 2. Authoritative check: PGN headers if available
   if (session.pgn && user) {
     const wMatch = session.pgn.match(/\[White\s+"([^"]+)"\]/i);
     const bMatch = session.pgn.match(/\[Black\s+"([^"]+)"\]/i);
@@ -151,11 +155,17 @@ export function isSessionUserWhite(session: GameSession, currentUsername?: strin
     if (pgnB === user || (pgnB && user && (pgnB.includes(user) || user.includes(pgnB)))) return false;
   }
 
-  // 2. Check player IDs assigned during session generation
-  if (session.whitePlayer?.id === 'user-local' || session.whitePlayer?.id === 'player-1') return true;
-  if (session.blackPlayer?.id === 'user-local' || session.blackPlayer?.id === 'player-1') return false;
+  // 3. Check player IDs assigned during session generation
+  if (session.whitePlayer?.id === 'user-local' || session.whitePlayer?.id === 'player-1' || session.whitePlayer?.id === 'player-you') return true;
+  if (session.blackPlayer?.id === 'user-local' || session.blackPlayer?.id === 'player-1' || session.blackPlayer?.id === 'player-you') return false;
 
-  // 3. Check player names against current username
+  // 4. Rating delta check: if user gained rating, user must be the winner
+  if (session.resultDetails?.ratingDelta && session.resultDetails.ratingDelta > 0) {
+    if (session.resultDetails.winner === 'w') return true;
+    if (session.resultDetails.winner === 'b') return false;
+  }
+
+  // 5. Check player names against current username
   const wName = (session.whitePlayer?.name || '').toLowerCase().trim();
   const bName = (session.blackPlayer?.name || '').toLowerCase().trim();
 
@@ -172,12 +182,27 @@ export function isSessionUserWhite(session: GameSession, currentUsername?: strin
 
 /**
  * Accurately returns 'win' | 'loss' | 'draw' for the current user in a session
- * Authoritative ground truth: PGN [Result "..."], then gameResult, then resultDetails.
+ * Authoritative ground truth: Rating delta > 0, then PGN [Result "..."], then gameResult, then resultDetails.
  */
 export function getSessionUserOutcome(session: GameSession, currentUsername?: string): 'win' | 'loss' | 'draw' {
+  // 1. Incontrovertible ground truth: A positive rating delta (+12, +8, etc.) is ALWAYS a win
+  if (session.resultDetails?.ratingDelta && session.resultDetails.ratingDelta > 0) {
+    return 'win';
+  }
+  if (session.resultDetails?.ratingDelta && session.resultDetails.ratingDelta < 0) {
+    return 'loss';
+  }
+
   const isWhite = isSessionUserWhite(session, currentUsername);
 
-  // 1. Authoritative Ground Truth: PGN header Result tag
+  // 2. Authoritative: explicit winner in resultDetails
+  if (session.resultDetails?.winner) {
+    if (session.resultDetails.winner === 'draw') return 'draw';
+    if (session.resultDetails.winner === 'w') return isWhite ? 'win' : 'loss';
+    if (session.resultDetails.winner === 'b') return isWhite ? 'loss' : 'win';
+  }
+
+  // 3. Authoritative Ground Truth: PGN header Result tag
   if (session.pgn) {
     const match = session.pgn.match(/\[Result\s+"([^"]+)"\]/i);
     if (match) {
@@ -188,17 +213,13 @@ export function getSessionUserOutcome(session: GameSession, currentUsername?: st
     }
   }
 
-  // 2. Authoritative: session.gameResult string
-  const res = (session.gameResult || '').trim();
-  if (res.includes('1/2') || res.includes('0.5') || res.toLowerCase().includes('draw')) return 'draw';
-  if (res === '1-0' || res.startsWith('1-0') || res.endsWith('1-0')) return isWhite ? 'win' : 'loss';
-  if (res === '0-1' || res.startsWith('0-1') || res.endsWith('0-1')) return isWhite ? 'loss' : 'win';
-
-  // 3. Fallback: explicit winner in resultDetails
-  if (session.resultDetails?.winner) {
-    if (session.resultDetails.winner === 'draw') return 'draw';
-    return session.resultDetails.winner === (isWhite ? 'w' : 'b') ? 'win' : 'loss';
-  }
+  // 4. Authoritative: session.gameResult string
+  const res = (session.gameResult || '').trim().toLowerCase();
+  if (res.includes('1/2') || res.includes('0.5') || res.includes('draw') || res.includes('stalemate')) return 'draw';
+  if (res.includes('white wins') || res.includes('white won')) return isWhite ? 'win' : 'loss';
+  if (res.includes('black wins') || res.includes('black won')) return isWhite ? 'loss' : 'win';
+  if (res === '1-0' || res.startsWith('1-0') || res.endsWith('1-0') || res.includes('(1-0)')) return isWhite ? 'win' : 'loss';
+  if (res === '0-1' || res.startsWith('0-1') || res.endsWith('0-1') || res.includes('(0-1)')) return isWhite ? 'loss' : 'win';
 
   return 'loss';
 }
