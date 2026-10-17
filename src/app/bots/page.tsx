@@ -7,8 +7,7 @@ import { CHESS_BOTS } from '@/lib/botsData';
 import { BotPersonality, GamePlayer } from '@/types/chess';
 import { GameSessionStore } from '@/lib/gameSessionStore';
 import { useAuth } from '@/context/AuthContext';
-import { useShell } from '@/context/ShellContext';
-import { Sparkles, X } from 'lucide-react';
+import { Bot, Sparkles, X } from 'lucide-react';
 
 export default function BotsPage() {
   const router = useRouter();
@@ -61,45 +60,52 @@ export default function BotsPage() {
   };
 
   return (
-    <div className="flex-1 p-3 sm:p-6 lg:p-8 flex flex-col items-center justify-start bg-[#161512] text-zinc-100 overflow-y-auto select-none gap-3 sm:gap-4">
-      {/* Custom FEN Position Banner if deep-linked from Openings, Puzzles or Review */}
-      {activeCustomFen && (
-        <div className="w-full max-w-5xl bg-gradient-to-r from-amber-950/40 via-[#1f1d1a] to-amber-950/30 border-2 border-amber-500/40 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-[0_2px_0_0_#141311]">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-              <Sparkles className="w-4 h-4" />
+    <div className="w-full h-full max-h-full overflow-hidden p-3 sm:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
+      <div className="w-full max-w-6xl mx-auto h-full flex flex-col min-h-0 gap-3">
+        {/* Custom FEN Position Banner if deep-linked */}
+        {activeCustomFen && (
+          <div className="w-full bg-[#1c1a17] border border-amber-500/30 rounded-xl p-2.5 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-xs font-bold text-amber-300 truncate">
+                Sparring from Transferred Position: <span className="font-mono text-zinc-400 text-[11px]">{activeCustomFen}</span>
+              </span>
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-black text-amber-300 uppercase tracking-wider truncate">
-                Sparring from Transferred Position
-              </span>
-              <span className="text-[10px] sm:text-[11px] text-zinc-400 font-mono truncate max-w-[200px] sm:max-w-md">
-                {activeCustomFen}
-              </span>
+            <button
+              onClick={() => setActiveCustomFen(undefined)}
+              className="p-1 rounded bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition cursor-pointer shrink-0"
+              title="Reset position"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Minimalist Top HUD Header */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-white/5 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24] shrink-0">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-base sm:text-lg font-black uppercase tracking-wider text-white">
+                Computer Personalities Arena
+              </h1>
+              <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">
+                Spar against simulated Grandmasters, adaptive coaches &amp; fun bots
+              </p>
             </div>
           </div>
-          <button
-            onClick={() => setActiveCustomFen(undefined)}
-            className="p-1.5 rounded-lg bg-[#262420] hover:bg-[#332f28] text-zinc-400 hover:text-white transition cursor-pointer shrink-0"
-            title="Reset to standard initial position"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
-      )}
 
-      <div className="w-full max-w-5xl flex items-center justify-between">
-        <h1 className="text-sm sm:text-lg font-black uppercase tracking-wider text-white">
-          Bot Personalities &amp; Sparring Arena
-        </h1>
-      </div>
-
-      <div className="w-full max-w-5xl flex-1 min-h-[480px] sm:min-h-[560px] flex flex-col pb-16 md:pb-0">
-        <BotSelector
-          selectedBot={selectedBot}
-          onSelectBot={(b) => setSelectedBot(b)}
-          onStartGameWithBot={handleStartGame}
-        />
+        {/* Main Viewport Screen */}
+        <div className="w-full flex-1 min-h-0 flex flex-col overflow-hidden">
+          <BotSelector
+            selectedBot={selectedBot}
+            onSelectBot={(b) => setSelectedBot(b)}
+            onStartGameWithBot={handleStartGame}
+          />
+        </div>
       </div>
     </div>
   );

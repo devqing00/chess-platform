@@ -250,8 +250,8 @@ export default function PlayersExplorerPage() {
   };
 
   return (
-    <div className="flex-1 p-3 sm:p-5 lg:p-6 pb-24 md:pb-8 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto select-none">
-      <div className="w-full max-w-5xl flex flex-col gap-4">
+    <div className="w-full h-full max-h-full overflow-hidden p-3 sm:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
+      <div className="w-full max-w-5xl mx-auto h-full flex flex-col gap-3 min-h-0">
         {/* Main Header & Platform Switcher */}
         <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#1f1d1a] border-2 border-[#35322b] shadow-[0_5px_0_0_#141311] flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -381,8 +381,10 @@ export default function PlayersExplorerPage() {
           </button>
         </div>
 
-        {/* TAB 1: PLAYER PROFILE & GAMES INSPECTOR */}
-        {activeTab === 'profile' && playerAProfile && (
+        {/* TAB CONTENTS (Scrollable internally within viewport) */}
+        <div className="flex-1 w-full min-h-0 overflow-y-auto pr-1 flex flex-col gap-4 pb-8">
+          {/* TAB 1: PLAYER PROFILE & GAMES INSPECTOR */}
+          {activeTab === 'profile' && playerAProfile && (
           <div className="flex flex-col gap-4">
             {/* Player Card */}
             <div className="p-4 sm:p-5 rounded-3xl bg-[#211f1c] border-2 border-[#38342c] shadow-[0_6px_0_0_#141311] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -796,6 +798,7 @@ export default function PlayersExplorerPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

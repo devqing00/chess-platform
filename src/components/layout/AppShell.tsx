@@ -60,8 +60,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         onOpenChessComSync={openChessComSync}
       />
 
-      {/* Main Page Content Area */}
-      <div className={`flex-1 flex flex-col h-full min-w-0 bg-[#161512] relative ${isArenaScreen ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden pb-16 md:pb-0'}`}>
+      {/* Main Page Content Area - Viewport Locked (Screens, Not Pages) */}
+      <div className="flex-1 flex flex-col h-full max-h-full min-w-0 bg-[#161512] relative overflow-hidden">
         {children}
       </div>
 

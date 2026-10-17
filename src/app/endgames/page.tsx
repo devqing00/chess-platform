@@ -21,9 +21,10 @@ export default function EndgamesPage() {
   };
 
   return (
-    <div className="flex-1 p-3 sm:p-5 pb-24 md:pb-6 flex flex-col items-center bg-[#161512] text-zinc-100 overflow-y-auto select-none">
-      {/* Unified Top Header */}
-      <div className="w-full max-w-6xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 sm:mb-6 pb-3 border-b-2 border-[#282522]">
+    <div className="w-full h-full max-h-full overflow-hidden p-3 sm:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
+      <div className="w-full max-w-6xl mx-auto h-full flex flex-col min-h-0 gap-3">
+        {/* Unified Top Header */}
+        <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2.5 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2.5 sm:gap-3">
           <Link
             href="/training"
@@ -103,26 +104,31 @@ export default function EndgamesPage() {
         </div>
       </div>
 
-      {/* Main View: Path or Arena */}
-      <div className="w-full max-w-6xl flex-1 flex flex-col items-center justify-start">
+      {/* Main View: Path or Arena (Viewport Locked) */}
+      <div className="w-full flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-start pr-1">
         {viewMode === 'path' ? (
-          <DuolingoPathView
-            category="endgames"
-            onSelectNode={handleSelectNode}
-            onOpenFreeArena={() => setViewMode('arena')}
-            freeArenaLabel="Free Endgame Arena"
-          />
+          <div className="w-full max-w-xl pb-12">
+            <DuolingoPathView
+              category="endgames"
+              onSelectNode={handleSelectNode}
+              onOpenFreeArena={() => setViewMode('arena')}
+              freeArenaLabel="Free Endgame Arena"
+            />
+          </div>
         ) : (
-          <EndgameArena
-            boardTheme={boardTheme}
-            pieceTheme={pieceTheme}
-            initialStudyId={activeStudyId}
-            onComplete={() => {
-              // optional callback
-            }}
-          />
+          <div className="w-full h-full flex flex-col">
+            <EndgameArena
+              boardTheme={boardTheme}
+              pieceTheme={pieceTheme}
+              initialStudyId={activeStudyId}
+              onComplete={() => {
+                // optional callback
+              }}
+            />
+          </div>
         )}
       </div>
     </div>
+  </div>
   );
 }
