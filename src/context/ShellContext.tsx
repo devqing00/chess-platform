@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { BoardTheme, PieceTheme, SoundTheme, MembershipTier, AnalysisEngineMode, MoveInputMode } from '@/types/chess';
+import { BoardTheme, PieceTheme, SoundTheme, MembershipTier, AnalysisEngineMode, EngineStrengthTier, MoveInputMode } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 
 interface ShellContextType {
@@ -17,6 +17,8 @@ interface ShellContextType {
   setMembershipTier: (tier: MembershipTier) => void;
   analysisEngine: AnalysisEngineMode;
   setAnalysisEngine: (engine: AnalysisEngineMode) => void;
+  engineStrength: EngineStrengthTier;
+  setEngineStrength: (strength: EngineStrengthTier) => void;
   moveInputMode: MoveInputMode;
   setMoveInputMode: (mode: MoveInputMode) => void;
   isSettingsOpen: boolean;
@@ -42,6 +44,7 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [membershipTier, setMembershipTier] = useState<MembershipTier>('diamond');
   const [activeMentorId, setActiveMentorIdState] = useState<string>('coach-danny');
   const [analysisEngine, setAnalysisEngineState] = useState<AnalysisEngineMode>('torch_human');
+  const [engineStrength, setEngineStrengthState] = useState<EngineStrengthTier>('fast');
   const [moveInputMode, setMoveInputModeState] = useState<MoveInputMode>('both');
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -78,6 +81,11 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const savedEngine = localStorage.getItem('chess_pref_analysis_engine') as AnalysisEngineMode | null;
       if (savedEngine === 'torch_human' || savedEngine === 'stockfish') {
         setAnalysisEngineState(savedEngine);
+      }
+
+      const savedStrength = localStorage.getItem('chess_pref_engine_strength') as EngineStrengthTier | null;
+      if (savedStrength === 'fast' || savedStrength === 'standard' || savedStrength === 'deep' || savedStrength === 'maximum') {
+        setEngineStrengthState(savedStrength);
       }
 
       const savedMoveInput = localStorage.getItem('chess_pref_move_input_mode') as MoveInputMode | null;
@@ -133,6 +141,13 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   };
 
+  const setEngineStrength = (strength: EngineStrengthTier) => {
+    setEngineStrengthState(strength);
+    try {
+      localStorage.setItem('chess_pref_engine_strength', strength);
+    } catch {}
+  };
+
   const setMoveInputMode = (mode: MoveInputMode) => {
     setMoveInputModeState(mode);
     try {
@@ -155,6 +170,8 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setMembershipTier,
         analysisEngine,
         setAnalysisEngine,
+        engineStrength,
+        setEngineStrength,
         moveInputMode,
         setMoveInputMode,
         isSettingsOpen,

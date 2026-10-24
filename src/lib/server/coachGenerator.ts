@@ -154,12 +154,35 @@ export function detectTacticalMotifs(params: {
       }
     }
 
-    // 4. Passed Pawn March
-    if (/[a-h][78]/.test(playedMoveSan) || playedMoveSan.includes('=')) {
-      motifs.push({
-        type: 'passed-pawn',
-        description: 'Advanced a dangerous passed pawn close to Queen promotion.',
-      });
+    // 4. Passed Pawn March (MUST be a real pawn, and no opposing pawns ahead)
+    const isPawnMove = /^[a-h]/.test(playedMoveSan) && !playedMoveSan.startsWith('O-O');
+    if (isPawnMove && targetSquare && targetSquare.length === 2) {
+      const pawnRank = parseInt(targetSquare[1], 10);
+      const isAdvanced = movingColor === 'w' ? pawnRank >= 6 : pawnRank <= 3;
+      if (isAdvanced || playedMoveSan.includes('=')) {
+        const fileIdx = targetSquare.charCodeAt(0) - 97;
+        const board = chessAfter.board();
+        let hasEnemyPawnAhead = false;
+        const startRow = movingColor === 'w' ? 0 : (8 - pawnRank + 1);
+        const endRow = movingColor === 'w' ? (8 - pawnRank - 1) : 7;
+        for (let r = startRow; r <= endRow; r++) {
+          for (let c = Math.max(0, fileIdx - 1); c <= Math.min(7, fileIdx + 1); c++) {
+            const p = board[r]?.[c];
+            if (p && p.type === 'p' && p.color === opponentColor) {
+              hasEnemyPawnAhead = true;
+              break;
+            }
+          }
+          if (hasEnemyPawnAhead) break;
+        }
+
+        if (!hasEnemyPawnAhead) {
+          motifs.push({
+            type: 'passed-pawn',
+            description: 'Advanced a dangerous passed pawn close to Queen promotion.',
+          });
+        }
+      }
     }
 
     // 5. Piece Sacrifice
@@ -203,6 +226,11 @@ export function generateCoachExplanation(params: {
   isUser?: boolean;
   motif?: TacticalMotif;
   fenBefore?: string;
+  refutations?: {
+    accepted?: { replySan: string; lineSan: string; material: string; mateIn?: number };
+    declined?: { replySan: string; lineSan: string; material: string; mateIn?: number };
+    acceptIsBest?: boolean;
+  };
 }): string {
   const {
     classification,
@@ -218,6 +246,7 @@ export function generateCoachExplanation(params: {
     isUser = true,
     motif,
     fenBefore,
+    refutations,
   } = params;
 
   const player = playerName || (isUser ? 'You' : 'Opponent');
@@ -278,15 +307,27 @@ export function generateCoachExplanation(params: {
   const motifPrefix = motif ? `${motif.description} ` : '';
 
   switch (classification) {
-    case 'brilliant':
+    case 'brilliant': {
+      let refutationText = '';
+      if (refutations?.accepted && refutations?.declined) {
+        refutationText = ` If ${refutations.accepted.replySan}, then ${refutations.accepted.lineSan}${refutations.accepted.material ? ` (${refutations.accepted.material})` : ''}. If ${refutations.declined.replySan}, then ${refutations.declined.lineSan}${refutations.declined.material ? ` (${refutations.declined.material})` : ''}.`;
+      } else if (refutations?.accepted) {
+        refutationText = ` If ${refutations.accepted.replySan}, then ${refutations.accepted.lineSan}${refutations.accepted.material ? ` (${refutations.accepted.material})` : ''}.`;
+      }
       return motif
-        ? `Brilliant move! ${motif.description} The immediate tactical breakthrough cements a decisive win!`
-        : `Brilliant move! You offered an inspired piece sacrifice that blows open the defense. The immediate tactical compensation cements a decisive win!`;
+        ? `Brilliant move! ${motif.description}${refutationText}`
+        : `Brilliant move! You offered an intuitive piece sacrifice that shatters the defense.${refutationText}`;
+    }
 
-    case 'great':
+    case 'great': {
+      let refutationText = '';
+      if (refutations?.accepted && refutations.acceptIsBest === false) {
+        refutationText = ` Accepting with ${refutations.accepted.replySan} runs into ${refutations.accepted.lineSan}${refutations.accepted.material ? ` (${refutations.accepted.material})` : ''}.`;
+      }
       return motif
-        ? `Great move! ${motif.description} ${moveSan} was the ONLY move on the entire board to keep your advantage.`
-        : `Great move! ${moveSan} was the ONLY move on the entire board to keep your advantage. Any other choice gave away control.`;
+        ? `Great move! ${motif.description}${refutationText}`
+        : `Great move! ${moveSan} was the ONLY move on the board to keep your advantage.${refutationText}`;
+    }
 
     case 'best':
       if (motif && motif.type === 'fork') {

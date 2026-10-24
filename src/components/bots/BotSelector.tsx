@@ -6,6 +6,7 @@ import { CHESS_BOTS } from '@/lib/botsData';
 import { Bot, Swords, Sparkles, Star, Award, CheckCircle, Search, Play } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
+import { Button } from '@/components/ui/button';
 
 interface BotSelectorProps {
   selectedBot: BotPersonality;
@@ -157,13 +158,16 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
 
         {/* P1 PRIMARY ACTION ANCHOR - EXACTLY ONE ON SCREEN */}
         <div className="pt-2">
-          <button
+          <Button
+            variant="primary"
+            size="xl"
+            rounded="xl"
+            fullWidth
             onClick={() => onStartGameWithBot(selectedBot, playAsColor)}
-            className="w-full py-4 px-6 rounded-xl bg-[#81b64c] hover:bg-[#92cb56] text-black font-black text-sm tracking-tight shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <Play className="w-4 h-4 fill-black" />
             <span>Challenge {selectedBot.name} (10m Sparring)</span>
-          </button>
+          </Button>
         </div>
       </div>
 

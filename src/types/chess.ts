@@ -86,6 +86,35 @@ export interface MoveRecord {
   motif?: {
     type: string;
     description: string;
+    name?: string;
+  };
+  refutations?: {
+    accepted?: {
+      replySan: string;
+      lineSan: string;
+      material: string;
+      mateIn?: number;
+      scoreCp?: number;
+    };
+    declined?: {
+      replySan: string;
+      lineSan: string;
+      material: string;
+      mateIn?: number;
+      scoreCp?: number;
+    };
+    acceptIsBest?: boolean;
+  };
+  takeaway?: string;
+  structuredCommentary?: {
+    positionContext?: string;
+    moveExecution?: string;
+    consequences?: {
+      accepted?: string;
+      declined?: string;
+      summary?: string;
+    };
+    takeaway?: string;
   };
 }
 
@@ -111,7 +140,17 @@ export type GameStatus = 'waiting' | 'in_progress' | 'checkmate' | 'draw' | 'res
 
 export interface GameResultDetails {
   winner: 'w' | 'b' | 'draw';
-  reason: 'resignation' | 'checkmate' | 'timeout' | 'stalemate' | 'insufficient' | 'agreement';
+  reason:
+    | 'resignation'
+    | 'checkmate'
+    | 'timeout'
+    | 'stalemate'
+    | 'insufficient'
+    | 'agreement'
+    | 'repetition'
+    | '50move'
+    | 'abandonment'
+    | 'concluded';
   ratingDelta: number;
   newRating: number;
   league?: string;
@@ -134,6 +173,10 @@ export interface KeyMoment {
   evalAfter: number;
   coachComment: string;
   isMistake: boolean;
+  kind?: 'brilliancy' | 'blunder' | 'missed_win' | 'turning_point' | 'decisive';
+  score?: number;
+  span?: [number, number];
+  description?: string;
 }
 
 export interface BotPersonality {
@@ -327,6 +370,62 @@ export interface ParsedPgn {
 
 export type AnalysisEngineMode = 'torch_human' | 'stockfish';
 
+export type EngineStrengthTier = 'fast' | 'standard' | 'deep' | 'maximum';
+
+export interface EngineStrengthConfig {
+  tier: EngineStrengthTier;
+  label: string;
+  depth: number;
+  multiPv: number;
+  timeBudgetMs: number;
+  threads: number;
+  description: string;
+  badge: string;
+}
+
+export const ENGINE_STRENGTH_CONFIGS: Record<EngineStrengthTier, EngineStrengthConfig> = {
+  fast: {
+    tier: 'fast',
+    label: 'Fast',
+    depth: 8,
+    multiPv: 1,
+    timeBudgetMs: 1500,
+    threads: 1,
+    description: 'Instant review (Depth 8, ~100ms/move)',
+    badge: '⚡ Fast',
+  },
+  standard: {
+    tier: 'standard',
+    label: 'Standard',
+    depth: 22,
+    multiPv: 2,
+    timeBudgetMs: 2500,
+    threads: 2,
+    description: 'Balanced club depth (Depth 22, Multi-PV 2)',
+    badge: '⚖️ Standard',
+  },
+  deep: {
+    tier: 'deep',
+    label: 'Deep',
+    depth: 25,
+    multiPv: 3,
+    timeBudgetMs: 6000,
+    threads: 4,
+    description: 'Master tournament depth (Depth 25, Multi-PV 3)',
+    badge: '🔬 Deep',
+  },
+  maximum: {
+    tier: 'maximum',
+    label: 'Maximum',
+    depth: 28,
+    multiPv: 5,
+    timeBudgetMs: 12000,
+    threads: 4,
+    description: 'Grandmaster depth + 7-piece tablebases (Depth 28+)',
+    badge: '👑 Maximum',
+  },
+};
+
 export interface GameReviewReport {
   id: string;
   gameId: string;
@@ -341,6 +440,7 @@ export interface GameReviewReport {
   whiteAcpl?: number;
   blackAcpl?: number;
   engineMode?: AnalysisEngineMode;
+  strengthTier?: EngineStrengthTier;
   engineDescription?: string;
   opening?: OpeningInfo;
   phaseBreakdown?: {
@@ -366,6 +466,9 @@ export interface GameReviewReport {
   advancedStats?: GameAdvancedStats;
   isDeepReview?: boolean;
   reviewVersion?: string;
+  gameResult?: string | null;
+  resultDetails?: GameResultDetails | null;
+  termination?: string;
 }
 
 export interface GameSession {

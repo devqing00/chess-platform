@@ -11,7 +11,7 @@ import {
 import { BoardTheme, PieceTheme, PieceColor } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import { useAuth } from '@/context/AuthContext';
-import { GameSessionStore } from '@/lib/gameSessionStore';
+import { GameSessionStore, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 import confetti from 'canvas-confetti';
 import {
@@ -107,10 +107,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
     const list: RealMistakeMoment[] = [];
 
     inAppGames.forEach((g) => {
-      const isUserWhite =
-        g.whitePlayer?.name?.toLowerCase().includes('you') ||
-        g.whitePlayer?.name?.toLowerCase().includes('qing') ||
-        g.whitePlayer?.id === user?.uid;
+      const isUserWhite = isSessionUserWhite(g, user?.displayName || user?.email || undefined);
       const userColor: 'w' | 'b' = isUserWhite ? 'w' : 'b';
       const opponent = isUserWhite ? g.blackPlayer : g.whitePlayer;
 

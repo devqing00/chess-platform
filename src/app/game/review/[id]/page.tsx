@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { GameSessionStore, parsePgnToMoveRecords } from '@/lib/gameSessionStore';
+import { GameSessionStore, parsePgnToMoveRecords, extractTerminationReason } from '@/lib/gameSessionStore';
 import { GameReviewSummaryView } from '@/components/analysis/GameReviewSummaryView';
 import { GameReviewView } from '@/components/analysis/GameReviewView';
-import { GameReviewReport, GameSession } from '@/types/chess';
+import { GameReviewReport, GameSession, EngineStrengthTier } from '@/types/chess';
 import { useRouter } from 'next/navigation';
 import { useShell } from '@/context/ShellContext';
 import { useAuth } from '@/context/AuthContext';
@@ -51,7 +51,7 @@ interface ReviewPageProps {
 
 export default function GameReviewPage({ params }: ReviewPageProps) {
   const router = useRouter();
-  const { boardTheme, pieceTheme, analysisEngine, setAnalysisEngine } = useShell();
+  const { boardTheme, pieceTheme, analysisEngine, setAnalysisEngine, engineStrength, setEngineStrength } = useShell();
   const { syncedChessCom } = useAuth();
   const resolvedParams = use(params);
   const gameId = resolvedParams.id;
@@ -123,6 +123,20 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         GameSessionStore.saveSession(session);
       }
     }
+  };
+
+  // 4-Tier Strength Switcher (Fast, Standard, Deep, Maximum)
+  const handleStrengthChange = (newStrength: EngineStrengthTier) => {
+    setEngineStrength(newStrength);
+    const session = GameSessionStore.getSession(gameId);
+    if (session) {
+      session.reviewReport = null;
+      GameSessionStore.saveSession(session);
+    }
+    setReport(null);
+    setIsLoading(true);
+    setLoadingProgress(16);
+    setReanalyzeNonce((prev) => prev + 1);
   };
 
   useEffect(() => {
@@ -215,7 +229,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
                     gameResult,
                     resultDetails: {
                       winner: winnerColor,
-                      reason: isUserWin ? 'resignation' : isUserLoss ? 'resignation' : 'agreement',
+                      reason: extractTerminationReason(matchedGame),
                       ratingDelta: isUserWin ? 8 : isUserLoss ? -8 : 0,
                       newRating: matchedGame.userPlayer?.rating || 1200,
                       league: 'Elite',
@@ -262,6 +276,9 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
               session.reviewReport,
               analysisEngine || session.reviewReport.engineMode || 'torch_human'
             );
+            aligned.gameResult = session.gameResult || aligned.gameResult;
+            aligned.resultDetails = session.resultDetails || aligned.resultDetails;
+            aligned.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
             setReport(aligned);
             setIsLoading(false);
           }
@@ -281,7 +298,7 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
               moves: session.moves.map((m) => m.san),
               whitePlayer: session.whitePlayer,
               blackPlayer: session.blackPlayer,
-              depth: 8,
+              strengthTier: engineStrength || 'fast',
               engineMode: analysisEngine || 'torch_human',
             }),
           });
@@ -291,6 +308,9 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
             if (data.success && data.report) {
               data.report.isDeepReview = true;
               data.report.reviewVersion = CURRENT_REVIEW_VERSION;
+              data.report.gameResult = session.gameResult;
+              data.report.resultDetails = session.resultDetails;
+              data.report.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
               session.reviewReport = data.report;
               session.engineMode = analysisEngine || 'torch_human';
               GameSessionStore.saveSession(session);
@@ -453,9 +473,11 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           report={report}
           boardTheme={boardTheme}
           pieceTheme={pieceTheme}
+          engineStrength={engineStrength}
           onStartInteractiveReview={() => setReviewStage('stepper')}
           onBackToGame={() => router.push('/')}
           onEngineChange={handleEngineChange}
+          onStrengthChange={handleStrengthChange}
           onReanalyze={handleReanalyze}
         />
       ) : (
@@ -466,11 +488,17 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           blackPlayer={report.blackPlayer}
           whiteAccuracy={report.whiteAccuracy}
           blackAccuracy={report.blackAccuracy}
+          keyMoments={report.keyMoments}
           boardTheme={boardTheme}
           pieceTheme={pieceTheme}
+          gameResult={report.gameResult}
+          resultDetails={report.resultDetails}
+          termination={report.termination}
+          engineStrength={engineStrength}
           onBackToGame={() => router.push('/')}
           onBackToSummary={() => setReviewStage('summary')}
           onEngineChange={handleEngineChange}
+          onStrengthChange={handleStrengthChange}
           onReanalyze={handleReanalyze}
         />
       )}

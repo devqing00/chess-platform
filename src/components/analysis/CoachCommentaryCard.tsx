@@ -2,19 +2,21 @@
 
 import React from 'react';
 import { MoveRecord, MoveClassification } from '@/types/chess';
-import { Sparkles, AlertTriangle, CheckCircle, Flame } from 'lucide-react';
+import { Sparkles, AlertTriangle, CheckCircle, Flame, Lightbulb } from 'lucide-react';
 import { useShell } from '@/context/ShellContext';
-import { getMentorById, generateMentorComment } from '@/lib/mentorsData';
+import { getMentorById, generateMentorComment, getTakeawayForMove } from '@/lib/mentorsData';
 import { explainChessMove } from '@/lib/chessMoveExplainer';
 
 interface CoachCommentaryCardProps {
   move: MoveRecord | null;
   turnColor: 'w' | 'b';
+  isUserWhite?: boolean;
 }
 
 export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
   move,
   turnColor,
+  isUserWhite = true,
 }) => {
   const { activeMentorId } = useShell();
   const mentor = getMentorById(activeMentorId);
@@ -99,7 +101,8 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
       break;
   }
 
-  const isUserMove = move.fenBefore ? move.fenBefore.split(' ')[1] === 'w' : true;
+  const moveTurn = move.fenBefore ? (move.fenBefore.split(' ')[1] as 'w' | 'b') : turnColor;
+  const isUserMove = moveTurn === (isUserWhite ? 'w' : 'b');
 
   const dynamicComment = generateMentorComment(
     mentor.id,
@@ -110,8 +113,14 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
     undefined,
     isUserMove,
     move.motif,
-    move.fenBefore
+    move.fenBefore,
+    move.refutations
   );
+
+  const takeawayText =
+    move.takeaway ||
+    move.structuredCommentary?.takeaway ||
+    (isUserMove ? getTakeawayForMove(move.motif?.type, classification) : undefined);
 
   return (
     <div className="p-3.5 bg-[#21201d] rounded-xl border border-[#302e2b] flex items-start gap-3 select-none">
@@ -145,6 +154,54 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
         <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed font-sans">
           {dynamicComment || move.coachComment || 'Solid play on the board. Always watch out for your opponent’s tactical counter-strikes!'}
         </p>
+
+        {move.refutations && (move.refutations.accepted || move.refutations.declined) && (
+          <div className="mt-2.5 p-2 rounded-lg bg-[#181715] border border-[#2e2b26] space-y-1.5 text-[11px]">
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400">
+              <span>🎯 Concrete Continuations</span>
+            </div>
+            {move.refutations.accepted && (
+              <div className="flex items-start gap-1.5">
+                <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  If Accepted
+                </span>
+                <div className="flex-1 text-zinc-300 font-mono">
+                  <span className="text-zinc-200 font-bold">{move.refutations.accepted.lineSan}</span>
+                  {move.refutations.accepted.material && (
+                    <span className="text-zinc-400 font-sans ml-1.5">({move.refutations.accepted.material})</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {move.refutations.declined && (
+              <div className="flex items-start gap-1.5">
+                <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  If Declined
+                </span>
+                <div className="flex-1 text-zinc-300 font-mono">
+                  <span className="text-zinc-200 font-bold">{move.refutations.declined.lineSan}</span>
+                  {move.refutations.declined.material && (
+                    <span className="text-zinc-400 font-sans ml-1.5">({move.refutations.declined.material})</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {takeawayText && (
+          <div className="mt-2.5 p-2.5 rounded-lg bg-[#181a17] border border-amber-500/25 flex items-start gap-2 text-[11px]">
+            <Lightbulb className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block mb-0.5">
+                💡 Key Takeaway
+              </span>
+              <p className="text-zinc-300 leading-snug font-sans">
+                {takeawayText}
+              </p>
+            </div>
+          </div>
+        )}
 
         {move.bestMoveSan && move.bestMoveSan !== move.san && (
           <div className="mt-2 text-[11px] text-zinc-400 bg-[#161512] px-2.5 py-1.5 rounded-lg border border-[#2d2a26] flex items-center justify-between gap-2">

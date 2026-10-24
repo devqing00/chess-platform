@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/board/ChessBoard';
 import { EvalBar } from '@/components/board/EvalBar';
-import { BoardTheme, PieceTheme, PieceColor, ArrowAnnotation, GameSession, MoveRecord } from '@/types/chess';
-import { GameSessionStore, parsePgnToMoveRecords } from '@/lib/gameSessionStore';
+import { PieceColor, ArrowAnnotation, GameSession, MoveRecord } from '@/types/chess';
+import { GameSessionStore, parsePgnToMoveRecords, getSessionUserOutcome, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { matchOpeningFromMoves } from '@/lib/openingsData';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Award,
+  Microscope,
   RotateCcw,
   ArrowUpDown,
   Cpu,
@@ -26,20 +26,23 @@ import {
   Sparkles,
   ShieldAlert,
   Upload,
-  X,
-  FileText,
-  AlertTriangle,
-  Bot,
   BookOpen,
   FolderOpen,
   Eye,
   EyeOff,
-  HelpCircle,
   PlayCircle,
-  MoreVertical,
+  ArrowRight,
+  RotateCw,
+  History,
+  Target,
+  Flame,
+  Globe,
 } from 'lucide-react';
 import { soundService } from '@/lib/audioService';
 import { useShell } from '@/context/ShellContext';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { syncExternalAccountGames } from '@/lib/syncService';
 
 interface MultiPvLine {
   rank: number;
@@ -60,25 +63,68 @@ interface TablebaseInfo {
   bestMoveSan?: string;
 }
 
-export default function AnalysisPage() {
+type AnalysisScreen = 'sandbox' | 'theory' | 'tablebase' | 'vault';
+
+function AnalysisStudioContent() {
   const router = useRouter();
-  const { boardTheme, pieceTheme } = useShell();
+  const searchParams = useSearchParams();
+  const { boardTheme, pieceTheme, openChessComSync } = useShell();
+  const { effectiveDisplayName, syncedChessCom, syncedLichess } = useAuth();
+
+  // Sub-screen navigation ("Screens, Not Pages" architecture)
+  const [activeScreen, setActiveScreen] = useState<AnalysisScreen>('sandbox');
+
+  // Interactive Chess Board & Orientation
   const [chess, setChess] = useState<Chess>(() => new Chess());
   const [orientation, setOrientation] = useState<PieceColor>('w');
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
-  const [mobileView, setMobileView] = useState<'board' | 'lines'>('board');
+
+  // Move history for step back/forward
+  const [historyFens, setHistoryFens] = useState<string[]>([new Chess().fen()]);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const [sanHistory, setSanHistory] = useState<string[]>([]);
+  const [copiedFen, setCopiedFen] = useState(false);
+
+  // Engine evaluation states (Stockfish 18 WASM API)
+  const [isEngineActive, setIsEngineActive] = useState(true);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [targetDepth, setTargetDepth] = useState<number>(14);
+  const [currentEvalScore, setCurrentEvalScore] = useState<number>(20);
+  const [currentEvalFormatted, setCurrentEvalFormatted] = useState<string>('+0.20');
+  const [pvLines, setPvLines] = useState<MultiPvLine[]>([]);
+  const [engineDepth, setEngineDepth] = useState<number>(0);
+  const [nodesCount, setNodesCount] = useState<number>(0);
+  const [tablebaseInfo, setTablebaseInfo] = useState<TablebaseInfo | null>(null);
+
+  // Visual feature states
+  const [showBestMoveArrow, setShowBestMoveArrow] = useState(true);
+  const [hoveredPvUci, setHoveredPvUci] = useState<string | null>(null);
+
+  // Threat analysis
+  const [threatInfo, setThreatInfo] = useState<{
+    threatMoveSan: string;
+    description: string;
+    severity: string;
+    arrow: ArrowAnnotation | null;
+  } | null>(null);
+  const [isDetectingThreat, setIsDetectingThreat] = useState(false);
+
+  // Vault / Import state
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [recentGamesList, setRecentGamesList] = useState<GameSession[]>([]);
+  const [vaultProvider, setVaultProvider] = useState<'all' | 'checkmate' | 'chesscom' | 'lichess'>('all');
+  const [isSyncingVault, setIsSyncingVault] = useState(false);
 
   // Deep-link position parser (e.g. from Openings, Puzzles, or Review)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const search = new URLSearchParams(window.location.search);
-    const gameIdParam = search.get('gameId');
-    const movesParam = search.get('moves');
-    const plyParam = search.get('ply');
-    const fenParam = search.get('fen');
-    const pgnParam = search.get('pgn');
+    if (!searchParams) return;
+    const gameIdParam = searchParams.get('gameId');
+    const movesParam = searchParams.get('moves');
+    const plyParam = searchParams.get('ply');
+    const fenParam = searchParams.get('fen');
+    const pgnParam = searchParams.get('pgn');
 
-    // 1. High-fidelity Game / Moves Deep Link (e.g. from Game Review "Deep Studio")
     if (gameIdParam || movesParam) {
       let movesList: string[] = [];
       let isUserBlack = false;
@@ -94,6 +140,7 @@ export default function AnalysisPage() {
           }
           isUserBlack =
             session.blackPlayer?.name?.toLowerCase().includes('you') ||
+            session.blackPlayer?.name?.toLowerCase().includes(effectiveDisplayName.toLowerCase()) ||
             (!session.blackPlayer?.isBot && Boolean(session.whitePlayer?.isBot));
         }
       }
@@ -123,7 +170,6 @@ export default function AnalysisPage() {
         setHistoryFens(fens);
         setSanHistory(sans);
 
-        // Jump to target ply if specified (e.g. Move 7 blunder position), otherwise default to turning point
         let targetIndex = fens.length - 1;
         if (plyParam !== null) {
           const parsedPly = parseInt(plyParam, 10);
@@ -131,7 +177,6 @@ export default function AnalysisPage() {
             targetIndex = parsedPly;
           }
         } else if (fens.length > 2) {
-          // If the last move was checkmate, place board at the position before checkmate so user can analyze alternatives
           targetIndex = fens.length - 2;
         }
 
@@ -143,7 +188,6 @@ export default function AnalysisPage() {
       }
     }
 
-    // 2. FEN Deep Link (e.g. from Puzzles / Openings)
     if (fenParam) {
       try {
         const decoded = decodeURIComponent(fenParam);
@@ -178,62 +222,45 @@ export default function AnalysisPage() {
         console.warn('Could not parse PGN parameter:', e);
       }
     }
-  }, []);
+  }, [searchParams, effectiveDisplayName]);
 
-  // Engine evaluation states
-  const [isEngineActive, setIsEngineActive] = useState(true);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [targetDepth, setTargetDepth] = useState<number>(14);
-  const [currentEvalScore, setCurrentEvalScore] = useState<number>(20);
-  const [currentEvalFormatted, setCurrentEvalFormatted] = useState<string>('+0.20');
-  const [pvLines, setPvLines] = useState<MultiPvLine[]>([]);
-  const [engineDepth, setEngineDepth] = useState<number>(0);
-  const [nodesCount, setNodesCount] = useState<number>(0);
-  const [tablebaseInfo, setTablebaseInfo] = useState<TablebaseInfo | null>(null);
+  // Load recent games for Vault
+  const refreshVaultGames = useCallback(async (force = false) => {
+    setIsSyncingVault(true);
+    let ccUser = syncedChessCom?.username;
+    let liUser = syncedLichess?.username;
 
-  // Move history for step back/forward
-  const [historyFens, setHistoryFens] = useState<string[]>([new Chess().fen()]);
-  const [historyIndex, setHistoryIndex] = useState<number>(0);
-  const [sanHistory, setSanHistory] = useState<string[]>([]);
-  const [copiedFen, setCopiedFen] = useState(false);
-
-  // Visual features
-  const [showBestMoveArrow, setShowBestMoveArrow] = useState(true);
-  const [hoveredPvUci, setHoveredPvUci] = useState<string | null>(null);
-  const [showHelpBanner, setShowHelpBanner] = useState(false);
-
-  // Threat analysis
-  const [threatInfo, setThreatInfo] = useState<{
-    threatMoveSan: string;
-    description: string;
-    severity: string;
-    arrow: ArrowAnnotation | null;
-  } | null>(null);
-  const [isDetectingThreat, setIsDetectingThreat] = useState(false);
-
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importText, setImportText] = useState('');
-  const [importError, setImportError] = useState<string | null>(null);
-  const [isRecentGamesModalOpen, setIsRecentGamesModalOpen] = useState(false);
-  const [recentGamesList, setRecentGamesList] = useState<GameSession[]>([]);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Load recent games when opening modal
-  const handleOpenRecentGamesModal = () => {
-    try {
-      const list = GameSessionStore.listRecentSessions();
-      setRecentGamesList(list || []);
-    } catch {
-      setRecentGamesList([]);
+    if (!ccUser && typeof window !== 'undefined') {
+      try {
+        const storedCC = localStorage.getItem('chess_com_profile');
+        if (storedCC) ccUser = JSON.parse(storedCC)?.username;
+      } catch {}
     }
-    setIsRecentGamesModalOpen(true);
-  };
+    if (!liUser && typeof window !== 'undefined') {
+      try {
+        const storedLI = localStorage.getItem('lichess_profile');
+        if (storedLI) liUser = JSON.parse(storedLI)?.username;
+      } catch {}
+    }
+
+    if (force) {
+      if (ccUser) await syncExternalAccountGames('chesscom', ccUser, true);
+      if (liUser) await syncExternalAccountGames('lichess', liUser, true);
+    }
+
+    setRecentGamesList(GameSessionStore.listRecentSessions());
+    setIsSyncingVault(false);
+  }, [syncedChessCom?.username, syncedLichess?.username]);
+
+  useEffect(() => {
+    refreshVaultGames(false);
+  }, [refreshVaultGames]);
 
   // Fetch engine evaluation from backend API
   const fetchEngineEval = useCallback(async (fen: string, depth: number) => {
     if (!isEngineActive) return;
     setIsEvaluating(true);
-    setThreatInfo(null); // clear old threat on new position
+    setThreatInfo(null);
     try {
       const res = await fetch('/api/engine/evaluate', {
         method: 'POST',
@@ -258,6 +285,10 @@ export default function AnalysisPage() {
     }
   }, [isEngineActive]);
 
+  useEffect(() => {
+    fetchEngineEval(chess.fen(), targetDepth);
+  }, [chess, targetDepth, fetchEngineEval]);
+
   const handleDetectThreat = async () => {
     setIsDetectingThreat(true);
     try {
@@ -279,137 +310,6 @@ export default function AnalysisPage() {
     }
   };
 
-  const handleImportSubmit = async () => {
-    const raw = importText.trim();
-    if (!raw) return;
-    setImportError(null);
-
-    // Check if FEN
-    const fenTokens = raw.split(/\s+/);
-    if (fenTokens.length >= 2 && /[prnbqkPRNBQK1-8\/]+/.test(fenTokens[0])) {
-      try {
-        const newChess = new Chess(raw);
-        setChess(newChess);
-        setHistoryFens([newChess.fen()]);
-        setSanHistory([]);
-        setHistoryIndex(0);
-        setLastMove(null);
-        setIsImportModalOpen(false);
-        setImportText('');
-        soundService.playGameStart();
-        return;
-      } catch {
-        // Not a valid FEN, try PGN
-      }
-    }
-
-    // Try PGN import via API
-    try {
-      const res = await fetch('/api/pgn/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pgn: raw }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data?.moves?.length > 0) {
-          const runner = new Chess();
-          const fens: string[] = [runner.fen()];
-          const sans: string[] = [];
-          for (const m of json.data.moves) {
-            runner.move(m);
-            fens.push(runner.fen());
-            sans.push(m);
-          }
-          setChess(runner);
-          setHistoryFens(fens);
-          setSanHistory(sans);
-          setHistoryIndex(fens.length - 1);
-          setLastMove(null);
-          setIsImportModalOpen(false);
-          setImportText('');
-          soundService.playGameStart();
-          return;
-        }
-      }
-      setImportError('Could not parse valid PGN or FEN');
-    } catch (err: any) {
-      setImportError(err.message || 'Import failed');
-    }
-  };
-
-  // Load a session from Recent Games modal
-  const handleLoadSession = (session: GameSession) => {
-    let moves = session.moves;
-    if ((!moves || moves.length === 0) && session.pgn) {
-      moves = parsePgnToMoveRecords(session.pgn);
-    }
-    if (!moves || moves.length === 0) return;
-
-    const runner = new Chess();
-    const fens: string[] = [runner.fen()];
-    const sans: string[] = [];
-    for (const m of moves) {
-      try {
-        const executed = runner.move(m.san);
-        if (!executed) break;
-        fens.push(runner.fen());
-        sans.push(m.san);
-      } catch {
-        break;
-      }
-    }
-
-    setChess(runner);
-    setHistoryFens(fens);
-    setSanHistory(sans);
-    setHistoryIndex(fens.length - 1);
-    setLastMove(
-      moves.length > 0
-        ? { from: moves[moves.length - 1].from, to: moves[moves.length - 1].to }
-        : null
-    );
-
-    const isUserBlack =
-      session.blackPlayer?.name?.toLowerCase().includes('qing') ||
-      session.blackPlayer?.name?.toLowerCase().includes('you');
-    setOrientation(isUserBlack ? 'b' : 'w');
-
-    soundService.playGameStart();
-    setIsRecentGamesModalOpen(false);
-  };
-
-  // Preset: Load ChiefTbot vs rapid_qing game directly
-  const handleLoadChiefTbotGame = () => {
-    const runner = new Chess();
-    const moves = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'h6', 'd4', 'exd4', 'Nxd4', 'Nxd4', 'Qxd4', 'd6', 'Qd5', 'c6', 'Qxf7#'];
-    const fens: string[] = [runner.fen()];
-    const sans: string[] = [];
-    for (const s of moves) {
-      try {
-        runner.move(s);
-        fens.push(runner.fen());
-        sans.push(s);
-      } catch {
-        break;
-      }
-    }
-    setChess(runner);
-    setHistoryFens(fens);
-    setSanHistory(sans);
-    // Position at move 7 (ply 13: 7. Qd5 played by White) so user can analyze Black's defense
-    setHistoryIndex(13);
-    const posAt7 = new Chess(fens[13]);
-    setChess(posAt7);
-    setOrientation('b');
-    soundService.playGameStart();
-    setIsRecentGamesModalOpen(false);
-  };
-
-  useEffect(() => {
-    fetchEngineEval(chess.fen(), targetDepth);
-  }, [chess, targetDepth, fetchEngineEval]);
-
   const handleMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
     try {
       const move = chess.move({ from, to, promotion: promotion || 'q' });
@@ -426,7 +326,7 @@ export default function AnalysisPage() {
       soundService.playMove();
       setChess(new Chess(newFen));
     } catch {
-      //
+      // Invalid move
     }
   };
 
@@ -451,25 +351,20 @@ export default function AnalysisPage() {
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         jumpToMove(historyIndex + 1);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        jumpToMove(0);
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        jumpToMove(historyFens.length - 1);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [historyIndex, historyFens, jumpToMove]);
+  }, [historyIndex, jumpToMove]);
 
   const handleReset = () => {
-    const initial = new Chess();
-    setChess(initial);
-    setHistoryFens([initial.fen()]);
+    const startChess = new Chess();
+    setChess(startChess);
+    setHistoryFens([startChess.fen()]);
     setSanHistory([]);
     setHistoryIndex(0);
     setLastMove(null);
+    setThreatInfo(null);
     soundService.playGameStart();
   };
 
@@ -479,21 +374,22 @@ export default function AnalysisPage() {
     setTimeout(() => setCopiedFen(false), 2000);
   };
 
+  // Launch Stockfish 18 Game Review from current analysis game
   const handleGoToGameReview = () => {
     if (sanHistory.length > 0) {
       const runner = new Chess();
       const moveRecords: MoveRecord[] = [];
-      for (const san of sanHistory) {
+      for (let i = 0; i < sanHistory.length; i++) {
+        const san = sanHistory[i];
         const fenBefore = runner.fen();
         try {
           const m = runner.move(san);
           if (!m) break;
           moveRecords.push({
             san: m.san,
-            from: m.from as Square,
-            to: m.to as Square,
+            from: m.from,
+            to: m.to,
             captured: m.captured as any,
-            promotion: m.promotion as any,
             fenBefore,
             fenAfter: runner.fen(),
             evalBefore: 0,
@@ -510,15 +406,15 @@ export default function AnalysisPage() {
         id: sessionId,
         whitePlayer: {
           id: 'w-analysis',
-          name: orientation === 'w' ? 'You' : 'Opponent',
+          name: orientation === 'w' ? effectiveDisplayName : 'Opponent',
           rating: 1500,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=128&q=80',
+          avatar: '',
         },
         blackPlayer: {
           id: 'b-analysis',
-          name: orientation === 'b' ? 'You' : 'Opponent',
+          name: orientation === 'b' ? effectiveDisplayName : 'Opponent',
           rating: 1500,
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=128&q=80',
+          avatar: '',
         },
         timeControl: 600,
         variant: 'standard',
@@ -558,744 +454,897 @@ export default function AnalysisPage() {
       list.push({
         from: hoveredPvUci.slice(0, 2) as Square,
         to: hoveredPvUci.slice(2, 4) as Square,
-        color: '#38bdf8', // bright sky-blue for preview
+        color: '#38bdf8',
       });
     } else if (showBestMoveArrow && pvLines[0]?.bestMoveUci && pvLines[0].bestMoveUci.length >= 4) {
       list.push({
         from: pvLines[0].bestMoveUci.slice(0, 2) as Square,
         to: pvLines[0].bestMoveUci.slice(2, 4) as Square,
-        color: '#81b64c', // chess.com green for #1 best move
+        color: '#81b64c',
       });
     }
     return list;
   }, [threatInfo, hoveredPvUci, showBestMoveArrow, pvLines]);
 
+  // Load a session from Vault into Analysis Board
+  const handleLoadSession = (session: GameSession) => {
+    let moves = session.moves;
+    if ((!moves || moves.length === 0) && session.pgn) {
+      moves = parsePgnToMoveRecords(session.pgn);
+    }
+    if (!moves || moves.length === 0) return;
+
+    const runner = new Chess();
+    const fens: string[] = [runner.fen()];
+    const sans: string[] = [];
+    for (const m of moves) {
+      try {
+        const executed = runner.move(m.san);
+        if (!executed) break;
+        fens.push(runner.fen());
+        sans.push(m.san);
+      } catch {
+        break;
+      }
+    }
+
+    setChess(runner);
+    setHistoryFens(fens);
+    setSanHistory(sans);
+    setHistoryIndex(fens.length - 1);
+    setLastMove(
+      moves.length > 0
+        ? { from: moves[moves.length - 1].from, to: moves[moves.length - 1].to }
+        : null
+    );
+
+    const isUserWhiteColor = isSessionUserWhite(session, effectiveDisplayName);
+    setOrientation(isUserWhiteColor ? 'w' : 'b');
+
+    soundService.playGameStart();
+    setActiveScreen('sandbox');
+  };
+
+  const handleImportSubmit = async () => {
+    const raw = importText.trim();
+    if (!raw) return;
+    setImportError(null);
+
+    const fenTokens = raw.split(/\s+/);
+    if (fenTokens.length >= 2 && /[prnbqkPRNBQK1-8\/]+/.test(fenTokens[0])) {
+      try {
+        const newChess = new Chess(raw);
+        setChess(newChess);
+        setHistoryFens([newChess.fen()]);
+        setSanHistory([]);
+        setHistoryIndex(0);
+        setLastMove(null);
+        setImportText('');
+        soundService.playGameStart();
+        setActiveScreen('sandbox');
+        return;
+      } catch {
+        // Not a valid FEN
+      }
+    }
+
+    try {
+      const res = await fetch('/api/pgn/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pgn: raw }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data?.moves?.length > 0) {
+          const runner = new Chess();
+          const fens: string[] = [runner.fen()];
+          const sans: string[] = [];
+          for (const m of json.data.moves) {
+            runner.move(m);
+            fens.push(runner.fen());
+            sans.push(m);
+          }
+          setChess(runner);
+          setHistoryFens(fens);
+          setSanHistory(sans);
+          setHistoryIndex(fens.length - 1);
+          setLastMove(null);
+          setImportText('');
+          soundService.playGameStart();
+          setActiveScreen('sandbox');
+          return;
+        }
+      }
+      setImportError('Could not parse valid PGN or FEN position');
+    } catch (err: any) {
+      setImportError(err.message || 'Import failed');
+    }
+  };
+
+  // Filter vault games by provider
+  const filteredVaultGames = useMemo(() => {
+    return recentGamesList.filter((g) => {
+      const isChessCom = g.source === 'chesscom' || g.id.startsWith('chesscom-');
+      const isLichess = g.source === 'lichess' || g.id.startsWith('lichess-');
+      if (vaultProvider === 'chesscom') return isChessCom;
+      if (vaultProvider === 'lichess') return isLichess;
+      if (vaultProvider === 'checkmate') return !isChessCom && !isLichess;
+      return true;
+    });
+  }, [recentGamesList, vaultProvider]);
+
+  const pieceCount = useMemo(() => {
+    const fen = chess.fen().split(' ')[0];
+    return (fen.match(/[prnbqkPRNBQK]/g) || []).length;
+  }, [chess]);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 overflow-hidden select-none min-w-0">
-      {/* Top Navbar */}
-      <header className="h-14 border-b-2 border-[#282522] bg-[#1a1916] px-3 sm:px-4 lg:px-6 flex items-center justify-between z-10 shrink-0 shadow-[0_2px_0_0_#141311]">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24] shrink-0">
-              <Award className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white flex items-center gap-1.5 sm:gap-2 truncate">
-                <span>Analysis<span className="hidden xs:inline"> Studio</span></span>
-                <button
-                  onClick={() => setShowHelpBanner(!showHelpBanner)}
-                  className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                  title="What is Analysis Studio?"
-                >
-                  <HelpCircle className="w-3.5 h-3.5" />
-                </button>
-              </h1>
-              <span className="text-[10px] font-medium text-zinc-400 hidden sm:block truncate">
-                Deep-Dive Sandbox & Engine Lab
+      {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
+      <header className="h-12 border-b border-white/5 px-3 sm:px-4 flex items-center justify-between shrink-0 bg-[#141311] z-20">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+            <Microscope className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
+              <span>Analysis Studio</span>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
+                Stockfish 18
               </span>
-            </div>
+            </h1>
           </div>
         </div>
 
-        {/* Mobile View Switcher Pill */}
-        <div className="flex lg:hidden items-center bg-[#141311] p-0.5 rounded-full border border-[#35322b] mx-2">
+        {/* 4 Segmented Sub-Screen Switcher Pills */}
+        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none">
           <button
-            onClick={() => setMobileView('board')}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              mobileView === 'board'
-                ? 'bg-[#81b64c] text-white shadow-sm'
-                : 'text-zinc-400 hover:text-white'
+            onClick={() => setActiveScreen('sandbox')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              activeScreen === 'sandbox'
+                ? 'bg-[#81b64c] text-black font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Board
+            Multi-PV Engine
           </button>
           <button
-            onClick={() => setMobileView('lines')}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              mobileView === 'lines'
-                ? 'bg-[#81b64c] text-white shadow-sm'
-                : 'text-zinc-400 hover:text-white'
+            onClick={() => setActiveScreen('theory')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              activeScreen === 'theory'
+                ? 'bg-[#81b64c] text-black font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Lines ({pvLines.length})
+            Opening Explorer
           </button>
-        </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Tablebase indicator if active */}
-          {tablebaseInfo?.isTablebase && (
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1c2e14] border-2 border-[#81b64c]/40 text-[#81b64c] text-xs font-black uppercase tracking-wider shadow-[0_2px_0_0_#4d7a24]">
-              <Database className="w-3.5 h-3.5" />
-              <span>7-Piece Tablebase</span>
-            </div>
-          )}
-
-          {/* Desktop & Tablet actions */}
-          <div className="hidden md:flex items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={handleOpenRecentGamesModal}
-              className="px-2.5 sm:px-3 py-1.5 rounded-full bg-[#282622] hover:bg-[#33302b] text-sky-300 hover:text-sky-200 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 border-sky-500/40 shadow-[0_2px_0_0_#141311] active:translate-y-[1px]"
-              title="Load your recent matches or bot games into Analysis Studio"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Load Game</span>
-            </button>
-
-            <button
-              onClick={() => router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`)}
-              className="px-2.5 sm:px-3 py-1.5 rounded-full bg-[#282622] hover:bg-[#33302b] text-amber-300 hover:text-amber-200 text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 border-amber-500/40 shadow-[0_2px_0_0_#141311] active:translate-y-[1px]"
-              title="Spar current position against Bot"
-            >
-              <Bot className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Spar Bot</span>
-            </button>
-
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="px-2.5 sm:px-3 py-1.5 rounded-full bg-[#282622] hover:bg-[#33302b] text-zinc-200 hover:text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 border-[#3d3a35] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none"
-              title="Import FEN / PGN"
-            >
-              <Upload className="w-3.5 h-3.5 text-[#81b64c]" />
-              <span className="hidden lg:inline">Import</span>
-            </button>
-          </div>
-
-          {/* Primary CTA: Game Review */}
           <button
-            onClick={handleGoToGameReview}
-            className="px-2.5 sm:px-4 py-1.5 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24]"
+            onClick={() => setActiveScreen('tablebase')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              activeScreen === 'tablebase'
+                ? 'bg-[#81b64c] text-black font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
           >
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span><span className="hidden xs:inline">Game </span>Review</span>
+            7-Piece Tablebase
           </button>
-
-          {/* Mobile Secondary Actions Dropdown */}
-          <div className="relative md:hidden">
-            <button
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-              className="p-1.5 rounded-full bg-[#282622] border-2 border-[#3d3a35] text-zinc-300 hover:text-white shadow-[0_2px_0_0_#141311] active:translate-y-[1px] cursor-pointer"
-              title="More Actions"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {isMobileMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl p-1.5 shadow-2xl z-50 flex flex-col gap-1 animate-in fade-in zoom-in-95">
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    handleOpenRecentGamesModal();
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-black text-sky-300 hover:bg-[#2a2723] rounded-xl flex items-center gap-2 cursor-pointer"
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  <span>Load Match / Game</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`);
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-black text-amber-300 hover:bg-[#2a2723] rounded-xl flex items-center gap-2 cursor-pointer"
-                >
-                  <Bot className="w-4 h-4" />
-                  <span>Spar Bot from Here</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setIsImportModalOpen(true);
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-black text-zinc-200 hover:bg-[#2a2723] rounded-xl flex items-center gap-2 cursor-pointer"
-                >
-                  <Upload className="w-4 h-4 text-[#81b64c]" />
-                  <span>Import FEN / PGN</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setShowHelpBanner((prev) => !prev);
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-black text-zinc-400 hover:bg-[#2a2723] rounded-xl flex items-center gap-2 cursor-pointer border-t border-[#2a2723] pt-1.5 mt-0.5"
-                >
-                  <HelpCircle className="w-4 h-4" />
-                  <span>Help &amp; Guide</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setActiveScreen('vault')}
+            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              activeScreen === 'vault'
+                ? 'bg-[#81b64c] text-black font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Game Vault &amp; Import
+          </button>
         </div>
       </header>
 
-      {/* Purpose & Help Banner (Collapsible) */}
-      {showHelpBanner && (
-        <div className="bg-[#1e1c18] border-b border-[#2d2a25] px-6 py-3 flex items-center justify-between text-xs text-zinc-300 animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
-            <p className="leading-relaxed">
-              <strong className="text-white font-bold">Purpose of Analysis Studio:</strong> An interactive chess laboratory. Unlike static Game Review, you can freely play out candidate moves, test hypothetical sidelines, see real-time Stockfish 16 arrows, uncover hidden opponent threats with the Threat Radar, study ECO opening theory, and query 7-piece endgame tablebases.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowHelpBanner(false)}
-            className="text-zinc-500 hover:text-white p-1 rounded-md cursor-pointer shrink-0 ml-4"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Main Workspace: Board on Left, Multi-PV & Opening Panel on Right */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Board Container */}
-        <div className={`flex-1 flex flex-col items-center justify-start lg:justify-center p-1 sm:p-4 bg-[#161512] relative overflow-hidden shrink-0 ${mobileView === 'lines' ? 'hidden lg:flex' : 'flex'}`}>
-          <div className="flex items-center gap-2 max-w-full justify-center">
-            <EvalBar score={currentEvalScore} orientation={orientation} />
-            <div className="w-[min(calc(100vw-3.25rem),calc(100dvh-220px),520px)] aspect-square">
-              <ChessBoard
-                chess={chess}
-                orientation={orientation}
-                boardTheme={boardTheme}
-                pieceTheme={pieceTheme}
-                onMove={handleMove}
-                lastMove={lastMove}
-                customArrows={boardArrows}
-              />
-            </div>
-          </div>
-
-          {/* Opponent Threat Alert Banner */}
-          {threatInfo && (
-            <div
-              className={`mt-3 w-full max-w-[520px] p-2.5 sm:p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
-                threatInfo.severity === 'critical'
-                  ? 'bg-rose-950/40 border-rose-600/50 text-rose-200'
-                  : threatInfo.severity === 'moderate'
-                  ? 'bg-amber-950/40 border-amber-600/50 text-amber-200'
-                  : 'bg-blue-950/40 border-blue-600/50 text-blue-200'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <AlertTriangle
-                  className={`w-4 h-4 shrink-0 ${
-                    threatInfo.severity === 'critical'
-                      ? 'text-rose-400 animate-pulse'
-                      : 'text-amber-400'
-                  }`}
-                />
-                <div>
-                  <span className="font-black uppercase tracking-wider text-[10px] block opacity-85">
-                    {threatInfo.severity} Threat Detected ({threatInfo.threatMoveSan})
-                  </span>
-                  <span className="font-semibold text-white text-xs">
-                    {threatInfo.description}
-                  </span>
+      {/* 2. MAIN SUB-SCREEN VIEWPORT */}
+      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-hidden">
+        {/* ========================================================================= */}
+        {/* SUB-SCREEN 1: STOCKFISH 18 SANDBOX & MULTI-PV */}
+        {/* ========================================================================= */}
+        {activeScreen === 'sandbox' && (
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+            {/* Left: Interactive Chess Board + Stepper */}
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+              <div className="flex items-center gap-2 max-w-full justify-center">
+                <EvalBar score={currentEvalScore} orientation={orientation} />
+                <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),480px)] aspect-square">
+                  <ChessBoard
+                    chess={chess}
+                    orientation={orientation}
+                    boardTheme={boardTheme}
+                    pieceTheme={pieceTheme}
+                    onMove={handleMove}
+                    lastMove={lastMove}
+                    customArrows={boardArrows}
+                  />
                 </div>
               </div>
-              <button
-                onClick={() => setThreatInfo(null)}
-                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-black/30 cursor-pointer"
-                title="Dismiss threat"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
 
-          {/* Under-Board Toolbar (Mobile 2-row clean stack, Tablet/Desktop single pill) */}
-          <div className="w-full max-w-[520px] mt-2.5 sm:mt-3 flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 bg-[#211f1c] p-1.5 sm:px-4 sm:py-2 rounded-2xl sm:rounded-full border-2 border-[#332f2b] shadow-[0_3px_0_0_#141311]">
-            {/* Move Navigation Cluster */}
-            <div className="flex items-center justify-center gap-1 w-full sm:w-auto">
-              <button
-                onClick={() => jumpToMove(0)}
-                disabled={historyIndex === 0}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="First Move"
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => jumpToMove(historyIndex - 1)}
-                disabled={historyIndex === 0}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="Previous Move"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-[11px] sm:text-xs font-mono font-black text-zinc-200 px-2 uppercase text-center min-w-[120px]">
-                {historyIndex === 0 ? 'Start' : `Move ${Math.ceil(historyIndex / 2)}`} ({historyIndex}/{historyFens.length - 1})
-              </span>
-              <button
-                onClick={() => jumpToMove(historyIndex + 1)}
-                disabled={historyIndex >= historyFens.length - 1}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="Next Move"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => jumpToMove(historyFens.length - 1)}
-                disabled={historyIndex >= historyFens.length - 1}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="Last Move"
-              >
-                <ChevronsRight className="w-4 h-4" />
-              </button>
-            </div>
+              {/* Opponent Threat Alert Banner */}
+              {threatInfo && (
+                <div
+                  className={`mt-2 w-full max-w-[480px] p-2 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                    threatInfo.severity === 'critical'
+                      ? 'bg-rose-950/40 border-rose-600/50 text-rose-200'
+                      : 'bg-amber-950/40 border-amber-600/50 text-amber-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-bold uppercase tracking-wider text-[10px] block opacity-80">
+                        {threatInfo.severity} Threat ({threatInfo.threatMoveSan})
+                      </span>
+                      <span className="text-white text-xs truncate block">{threatInfo.description}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setThreatInfo(null)}
+                    className="p-1 rounded text-zinc-400 hover:text-white cursor-pointer shrink-0"
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
 
-            <div className="hidden sm:block h-4 w-[1px] bg-[#332f2b] mx-0.5" />
+              {/* Under-Board Stepper & Tool Controls */}
+              <div className="w-full max-w-[480px] mt-2 flex items-center justify-between gap-1 bg-[#1c1a17] px-3 py-1.5 rounded-xl border border-white/5">
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => jumpToMove(0)}
+                    disabled={historyIndex === 0}
+                    title="Start of Game"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => jumpToMove(historyIndex - 1)}
+                    disabled={historyIndex === 0}
+                    title="Previous Move"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-xs font-mono font-bold text-zinc-300 px-1 text-center min-w-[80px]">
+                    {historyIndex === 0 ? 'Start' : `Ply ${historyIndex}`} / {historyFens.length - 1}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => jumpToMove(historyIndex + 1)}
+                    disabled={historyIndex >= historyFens.length - 1}
+                    title="Next Move"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => jumpToMove(historyFens.length - 1)}
+                    disabled={historyIndex >= historyFens.length - 1}
+                    title="Latest Position"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </Button>
+                </div>
 
-            {/* Analysis Tools Cluster */}
-            <div className="flex items-center justify-center gap-1 sm:gap-1.5 w-full sm:w-auto pt-1 sm:pt-0 border-t border-[#2d2a25] sm:border-t-0">
-              {/* Best Move Arrow Toggle */}
-              <button
-                onClick={() => setShowBestMoveArrow(!showBestMoveArrow)}
-                className={`p-1.5 sm:p-2 rounded-xl sm:rounded-full cursor-pointer transition-colors ${
-                  showBestMoveArrow
-                    ? 'text-[#81b64c] bg-[#81b64c]/15'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#2c2925]'
-                }`}
-                title={showBestMoveArrow ? 'Hide Engine Best Move Arrow' : 'Show Engine Best Move Arrow'}
-              >
-                {showBestMoveArrow ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
+                <div className="h-4 w-[1px] bg-white/10" />
 
-              {/* Threat Detection Button */}
-              <button
-                onClick={handleDetectThreat}
-                disabled={isDetectingThreat}
-                className={`px-2.5 sm:px-3 py-1 rounded-full cursor-pointer transition-all flex items-center gap-1 text-[11px] sm:text-xs font-black uppercase tracking-wider border-2 ${
-                  threatInfo
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500 shadow-[0_2px_0_0_#881337]'
-                    : 'bg-[#282622] text-zinc-300 border-[#383530] hover:text-white shadow-[0_2px_0_0_#141311] active:translate-y-[1px]'
-                }`}
-                title="Analyze opponent tactical threats using Null-Move search"
-              >
-                {isDetectingThreat ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                ) : (
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                )}
-                <span>Threats</span>
-              </button>
-
-              <button
-                onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white cursor-pointer rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="Flip Board"
-              >
-                <ArrowUpDown className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleReset}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white cursor-pointer rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="Reset Board"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleCopyFen}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white cursor-pointer rounded-xl sm:rounded-full hover:bg-[#2c2925] transition-colors"
-                title="Copy FEN"
-              >
-                {copiedFen ? <Check className="w-4 h-4 text-[#81b64c]" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Engine Multi-PV & Opening Theory Panel */}
-        <aside className={`w-full lg:w-[400px] xl:w-[420px] border-t-2 lg:border-t-0 lg:border-l-2 border-[#282522] bg-[#1a1916] flex flex-col shrink-0 h-full overflow-hidden ${mobileView === 'board' ? 'hidden lg:flex' : 'flex'}`}>
-          {/* Engine Header & Controls */}
-          <div className="p-4 border-b-2 border-[#282522] flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-[#81b64c]" />
-                <span className="text-xs font-black tracking-wider text-white uppercase">
-                  Engine Assessment
-                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setShowBestMoveArrow(!showBestMoveArrow)}
+                    className={showBestMoveArrow ? 'text-[#81b64c]' : 'text-zinc-500'}
+                    title={showBestMoveArrow ? 'Hide Engine Best Move Arrow' : 'Show Engine Best Move Arrow'}
+                  >
+                    {showBestMoveArrow ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleDetectThreat}
+                    disabled={isDetectingThreat}
+                    title="Scan Opponent Threats"
+                  >
+                    {isDetectingThreat ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    ) : (
+                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}
+                    title="Flip Board Orientation"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={handleReset} title="Reset Position">
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={handleCopyFen} title="Copy FEN to Clipboard">
+                    {copiedFen ? <Check className="w-4 h-4 text-[#81b64c]" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
-              <button
-                onClick={() => setIsEngineActive(!isEngineActive)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider cursor-pointer transition-all border-2 ${
-                  isEngineActive
-                    ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
-                    : 'bg-[#282522] text-zinc-400 border-[#383530]'
-                }`}
-              >
-                {isEngineActive ? <Play className="w-3 h-3 fill-current" /> : <Pause className="w-3 h-3" />}
-                <span>{isEngineActive ? 'Engine ON' : 'Engine OFF'}</span>
-              </button>
             </div>
 
-            {/* Depth & Speed Indicator Card */}
-            <div className="bg-[#211f1c] p-3.5 rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400">Stockfish 16</div>
-                <div className="text-xl font-black font-mono text-white flex items-center gap-2">
-                  <span className={currentEvalScore >= 0 ? 'text-[#81b64c]' : 'text-rose-400'}>
+            {/* Right: Multi-PV Lines & Launch Game Review */}
+            <div className="w-full lg:w-96 flex flex-col gap-2.5 min-h-0 bg-[#181614] p-3 rounded-2xl border border-white/5">
+              {/* Engine Assessment Header */}
+              <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-[#81b64c]" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Stockfish 18 WASM
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    Depth {engineDepth || targetDepth} &bull; {nodesCount ? `${(nodesCount / 1000).toFixed(0)}k` : 'instant'}
+                  </span>
+                  <button
+                    onClick={() => setIsEngineActive(!isEngineActive)}
+                    className="p-1 rounded text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    {isEngineActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-[#81b64c]" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Score Display Card */}
+              <div className="p-2.5 rounded-xl bg-[#201e1a] border border-white/5 flex items-center justify-between shrink-0">
+                <div>
+                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Evaluation</span>
+                  <span className={`text-xl font-mono font-black ${currentEvalScore >= 0 ? 'text-[#81b64c]' : 'text-red-400'}`}>
                     {currentEvalFormatted}
                   </span>
-                  {isEvaluating && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />}
+                </div>
+                {/* Target Depth Selector */}
+                <div className="flex items-center gap-1">
+                  {[12, 16, 20].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setTargetDepth(d)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                        targetDepth === d
+                          ? 'bg-[#81b64c] text-black font-black'
+                          : 'bg-white/5 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-[11px] font-mono font-bold text-zinc-300">
-                  Depth <span className="text-white font-black">{engineDepth || targetDepth}</span>
-                </div>
-                <div className="text-[10px] font-mono text-zinc-500 font-semibold">
-                  {nodesCount ? `${(nodesCount / 1000).toFixed(0)}k nodes` : 'Instant cache'}
-                </div>
+              {/* Multi-PV Candidates List */}
+              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-0.5">
+                {pvLines.length > 0 ? (
+                  pvLines.map((line) => (
+                    <div
+                      key={line.rank}
+                      onMouseEnter={() => setHoveredPvUci(line.bestMoveUci)}
+                      onMouseLeave={() => setHoveredPvUci(null)}
+                      onClick={() => {
+                        if (line.bestMoveUci && line.bestMoveUci.length >= 4) {
+                          const from = line.bestMoveUci.slice(0, 2) as Square;
+                          const to = line.bestMoveUci.slice(2, 4) as Square;
+                          const promotion = line.bestMoveUci.length >= 5 ? (line.bestMoveUci[4] as PieceSymbol) : undefined;
+                          handleMove(from, to, promotion);
+                        }
+                      }}
+                      className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-[#81b64c]/40 transition-all cursor-pointer flex flex-col gap-1"
+                      title="Click line to play move on the board"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white/10 text-zinc-300">
+                            #{line.rank}
+                          </span>
+                          <span className="text-xs font-black text-white font-mono flex items-center gap-1">
+                            {line.bestMoveSan}
+                            <PlayCircle className="w-3 h-3 text-[#81b64c]" />
+                          </span>
+                        </div>
+                        <span
+                          className={`text-xs font-mono font-bold px-1.5 py-0.2 rounded ${
+                            line.scoreCp >= 0 ? 'bg-[#81b64c]/15 text-[#81b64c]' : 'bg-red-400/15 text-red-400'
+                          }`}
+                        >
+                          {line.scoreFormatted}
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-400 truncate">
+                        {line.pvSan && line.pvSan.length > 0 ? line.pvSan.slice(0, 7).join(' ') : line.bestMoveSan}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-zinc-500 flex items-center justify-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Evaluating candidate moves with Stockfish...</span>
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* Depth Selector Pills */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mr-1">Depth:</span>
-              {[10, 14, 18].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setTargetDepth(d)}
-                  className={`px-3 py-1 rounded-full text-xs font-mono font-black cursor-pointer transition-all border-2 ${
-                    targetDepth === d
-                      ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
-                      : 'bg-[#24221f] text-zinc-400 border-[#33302b] shadow-[0_2px_0_0_#141311] hover:text-white'
-                  }`}
+              {/* Exactly ONE P1 Anchor Button */}
+              <div className="pt-2 border-t border-white/5 shrink-0">
+                <Button
+                  variant="primary"
+                  size="md"
+                  rounded="xl"
+                  onClick={handleGoToGameReview}
+                  className="w-full flex items-center justify-center gap-2 font-black"
                 >
-                  {d}
-                </button>
-              ))}
+                  <Sparkles className="w-4 h-4" />
+                  <span>Launch Stockfish 18 Game Review</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-SCREEN 2: OPENING EXPLORER & THEORY */}
+        {/* ========================================================================= */}
+        {activeScreen === 'theory' && (
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+            {/* Left: Active Board */}
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+              <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),480px)] aspect-square">
+                <ChessBoard
+                  chess={chess}
+                  orientation={orientation}
+                  boardTheme={boardTheme}
+                  pieceTheme={pieceTheme}
+                  onMove={handleMove}
+                  lastMove={lastMove}
+                  customArrows={boardArrows}
+                />
+              </div>
             </div>
 
-            {/* Opening Theory / ECO Card */}
-            {currentOpening ? (
-              <div className="bg-[#211f1c] p-3 rounded-2xl border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
+            {/* Right: Opening Classification & Theory Tree */}
+            <div className="w-full lg:w-96 flex flex-col gap-2.5 min-h-0 bg-[#181614] p-3 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-2 border-b border-white/5 pb-2 shrink-0">
+                <BookOpen className="w-4 h-4 text-[#81b64c]" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">Opening Explorer</span>
+              </div>
+
+              {/* Matched Opening Details */}
+              {currentOpening ? (
+                <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 flex flex-col gap-2 shrink-0">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-[#81b64c]/20 border border-[#81b64c]/50 text-[#81b64c] text-[10px] font-black font-mono">
+                    <span className="px-2 py-0.5 rounded-md bg-[#81b64c]/20 text-[#81b64c] font-mono text-xs font-black">
                       {currentOpening.eco}
                     </span>
-                    <span className="text-xs font-black text-white truncate max-w-[200px]" title={currentOpening.name}>
-                      {currentOpening.name}
-                    </span>
+                    <span className="text-xs font-extrabold text-white truncate">{currentOpening.name}</span>
                   </div>
-                  <span className="text-[10px] font-mono text-zinc-400 truncate max-w-[120px]">
-                    {currentOpening.variation}
+                  <span className="text-[11px] text-zinc-400 font-medium">{currentOpening.variation}</span>
+
+                  {/* Win Percentage Distribution Bar */}
+                  <div className="flex items-center gap-1 text-[10px] font-mono font-bold pt-1">
+                    <div className="flex-1 bg-zinc-200 text-zinc-900 rounded px-1 py-0.5 text-center font-black">
+                      White {currentOpening.whiteWinPct}%
+                    </div>
+                    <div className="flex-1 bg-zinc-600 text-zinc-200 rounded px-1 py-0.5 text-center">
+                      Draw {currentOpening.drawPct}%
+                    </div>
+                    <div className="flex-1 bg-zinc-900 text-zinc-300 border border-zinc-700 rounded px-1 py-0.5 text-center">
+                      Black {currentOpening.blackWinPct}%
+                    </div>
+                  </div>
+
+                  {currentOpening.keyIdeas && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {currentOpening.keyIdeas.map((idea, i) => (
+                        <span key={i} className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+                          {idea}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 text-xs text-zinc-400 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-zinc-500" />
+                  <span>Position is out-of-book or customized. Play moves to explore theory.</span>
+                </div>
+              )}
+
+              {/* Quick Preset Openings */}
+              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block pt-1">
+                  Master Continuation Repertoire
+                </span>
+                {[
+                  { name: "Scotch Game (Main Line)", eco: "C45", moves: ['e4', 'e5', 'Nf3', 'Nc6', 'd4', 'exd4', 'Nxd4'] },
+                  { name: "Ruy Lopez (Closed)", eco: "C84", moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6', 'O-O', 'Be7'] },
+                  { name: "Italian Game (Giuoco Piano)", eco: "C50", moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'c3', 'Nf6'] },
+                  { name: "Sicilian Defense (Najdorf)", eco: "B90", moves: ['e4', 'c5', 'Nf3', 'd6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'a6'] },
+                  { name: "Queen's Gambit Declined", eco: "D30", moves: ['d4', 'd5', 'c4', 'e6', 'Nc3', 'Nf6', 'Bg5', 'Be7'] },
+                ].map((op) => (
+                  <div
+                    key={op.eco}
+                    onClick={() => {
+                      const runner = new Chess();
+                      const fens = [runner.fen()];
+                      const sans: string[] = [];
+                      for (const m of op.moves) {
+                        runner.move(m);
+                        fens.push(runner.fen());
+                        sans.push(m);
+                      }
+                      setChess(runner);
+                      setHistoryFens(fens);
+                      setSanHistory(sans);
+                      setHistoryIndex(fens.length - 1);
+                      soundService.playGameStart();
+                    }}
+                    className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-[#81b64c]/40 transition-all cursor-pointer flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#81b64c]/10 text-[#81b64c]">
+                          {op.eco}
+                        </span>
+                        <span className="text-xs font-bold text-white">{op.name}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-400">{op.moves.join(' ')}</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Exactly ONE P1 Anchor Button */}
+              <div className="pt-2 border-t border-white/5 shrink-0">
+                <Button
+                  variant="primary"
+                  size="md"
+                  rounded="xl"
+                  onClick={() => router.push(`/openings?eco=${currentOpening?.eco || 'C45'}`)}
+                  className="w-full flex items-center justify-center gap-2 font-black"
+                >
+                  <span>Explore Full Repertoire in Openings Lab</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-SCREEN 3: 7-PIECE ENDGAME TABLEBASE */}
+        {/* ========================================================================= */}
+        {activeScreen === 'tablebase' && (
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+            {/* Left: Active Board */}
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+              <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),480px)] aspect-square">
+                <ChessBoard
+                  chess={chess}
+                  orientation={orientation}
+                  boardTheme={boardTheme}
+                  pieceTheme={pieceTheme}
+                  onMove={handleMove}
+                  lastMove={lastMove}
+                  customArrows={boardArrows}
+                />
+              </div>
+            </div>
+
+            {/* Right: Tablebase Ground Truth Assessment */}
+            <div className="w-full lg:w-96 flex flex-col gap-2.5 min-h-0 bg-[#181614] p-3 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-2 border-b border-white/5 pb-2 shrink-0">
+                <Database className="w-4 h-4 text-[#81b64c]" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Syzygy 7-Piece Endgame Tablebase
+                </span>
+              </div>
+
+              {/* Tablebase Verification Card */}
+              <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 flex flex-col gap-2 shrink-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-300">Pieces on Board</span>
+                  <span className={`text-xs font-mono font-black px-2 py-0.5 rounded-full ${pieceCount <= 7 ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'bg-white/10 text-zinc-400'}`}>
+                    {pieceCount} Pieces {pieceCount <= 7 ? '(Within Tablebase Scope)' : '(Above 7 Pieces)'}
                   </span>
                 </div>
 
-                {/* Win Pct Bar */}
-                <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold">
-                  <div className="flex-1 bg-zinc-200 text-zinc-900 rounded-sm px-1 py-0.5 text-center">
-                    W {currentOpening.whiteWinPct}%
-                  </div>
-                  <div className="flex-1 bg-zinc-600 text-zinc-200 rounded-sm px-1 py-0.5 text-center">
-                    D {currentOpening.drawPct}%
-                  </div>
-                  <div className="flex-1 bg-zinc-900 text-zinc-300 border border-zinc-700 rounded-sm px-1 py-0.5 text-center">
-                    B {currentOpening.blackWinPct}%
-                  </div>
-                </div>
-
-                {currentOpening.keyIdeas && currentOpening.keyIdeas.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-0.5">
-                    {currentOpening.keyIdeas.slice(0, 2).map((idea, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[#181714] text-zinc-400 border border-[#2e2a25]">
-                        {idea}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-[#1c1b18] px-3 py-2 rounded-xl border border-[#2b2925] flex items-center justify-between text-xs text-zinc-500">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-3.5 h-3.5 text-zinc-600" />
-                  <span className="text-[11px] font-medium">Custom / Out-of-Book Position</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 7-Piece Tablebase Status Card (If active) */}
-          {tablebaseInfo?.isTablebase && (
-            <div className="m-4 mb-0 p-3 rounded-xl bg-[#142312] border border-[#81b64c]/30 text-xs flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 text-[#81b64c] font-black uppercase text-[10px] tracking-wider">
-                <Database className="w-3.5 h-3.5" />
-                <span>Syzygy 7-Piece Endgame Tablebase</span>
-              </div>
-              <p className="text-zinc-200 font-medium leading-relaxed">
-                {tablebaseInfo.humanDescription}
-              </p>
-              {tablebaseInfo.bestMoveSan && (
-                <div className="text-[#81b64c] font-mono font-bold text-[11px]">
-                  Optimal Tablebase Move: {tablebaseInfo.bestMoveSan}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Top Multi-PV Lines */}
-          <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black tracking-wider text-zinc-400 uppercase">
-                Top Engine Lines (Multi-PV)
-              </span>
-              <span className="text-[10px] text-zinc-500">
-                Click line to play move
-              </span>
-            </div>
-
-            {pvLines.length === 0 ? (
-              <div className="p-6 text-center text-xs text-zinc-500 font-medium">
-                Evaluating position with Stockfish...
-              </div>
-            ) : (
-              pvLines.map((line) => (
-                <div
-                  key={line.rank}
-                  onMouseEnter={() => setHoveredPvUci(line.bestMoveUci)}
-                  onMouseLeave={() => setHoveredPvUci(null)}
-                  onClick={() => {
-                    if (line.bestMoveUci && line.bestMoveUci.length >= 4) {
-                      const from = line.bestMoveUci.slice(0, 2) as Square;
-                      const to = line.bestMoveUci.slice(2, 4) as Square;
-                      const promotion = line.bestMoveUci.length >= 5 ? (line.bestMoveUci[4] as PieceSymbol) : undefined;
-                      handleMove(from, to, promotion);
-                    }
-                  }}
-                  className={`p-3.5 rounded-2xl bg-[#211f1c] border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] hover:-translate-y-0.5 hover:border-[#81b64c]/60 transition-all cursor-pointer flex flex-col gap-1.5 ${
-                    hoveredPvUci === line.bestMoveUci ? 'border-sky-500/70' : ''
-                  }`}
-                  title="Click to play this move on the board"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full border-2 border-[#3d3830] bg-[#2b2824] text-[10px] font-black uppercase text-zinc-300">
-                        Line {line.rank}
-                      </span>
-                      <span className="text-xs font-black text-white font-mono flex items-center gap-1.5">
-                        {line.bestMoveSan}
-                        <PlayCircle className="w-3 h-3 text-[#81b64c] opacity-60 group-hover:opacity-100" />
+                {tablebaseInfo?.isTablebase ? (
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-400">Theoretical Outcome</span>
+                      <span className="text-xs font-black uppercase text-[#81b64c]">
+                        {tablebaseInfo.category || 'Win'}
                       </span>
                     </div>
-                    <span
-                      className={`text-xs font-black font-mono px-2 py-0.5 rounded-full border-2 ${
-                        line.scoreCp >= 0
-                          ? 'text-[#81b64c] bg-[#81b64c]/15 border-[#81b64c]/40'
-                          : 'text-rose-400 bg-rose-500/15 border-rose-500/40'
-                      }`}
-                    >
-                      {line.scoreFormatted}
-                    </span>
-                  </div>
-
-                  <div className="text-[11px] font-mono text-zinc-400 line-clamp-2 leading-relaxed font-medium">
-                    {line.pvSan && line.pvSan.length > 0
-                      ? line.pvSan.slice(0, 8).join(' ')
-                      : line.bestMoveSan}
-                  </div>
-                </div>
-              ))
-            )}
-
-            {/* Move List Log */}
-            <div className="mt-4 pt-4 border-t border-[#282522]">
-              <span className="text-[11px] font-black tracking-wider text-zinc-400 uppercase block mb-2">
-                Move Sequence ({sanHistory.length} plies)
-              </span>
-              <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto text-xs font-mono">
-                {Array.from({ length: Math.ceil(sanHistory.length / 2) }).map((_, moveIdx) => {
-                  const whitePly = moveIdx * 2;
-                  const blackPly = moveIdx * 2 + 1;
-                  return (
-                    <React.Fragment key={moveIdx}>
-                      <div
-                        onClick={() => jumpToMove(whitePly + 1)}
-                        className={`p-1.5 rounded cursor-pointer transition-colors ${
-                          historyIndex === whitePly + 1
-                            ? 'bg-[#81b64c] text-white font-bold'
-                            : 'hover:bg-[#282522] text-zinc-300'
-                        }`}
-                      >
-                        {moveIdx + 1}. {sanHistory[whitePly]}
+                    {tablebaseInfo.dtz !== undefined && (
+                      <div className="text-[11px] font-mono text-zinc-300">
+                        Distance to Zero (DTZ): <strong className="text-white">{tablebaseInfo.dtz} moves</strong>
                       </div>
-                      {blackPly < sanHistory.length ? (
-                        <div
-                          onClick={() => jumpToMove(blackPly + 1)}
-                          className={`p-1.5 rounded cursor-pointer transition-colors ${
-                            historyIndex === blackPly + 1
-                              ? 'bg-[#81b64c] text-white font-bold'
-                              : 'hover:bg-[#282522] text-zinc-300'
-                          }`}
-                        >
-                          {sanHistory[blackPly]}
-                        </div>
-                      ) : (
-                        <div />
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      {/* Quick Load Recent Games Modal */}
-      {isRecentGamesModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1f1e1b] border border-[#33302b] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 max-h-[85vh]">
-            <div className="px-5 py-4 border-b border-[#2d2b27] flex items-center justify-between bg-[#191815]">
-              <div className="flex items-center gap-2">
-                <FolderOpen className="w-4 h-4 text-sky-400" />
-                <h2 className="text-sm font-black text-white">Load Game into Studio</h2>
-              </div>
-              <button
-                onClick={() => setIsRecentGamesModalOpen(false)}
-                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#2c2925] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-5 flex flex-col gap-4 overflow-y-auto">
-              {/* Highlighted Preset: ChiefTbot Match */}
-              <div className="p-3.5 rounded-xl bg-[#25221d] border-2 border-amber-500/40 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase">
-                      Featured Bot Match
-                    </span>
-                    <span className="text-xs font-bold text-white">ChiefTbot vs Challenger</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-400 mt-1">
-                    Italian Game (Move 7 blunder position: 7. Qd5 c6?? 8. Qxf7#). Test defensive alternatives!
-                  </p>
-                </div>
-                <button
-                  onClick={handleLoadChiefTbotGame}
-                  className="px-3.5 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider cursor-pointer shrink-0 ml-3"
-                >
-                  Load
-                </button>
-              </div>
-
-              <div className="border-t border-[#2b2925] pt-3">
-                <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 block mb-2">
-                  Recent Matches & Synced Games
-                </span>
-
-                {recentGamesList.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-zinc-500">
-                    No recently recorded games found. Play a game or import a PGN!
+                    )}
+                    <p className="text-xs text-zinc-300 font-medium leading-relaxed bg-black/20 p-2 rounded-lg">
+                      {tablebaseInfo.humanDescription}
+                    </p>
+                    {tablebaseInfo.bestMoveSan && (
+                      <div className="text-xs font-mono font-bold text-[#81b64c] flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Optimal Move: {tablebaseInfo.bestMoveSan}</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-                    {recentGamesList.slice(0, 15).map((g) => (
-                      <div
-                        key={g.id}
-                        onClick={() => handleLoadSession(g)}
-                        className="p-3 rounded-xl bg-[#191815] border border-[#2c2925] hover:border-[#81b64c]/50 hover:bg-[#211f1c] cursor-pointer transition-all flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="text-xs font-bold text-white">
-                            {g.whitePlayer?.name || 'White'} vs {g.blackPlayer?.name || 'Black'}
-                          </div>
-                          <div className="text-[10px] text-zinc-400 flex items-center gap-2 mt-0.5">
-                            <span>Result: {g.gameResult || 'Finished'}</span>
-                            <span>•</span>
-                            <span>{g.moves?.length || 0} plies</span>
-                            <span>•</span>
-                            <span>{new Date(g.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <button className="text-xs font-black text-[#81b64c] px-2.5 py-1 rounded bg-[#81b64c]/10 hover:bg-[#81b64c]/20">
-                          Select
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed pt-1">
+                    Tablebases calculate complete game trees for positions with 7 or fewer pieces, guaranteeing theoretical perfection and exact DTZ (moves until pawn advance or capture).
+                  </p>
                 )}
               </div>
-            </div>
 
-            <div className="px-5 py-3 border-t border-[#2d2b27] bg-[#191815] flex items-center justify-end">
-              <button
-                onClick={() => setIsRecentGamesModalOpen(false)}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer"
-              >
-                Close
-              </button>
+              {/* Standard Endgame Position Presets */}
+              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block pt-1">
+                  Load Classic Endgame Study
+                </span>
+                {[
+                  { name: "Lucena Position (Rook Endgame)", fen: "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1" },
+                  { name: "Philidor Defense (Drawing Rooks)", fen: "8/8/8/4k3/4r3/8/5K2/4R3 b - - 0 1" },
+                  { name: "King + Pawn vs King (Key Squares)", fen: "8/8/8/4k3/8/4K3/4P3/8 w - - 0 1" },
+                  { name: "Queen vs Pawn on 7th Rank", fen: "8/8/8/8/8/4K3/4p3/3Q1k2 w - - 0 1" },
+                ].map((eg, i) => (
+                  <div
+                    key={i}
+                    onClick={() => {
+                      const newChess = new Chess(eg.fen);
+                      setChess(newChess);
+                      setHistoryFens([newChess.fen()]);
+                      setSanHistory([]);
+                      setHistoryIndex(0);
+                      setLastMove(null);
+                      soundService.playGameStart();
+                    }}
+                    className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-[#81b64c]/40 transition-all cursor-pointer flex items-center justify-between"
+                  >
+                    <span className="text-xs font-bold text-white">{eg.name}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Exactly ONE P1 Anchor Button */}
+              <div className="pt-2 border-t border-white/5 shrink-0">
+                <Button
+                  variant="primary"
+                  size="md"
+                  rounded="xl"
+                  onClick={() => router.push('/endgames')}
+                  className="w-full flex items-center justify-center gap-2 font-black"
+                >
+                  <span>Practice Studies in Endgame Hub</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Import PGN / FEN Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1f1e1b] border border-[#33302b] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-5 py-4 border-b border-[#2d2b27] flex items-center justify-between bg-[#191815]">
-              <div className="flex items-center gap-2">
-                <Upload className="w-4 h-4 text-[#81b64c]" />
-                <h2 className="text-sm font-black text-white">Import PGN or FEN</h2>
+        {/* ========================================================================= */}
+        {/* SUB-SCREEN 4: GAME VAULT & IMPORT */}
+        {/* ========================================================================= */}
+        {activeScreen === 'vault' && (
+          <div className="w-full max-w-4xl mx-auto flex flex-col gap-3 my-auto min-h-0 h-full py-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-white/5 pb-2 shrink-0">
+              <div>
+                <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-[#81b64c]" />
+                  <span>Game Review Vault &amp; PGN Import</span>
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  Import games from Check.mate, Chess.com, or Lichess into Analysis Studio
+                </p>
               </div>
-              <button
-                onClick={() => {
-                  setIsImportModalOpen(false);
-                  setImportError(null);
-                }}
-                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#2c2925] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              {/* Controls: Live Sync & Provider Switcher */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  rounded="lg"
+                  onClick={() => refreshVaultGames(true)}
+                  disabled={isSyncingVault}
+                  className="font-bold flex items-center gap-1.5"
+                  title="Fetch fresh games from Chess.com & Lichess"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 text-[#81b64c] ${isSyncingVault ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingVault ? 'Syncing...' : 'Sync Live'}</span>
+                </Button>
+
+                <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-xl border border-white/5 text-xs font-bold shrink-0">
+                  <button
+                    onClick={() => setVaultProvider('all')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      vaultProvider === 'all' ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    All ({recentGamesList.length})
+                  </button>
+                  <button
+                    onClick={() => setVaultProvider('checkmate')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      vaultProvider === 'checkmate' ? 'bg-[#81b64c] text-black font-black' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Check.mate
+                  </button>
+                  <button
+                    onClick={() => setVaultProvider('chesscom')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      vaultProvider === 'chesscom' ? 'bg-emerald-600 text-white font-black' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Chess.com
+                  </button>
+                  <button
+                    onClick={() => setVaultProvider('lichess')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      vaultProvider === 'lichess' ? 'bg-amber-600 text-white font-black' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Lichess
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="p-5 flex flex-col gap-3">
-              <p className="text-xs text-zinc-400">
-                Paste any standard PGN game notation (with headers or moves) or FEN position string to load it into the Analysis Studio.
-              </p>
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder={`1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6...\n\nOR\n\nr1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3`}
-                rows={7}
-                className="w-full bg-[#141311] border border-[#2c2a26] rounded-xl p-3 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[#81b64c] transition-colors resize-none"
-              />
+            {/* Direct FEN / PGN Paste Import Box */}
+            <div className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-2 shrink-0">
+              <span className="text-xs font-bold text-white flex items-center gap-2">
+                <Upload className="w-3.5 h-3.5 text-[#81b64c]" />
+                <span>Paste FEN String or Full PGN Notation</span>
+              </span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="e.g. 1. e4 e5 2. Nf3 Nc6 3. d4 or rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                  className="flex-1 bg-[#141311] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-500 font-mono outline-none focus:border-[#81b64c]"
+                />
+                <Button variant="secondary" size="xs" rounded="lg" onClick={handleImportSubmit} className="font-bold">
+                  Load Position
+                </Button>
+              </div>
+              {importError && <span className="text-xs text-red-400">{importError}</span>}
+            </div>
 
-              {importError && (
-                <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs font-medium flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
-                  <span>{importError}</span>
+            {/* Scrollable Game Rows List */}
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2">
+              {filteredVaultGames.length > 0 ? (
+                filteredVaultGames.map((game) => {
+                  const outcome = getSessionUserOutcome(game, effectiveDisplayName);
+                  const isWin = outcome === 'win';
+                  const isLoss = outcome === 'loss';
+                  const isChessCom = game.source === 'chesscom' || game.id.startsWith('chesscom-');
+                  const isLichess = game.source === 'lichess' || game.id.startsWith('lichess-');
+                  const providerLabel = isChessCom ? 'Chess.com' : isLichess ? 'Lichess' : 'Check.mate';
+                  const providerBadgeColor = isChessCom
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : isLichess
+                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                    : 'bg-[#81b64c]/15 text-[#81b64c] border-[#81b64c]/30';
+
+                  return (
+                    <div
+                      key={game.id}
+                      className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 hover:border-white/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className={`text-[10px] font-black px-2 py-1 rounded-md shrink-0 uppercase tracking-wider ${
+                            isWin ? 'bg-[#81b64c]/20 text-[#81b64c]' : isLoss ? 'bg-red-400/20 text-red-400' : 'bg-zinc-400/20 text-zinc-400'
+                          }`}
+                        >
+                          {isWin ? 'VICTORY' : isLoss ? 'DEFEAT' : 'DRAW'}
+                        </span>
+
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white truncate">
+                              {game.whitePlayer.name} vs {game.blackPlayer.name}
+                            </span>
+                            <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${providerBadgeColor}`}>
+                              {providerLabel}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-mono text-zinc-400">
+                            {game.gameResult || 'Concluded'} &bull; {Math.floor(game.timeControl / 60)}m clock &bull;{' '}
+                            {new Date(game.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          rounded="lg"
+                          onClick={() => handleLoadSession(game)}
+                          className="font-bold"
+                          title="Load moves into Analysis Board"
+                        >
+                          Load in Studio
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          rounded="lg"
+                          onClick={() => router.push(`/game/review/${game.id}`)}
+                          className="font-bold"
+                          title="Stockfish 18 Accuracy Review"
+                        >
+                          <Sparkles className="w-3 h-3 text-[#81b64c]" />
+                          <span>Review</span>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center gap-2">
+                  <History className="w-6 h-6 text-zinc-600" />
+                  <span>No matches found for {vaultProvider}.</span>
+                  {openChessComSync && (
+                    <Button variant="outline" size="xs" rounded="lg" onClick={openChessComSync} className="font-bold mt-1">
+                      Connect Accounts
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="px-5 py-3 border-t border-[#2d2b27] bg-[#191815] flex items-center justify-end gap-2">
-              <button
-                onClick={() => {
-                  setIsImportModalOpen(false);
-                  setImportError(null);
-                }}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer"
+            {/* Exactly ONE P1 Anchor Button */}
+            <div className="pt-2 border-t border-white/5 shrink-0">
+              <Button
+                variant="primary"
+                size="md"
+                rounded="xl"
+                onClick={handleGoToGameReview}
+                className="w-full flex items-center justify-center gap-2 font-black"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleImportSubmit}
-                disabled={!importText.trim()}
-                className="px-4 py-1.5 rounded-lg text-xs font-black bg-[#81b64c] hover:bg-[#72a342] text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Load Into Studio</span>
-              </button>
+                <Sparkles className="w-4 h-4" />
+                <span>Launch Stockfish 18 Review for Active Board</span>
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
+  );
+}
+
+export default function AnalysisPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center h-full bg-[#161512] text-zinc-400 text-xs">
+          <Loader2 className="w-5 h-5 animate-spin text-[#81b64c]" />
+        </div>
+      }
+    >
+      <AnalysisStudioContent />
+    </Suspense>
   );
 }

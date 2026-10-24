@@ -11,7 +11,10 @@ import {
   calculateGameCaps,
   calculateAcpl,
   calculateEstimatedPerformanceRating,
+  centipawnsToWinProbability,
 } from '@/lib/server/capsCalculator';
+import { selectKeyMoments, PlyRow } from '@/lib/server/keyMomentsEngine';
+import { getTakeawayForMove } from '@/lib/mentorsData';
 import { generateCoachExplanation, detectTacticalMotifs } from '@/lib/server/coachGenerator';
 import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import {
@@ -22,10 +25,17 @@ import {
   EvalTimelinePoint,
   KeyMoment,
   MoveClassification,
+  EngineStrengthTier,
+  ENGINE_STRENGTH_CONFIGS,
+  MembershipTier,
 } from '@/types/chess';
 import { OPENINGS_DATABASE, matchOpeningFromMoves } from '@/lib/openingsData';
 import { EntitlementGuard } from '@/lib/server/entitlementGuard';
-import { MembershipTier } from '@/types/chess';
+import {
+  detectTacticalMotif,
+  detectTacticalMotifs as detectDeepTacticalMotifs,
+  buildRefutations,
+} from '@/lib/tacticalMotifDetector';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -70,19 +80,25 @@ export async function POST(req: NextRequest) {
       pgn,
       whitePlayer = { id: 'white', name: 'White Player', rating: 1500, color: 'w' },
       blackPlayer = { id: 'black', name: 'Black Player', rating: 1500, color: 'b' },
-      depth = 8,
+      depth,
+      strengthTier = 'standard' as EngineStrengthTier,
       engineMode = 'torch_human',
     } = body;
 
+    const strengthConfig = ENGINE_STRENGTH_CONFIGS[strengthTier as EngineStrengthTier] || ENGINE_STRENGTH_CONFIGS.standard;
+    const requestedDepth = depth || strengthConfig.depth;
+
     // Enforce server-side entitlement quota & depth ceiling
-    const quotaCheck = EntitlementGuard.consumeReviewQuota(userId, tier, depth);
+    const quotaCheck = EntitlementGuard.consumeReviewQuota(userId, tier, requestedDepth);
     if (!quotaCheck.allowed) {
       return NextResponse.json(
         { error: quotaCheck.reason, code: 'TIER_QUOTA_EXCEEDED' },
         { status: 403 }
       );
     }
-    const targetDepth = Math.min(8, quotaCheck.effectiveDepth || 8);
+    const targetDepth = Math.min(requestedDepth, quotaCheck.effectiveDepth || requestedDepth);
+    const multiPv = strengthConfig.multiPv || 2;
+    const timeBudgetMs = strengthConfig.timeBudgetMs || 3500;
 
     const chess = new Chess();
     if (pgn) {
@@ -112,10 +128,10 @@ export async function POST(req: NextRequest) {
     const whiteTallies = createEmptyTallies();
     const blackTallies = createEmptyTallies();
     const evalTimeline: EvalTimelinePoint[] = [];
-    const keyMoments: KeyMoment[] = [];
+    const plyRows: PlyRow[] = [];
 
     // Evaluate starting position
-    let prevEval = await evaluatePositionStockfish(runner.fen(), targetDepth, 2);
+    let prevEval = await evaluatePositionStockfish(runner.fen(), targetDepth, multiPv, timeBudgetMs);
 
     const whiteCpLosses: number[] = [];
     const blackCpLosses: number[] = [];
@@ -145,8 +161,8 @@ export async function POST(req: NextRequest) {
 
       const fenAfter = runner.fen();
 
-      // Evaluate position after move with Stockfish
-      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, 2, 3500);
+      // Evaluate position after move with Stockfish configured for current strength tier
+      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
 
       // Check tablebase for endgame only when 7 or fewer pieces remain on board
       const pieceCount = (fenAfter.split(' ')[0].match(/[pnbrqkPNBRQK]/g) || []).length;
@@ -193,11 +209,25 @@ export async function POST(req: NextRequest) {
       if (isWhite) whiteCpLosses.push(cpLoss);
       else blackCpLosses.push(cpLoss);
 
-      // Run CAPS 2.0 classification
+      const prevPlayedMove =
+        ply > 0
+          ? {
+              from: analyzedMoves[ply - 1].from,
+              to: analyzedMoves[ply - 1].to,
+              captured: analyzedMoves[ply - 1].captured,
+              san: analyzedMoves[ply - 1].san,
+            }
+          : undefined;
+      const prevMoveLoss = ply > 0 ? (analyzedMoves[ply - 1].winProbLoss || 0) / 100 : 0;
+      const playerRating = isWhite ? whitePlayer?.rating || 1500 : blackPlayer?.rating || 1500;
+
+      // Run CAPS 2.0 classification with Expected Points Lost ladder and rating leniency
       const classificationResult = classifyMoveEngine({
         moveSan: san,
         bestMoveSan,
         secondBestMoveSan: prevEval.lines[1]?.bestMoveSan,
+        secondBestCp: prevEval.lines[1]?.scoreCp,
+        secondBestMate: prevEval.lines[1]?.mateIn,
         evalBeforeCp,
         evalAfterCp,
         mateBefore,
@@ -212,6 +242,9 @@ export async function POST(req: NextRequest) {
         engineMode: engineMode as any,
         fenBefore,
         fenAfter,
+        playerRating,
+        prevMoveLoss,
+        prevMove: prevPlayedMove,
       });
 
       if (isWhite) {
@@ -229,8 +262,27 @@ export async function POST(req: NextRequest) {
       const isUserMove = isWhite ? isUserWhite : !isUserWhite;
       const playerName = isWhite ? whitePlayer?.name : blackPlayer?.name;
 
-      // High-precision tactical motif detection (forks, pins, sacrifices, skewers, hanging pieces)
-      const motifs = detectTacticalMotifs({
+      // Extract 2-ply concrete refutation branches directly from MultiPV search
+      const refutationResult = buildRefutations({
+        fenAfter,
+        targetSquare: playedMove?.to as any,
+        moverColor: isWhite ? 'w' : 'b',
+        lines: currentEval.lines,
+      });
+
+      // Deep tactical motif detection with Duties, Deflections, Overload, Zwischenzug, and Poisoned Pieces
+      const deepMotifs = detectDeepTacticalMotifs({
+        fenBefore,
+        moveSan: san,
+        fenAfter,
+        prevMove: prevPlayedMove,
+        bestMoveSan,
+        evalBeforeCp,
+        evalAfterCp,
+        isCheck,
+      });
+
+      const baseMotifs = detectTacticalMotifs({
         chessAfter: runner,
         playedMoveSan: san,
         from: playedMove?.from,
@@ -240,7 +292,13 @@ export async function POST(req: NextRequest) {
         classification: classificationResult.classification,
       });
 
-      // Generate Coach Danny natural-language advice
+      const activeMotif = deepMotifs[0]
+        ? { type: deepMotifs[0].type, name: deepMotifs[0].name, description: deepMotifs[0].description }
+        : baseMotifs[0]
+        ? { type: baseMotifs[0].type, name: baseMotifs[0].type, description: baseMotifs[0].description }
+        : undefined;
+
+      // Generate Coach Danny natural-language advice with exact motif explanations and refutations
       const coachExplanation = generateCoachExplanation({
         classification: classificationResult.classification,
         moveSan: san,
@@ -255,16 +313,21 @@ export async function POST(req: NextRequest) {
         playerAccuracy: classificationResult.accuracy,
         playerName,
         isUser: isUserMove,
-        motif: motifs[0],
+        motif: activeMotif ? { type: activeMotif.type as any, description: activeMotif.description } : undefined,
         fenBefore,
+        refutations: refutationResult,
       });
 
       console.log(`[REVIEW_API] Ply ${ply} ${san}: class=${classificationResult.classification}, acc=${classificationResult.accuracy}, bestMove=${bestMoveSan}, evalB=${evalBeforeCp}, evalA=${evalAfterCp}`);
+
+      const takeaway = getTakeawayForMove(activeMotif?.type, classificationResult.classification);
 
       const moveRecord: MoveRecord = {
         san,
         from: (playedMove?.from || 'a1') as any,
         to: (playedMove?.to || 'a1') as any,
+        captured: playedMove?.captured as any,
+        promotion: playedMove?.promotion as any,
         fenBefore,
         fenAfter,
         evalBefore: evalBeforeCp,
@@ -276,6 +339,25 @@ export async function POST(req: NextRequest) {
         accuracy: classificationResult.accuracy,
         winProbLoss: classificationResult.winProbLoss,
         isCheck,
+        motif: activeMotif
+          ? {
+              type: activeMotif.name || activeMotif.type,
+              description: activeMotif.description,
+              name: activeMotif.name,
+            }
+          : undefined,
+        refutations: refutationResult.accepted || refutationResult.declined ? refutationResult : undefined,
+        takeaway,
+        structuredCommentary: {
+          positionContext: isCheck ? `${san} delivers check against the enemy king.` : undefined,
+          moveExecution: activeMotif?.description || `${san} played on the board.`,
+          consequences: {
+            accepted: refutationResult.accepted ? `If ${refutationResult.accepted.replySan}, then ${refutationResult.accepted.lineSan}` : undefined,
+            declined: refutationResult.declined ? `If ${refutationResult.declined.replySan}, then ${refutationResult.declined.lineSan}` : undefined,
+            summary: refutationResult.acceptIsBest === false ? 'Accepting the piece leads to a decisive tactical loss.' : undefined,
+          },
+          takeaway,
+        },
       };
 
       analyzedMoves.push(moveRecord);
@@ -296,32 +378,33 @@ export async function POST(req: NextRequest) {
         classification: classificationResult.classification,
       });
 
-      if (
-        classificationResult.classification === 'brilliant' ||
-        classificationResult.classification === 'great' ||
-        classificationResult.classification === 'blunder' ||
-        classificationResult.classification === 'mistake' ||
-        classificationResult.classification === 'miss'
-      ) {
-        keyMoments.push({
-          moveIndex: ply,
-          turnNumber: moveNumber,
-          turnColor: isWhite ? 'w' : 'b',
-          moveSan: san,
-          bestMoveSan,
-          classification: classificationResult.classification,
-          evalBefore: evalBeforeCp,
-          evalAfter: evalAfterCp,
-          coachComment: coachExplanation,
-          isMistake:
-            classificationResult.classification === 'blunder' ||
-            classificationResult.classification === 'mistake' ||
-            classificationResult.classification === 'miss',
-        });
-      }
+      const eBeforeW = centipawnsToWinProbability(evalBeforeCp, mateBefore) / 100;
+      const eAfterW = centipawnsToWinProbability(evalAfterCp, mateAfter) / 100;
+      const missedMate =
+        (isWhite && mateBefore !== undefined && mateBefore > 0 && (mateAfter === undefined || mateAfter <= 0)) ||
+        (!isWhite && mateBefore !== undefined && mateBefore < 0 && (mateAfter === undefined || mateAfter >= 0));
+
+      plyRows.push({
+        ply,
+        moveNumber,
+        san,
+        color: isWhite ? 'w' : 'b',
+        isUser: isUserMove,
+        label: classificationResult.classification,
+        eBeforeW,
+        eAfterW,
+        evalBefore: evalBeforeCp,
+        evalAfter: evalAfterCp,
+        bestMoveSan,
+        coachComment: coachExplanation,
+        inBook: isBookMove,
+        missedMate,
+      });
 
       prevEval = currentEval;
     }
+
+    const keyMoments = selectKeyMoments(plyRows);
 
     const whiteAccuracy = calculateGameCaps(whiteAccuracies, whiteClassifications);
     const blackAccuracy = calculateGameCaps(blackAccuracies, blackClassifications);
@@ -419,12 +502,22 @@ export async function POST(req: NextRequest) {
     };
 
     // Find critical blunder for instant Retry-Your-Mistakes puzzle
+    const isReviewUserWhite =
+      whitePlayer?.id === 'user-local' ||
+      whitePlayer?.id === 'user-synced' ||
+      whitePlayer?.id === 'player-1' ||
+      whitePlayer?.id === 'player-you' ||
+      (!whitePlayer?.isBot && blackPlayer?.isBot) ||
+      (whitePlayer?.name && (whitePlayer.name.toLowerCase().includes('you') || whitePlayer.name.toLowerCase().includes('qing')));
+
     let worstBlunderMove: MoveRecord | null = null;
     let worstLoss = 0;
     let worstPly = 0;
 
+    // 1. Prioritize user's own blunder/miss/mistake so retry puzzle coaches the player
     analyzedMoves.forEach((m, idx) => {
-      if (m.classification === 'blunder' || m.classification === 'miss') {
+      const isUserMove = (idx % 2 === 0) === isReviewUserWhite;
+      if (isUserMove && (m.classification === 'blunder' || m.classification === 'miss' || m.classification === 'mistake')) {
         const loss = Math.abs((m.evalBefore || 0) - (m.evalAfter || 0));
         if (loss > worstLoss) {
           worstLoss = loss;
@@ -433,6 +526,20 @@ export async function POST(req: NextRequest) {
         }
       }
     });
+
+    // 2. Fall back to any blunder in the game if user played without blunders
+    if (!worstBlunderMove) {
+      analyzedMoves.forEach((m, idx) => {
+        if (m.classification === 'blunder' || m.classification === 'miss') {
+          const loss = Math.abs((m.evalBefore || 0) - (m.evalAfter || 0));
+          if (loss > worstLoss) {
+            worstLoss = loss;
+            worstBlunderMove = m;
+            worstPly = idx + 1;
+          }
+        }
+      });
+    }
 
     const blunderRetryPuzzle = worstBlunderMove
       ? {
@@ -459,10 +566,11 @@ export async function POST(req: NextRequest) {
       whiteAcpl,
       blackAcpl,
       engineMode: engineMode as any,
+      strengthTier,
       engineDescription:
         engineMode === 'torch_human'
-          ? 'Human Style (Natural Insights)'
-          : 'Stockfish (Deep Tactical Calculation)',
+          ? `Human Style (Maia NNUE, ${strengthConfig.label} Tier)`
+          : `Stockfish 18 (${strengthConfig.label} Tier, Depth ${targetDepth})`,
       opening,
       phaseBreakdown,
       blunderRetryPuzzle,
@@ -475,7 +583,7 @@ export async function POST(req: NextRequest) {
       moves: analyzedMoves,
       summaryComment,
       isDeepReview: true,
-      reviewVersion: 'v2.4',
+      reviewVersion: 'v3.0',
     };
 
     report.advancedStats = calculateGameAdvancedStats(report);

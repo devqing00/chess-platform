@@ -2,8 +2,9 @@
 
 import React, { useEffect, useRef } from 'react';
 import { GameResultDetails, GamePlayer } from '@/types/chess';
-import { X, Share2, Zap, Award, RotateCcw, Plus, Flame } from 'lucide-react';
+import { X, Award, RotateCcw, Plus, Zap, Share2 } from 'lucide-react';
 import { useXpSystem } from '@/hooks/useXpSystem';
+import { Button } from '@/components/ui/button';
 
 interface GameOverModalProps {
   isOpen: boolean;
@@ -242,34 +243,41 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
           {/* Big Green Tactile Game Review CTA */}
           <div className="mt-5 sm:mt-6 w-full flex flex-col items-center gap-2">
-            <button
+            <Button
+              variant="primary"
+              size="lg"
+              rounded="full"
+              fullWidth
               onClick={() => {
                 onClose();
                 onReviewGame();
               }}
-              className="w-full py-3 sm:py-3.5 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider border-2 border-[#5d8b32] shadow-[0_4px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Award className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Game Review</span>
-            </button>
+            </Button>
           </div>
 
           {/* Bottom Secondary Action Buttons */}
           <div className="mt-3.5 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 w-full">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
+              rounded="full"
               onClick={onRematch}
-              className="py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-full bg-[#2a2721] hover:bg-[#343029] text-zinc-200 text-[11px] sm:text-xs font-black uppercase tracking-wider border-2 border-[#3d3a34] shadow-[0_3px_0_0_#1c1a17] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#1c1a17] transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Rematch</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              rounded="full"
               onClick={onNewGame}
-              className="py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-full bg-[#2a2721] hover:bg-[#343029] text-zinc-200 text-[11px] sm:text-xs font-black uppercase tracking-wider border-2 border-[#3d3a34] shadow-[0_3px_0_0_#1c1a17] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#1c1a17] transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Game</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -6,11 +6,13 @@ import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
 
 export function useXpSystem() {
-  const [profile, setProfile] = useState<XpProfile>(() => XpSystem.getProfile());
+  const [profile, setProfile] = useState<XpProfile>(() => XpSystem.getDefaultProfile());
+  const [isMounted, setIsMounted] = useState(false);
   const [recentGain, setRecentGain] = useState<{ amount: number; reason: string } | null>(null);
 
   useEffect(() => {
-    // Initial fetch on mount
+    setIsMounted(true);
+    // Initial fetch from client storage/network on mount
     setProfile(XpSystem.getProfile());
 
     const handleXpEvent = (e: Event) => {
@@ -60,6 +62,7 @@ export function useXpSystem() {
 
   return {
     profile,
+    isMounted,
     recentGain,
     awardXp,
     refreshProfile: () => setProfile(XpSystem.getProfile()),

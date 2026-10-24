@@ -28,6 +28,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useXpSystem } from '@/hooks/useXpSystem';
 import { XpGainToast } from '@/components/xp/XpGainToast';
+import { Button } from '@/components/ui/button';
 
 interface PuzzleArenaProps {
   boardTheme: BoardTheme;
@@ -384,42 +385,52 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
 
             {/* Helper Controls: Reset & Hint */}
             <div className="flex items-center gap-2 pt-1">
-              <button
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="xl"
                 onClick={handleReset}
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="xl"
                 onClick={() => setHintLevel((prev) => prev + 1)}
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 <span>Hint</span>
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* P1 PRIMARY ACTION ANCHOR - EXACTLY ONE PER SCREEN */}
           <div className="pt-2 border-t border-white/5 shrink-0">
             {statusMessage === 'solved' ? (
-              <button
+              <Button
+                variant="primary"
+                size="lg"
+                rounded="xl"
+                fullWidth
                 onClick={handleNextPuzzle}
-                className="w-full py-3.5 px-5 rounded-xl bg-[#81b64c] hover:bg-[#92cb56] text-black font-black text-xs sm:text-sm tracking-tight shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>Next Challenge (Spacebar)</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
+                variant="secondary"
+                size="md"
+                rounded="xl"
+                fullWidth
                 onClick={handleNextPuzzle}
-                className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <span>Skip to Next Due Puzzle</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             )}
           </div>
         </div>

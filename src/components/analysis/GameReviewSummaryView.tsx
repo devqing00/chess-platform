@@ -14,6 +14,8 @@ import {
   BoardTheme,
   PieceTheme,
   MoveClassification,
+  EngineStrengthTier,
+  ENGINE_STRENGTH_CONFIGS,
 } from '@/types/chess';
 import { useRouter } from 'next/navigation';
 import {
@@ -33,10 +35,20 @@ import {
   Network,
   Bot,
   Microscope,
-  RefreshCw,
-  ChevronDown,
   MoreHorizontal,
+  RefreshCw,
+  Award,
+  Trophy,
+  Flag,
+  Clock,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  Zap,
+  Check,
+  Star,
 } from 'lucide-react';
+import { formatGameOutcomeDescription, extractTerminationReason, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
@@ -45,9 +57,11 @@ interface GameReviewSummaryViewProps {
   report: GameReviewReport;
   boardTheme: BoardTheme;
   pieceTheme: PieceTheme;
+  engineStrength?: EngineStrengthTier;
   onStartInteractiveReview: () => void;
   onBackToGame: () => void;
   onEngineChange?: (engine: 'torch_human' | 'stockfish') => void;
+  onStrengthChange?: (strength: EngineStrengthTier) => void;
   onReanalyze?: () => void;
 }
 
@@ -55,9 +69,11 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   report,
   boardTheme,
   pieceTheme,
+  engineStrength,
   onStartInteractiveReview,
   onBackToGame,
   onEngineChange,
+  onStrengthChange,
   onReanalyze,
 }) => {
   const router = useRouter();
@@ -66,14 +82,32 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   const { whitePlayer, blackPlayer, whiteAccuracy, blackAccuracy, tallies, evalTimeline, moves } = report;
 
   const isUserWhite = React.useMemo(() => {
-    if (whitePlayer.id === 'user-local' || whitePlayer.id === 'player-1') return true;
-    if (blackPlayer.id === 'user-local' || blackPlayer.id === 'player-1') return false;
-    const wName = (whitePlayer.name || '').toLowerCase();
-    const bName = (blackPlayer.name || '').toLowerCase();
-    if (wName.includes('you') || wName.includes('qing')) return true;
-    if (bName.includes('you') || bName.includes('qing')) return false;
-    return true;
-  }, [whitePlayer, blackPlayer]);
+    return isSessionUserWhite(report as any);
+  }, [report]);
+
+  // Authoritative Game Outcome details
+  const gameOutcome = React.useMemo(() => {
+    let winner = report.resultDetails?.winner;
+    const res = (report.gameResult || '').trim().toLowerCase();
+    if (res.includes('white win') || res.includes('white won') || res.includes('1-0')) {
+      winner = 'w';
+    } else if (res.includes('black win') || res.includes('black won') || res.includes('0-1')) {
+      winner = 'b';
+    } else if (!winner) {
+      if (report.gameResult === '1-0') winner = 'w';
+      else if (report.gameResult === '0-1') winner = 'b';
+      else if (report.gameResult?.includes('1/2') || report.gameResult?.includes('0.5')) winner = 'draw';
+      else winner = isUserWhite ? 'w' : 'b';
+    }
+    const reason = report.resultDetails?.reason || (report.termination ? extractTerminationReason({ pgn: `[Termination "${report.termination}"]` }) : 'resignation');
+    return formatGameOutcomeDescription({
+      winner,
+      reason,
+      whiteName: whitePlayer.name,
+      blackName: blackPlayer.name,
+      isUserWhite,
+    });
+  }, [report, whitePlayer.name, blackPlayer.name, isUserWhite]);
 
   // Mobile sub-tab state for zero-scroll viewport
   const [mobileTab, setMobileTab] = useState<'stats' | 'board'>('stats');
@@ -82,20 +116,76 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   const keyMove = moves.find((m) => m.classification === 'brilliant') || moves[moves.length - 1];
   const summaryChess = new Chess(keyMove ? keyMove.fenAfter : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
 
-  // Interactive Blunder Retry State
+  // Multi-Mistake Interactive Practice Queue (Spaced Repetition across blunders, misses & mistakes)
+  const userMistakesPuzzles = React.useMemo(() => {
+    const list: Array<{
+      ply: number;
+      moveNumber: number;
+      fen: string;
+      blunderedMoveSan: string;
+      solutionSan: string;
+      classification: MoveClassification;
+      explanation: string;
+      motif?: { type: string; description: string };
+    }> = [];
+
+    moves.forEach((m, idx) => {
+      const isWhite = idx % 2 === 0;
+      const isUser = isUserWhite ? isWhite : !isUserWhite;
+      if (isUser && (m.classification === 'blunder' || m.classification === 'miss' || m.classification === 'mistake')) {
+        list.push({
+          ply: idx + 1,
+          moveNumber: Math.floor(idx / 2) + 1,
+          fen: m.fenBefore,
+          blunderedMoveSan: m.san,
+          solutionSan: m.bestMoveSan || '',
+          classification: m.classification,
+          explanation: m.coachComment || '',
+          motif: m.motif,
+        });
+      }
+    });
+
+    if (list.length === 0 && report.blunderRetryPuzzle) {
+      list.push({
+        ply: report.blunderRetryPuzzle.ply,
+        moveNumber: Math.ceil(report.blunderRetryPuzzle.ply / 2),
+        fen: report.blunderRetryPuzzle.fen,
+        blunderedMoveSan: report.blunderRetryPuzzle.blunderedMoveSan,
+        solutionSan: report.blunderRetryPuzzle.solutionSan,
+        classification: 'blunder',
+        explanation: report.blunderRetryPuzzle.explanation,
+      });
+    }
+
+    return list;
+  }, [moves, isUserWhite, report.blunderRetryPuzzle]);
+
+  const [currentMistakeIndex, setCurrentMistakeIndex] = useState(0);
+  const [solvedMistakes, setSolvedMistakes] = useState<Set<number>>(new Set());
   const [isBlunderModalOpen, setIsBlunderModalOpen] = useState(false);
   const [blunderStatus, setBlunderStatus] = useState<'idle' | 'correct' | 'wrong' | 'revealed'>('idle');
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  const activeMistakePuzzle = userMistakesPuzzles[currentMistakeIndex] || userMistakesPuzzles[0];
+
   const [blunderChess, setBlunderChess] = useState(() => {
     return new Chess(
-      report.blunderRetryPuzzle?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+      activeMistakePuzzle?.fen || report.blunderRetryPuzzle?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );
   });
 
-  const puzzle = report.blunderRetryPuzzle;
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const loadMistakeIndex = (idx: number) => {
+    const target = userMistakesPuzzles[idx];
+    if (target) {
+      setCurrentMistakeIndex(idx);
+      setBlunderChess(new Chess(target.fen));
+      setBlunderStatus(solvedMistakes.has(idx) ? 'correct' : 'idle');
+    }
+  };
 
   const handleBlunderMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
-    if (!puzzle || blunderStatus === 'correct' || blunderStatus === 'revealed') return;
+    if (!activeMistakePuzzle || blunderStatus === 'correct' || blunderStatus === 'revealed') return;
 
     try {
       const clone = new Chess(blunderChess.fen());
@@ -103,13 +193,14 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
       if (!res) return;
 
       const isSolution =
-        res.san === puzzle.solutionSan ||
-        `${res.from}${res.to}`.toLowerCase() === puzzle.solutionSan.toLowerCase();
+        res.san === activeMistakePuzzle.solutionSan ||
+        `${res.from}${res.to}`.toLowerCase() === activeMistakePuzzle.solutionSan.toLowerCase();
 
       setBlunderChess(clone);
 
       if (isSolution) {
         setBlunderStatus('correct');
+        setSolvedMistakes((prev) => new Set(prev).add(currentMistakeIndex));
         soundService.playPuzzleSuccess();
         confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
       } else {
@@ -122,17 +213,17 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   };
 
   const resetBlunderPuzzle = () => {
-    if (puzzle) {
-      setBlunderChess(new Chess(puzzle.fen));
+    if (activeMistakePuzzle) {
+      setBlunderChess(new Chess(activeMistakePuzzle.fen));
       setBlunderStatus('idle');
     }
   };
 
   const revealBlunderSolution = () => {
-    if (puzzle) {
+    if (activeMistakePuzzle) {
       try {
-        const clone = new Chess(puzzle.fen);
-        clone.move(puzzle.solutionSan);
+        const clone = new Chess(activeMistakePuzzle.fen);
+        clone.move(activeMistakePuzzle.solutionSan);
         setBlunderChess(clone);
         setBlunderStatus('revealed');
         soundService.playMove();
@@ -284,6 +375,46 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
       {/* Authentic Review Summary Hub */}
       <div className="bg-[#1f1d1a] border border-[#2d2a26] rounded-xl p-3 flex flex-col gap-3 shadow-lg">
+        {/* Decisive Game Outcome Banner */}
+        <div
+          className={`flex items-center justify-between px-3 py-2 rounded-xl border ${
+            gameOutcome.badgeType === 'win'
+              ? 'bg-[#81b64c]/15 border-[#81b64c]/40 text-[#81b64c]'
+              : gameOutcome.badgeType === 'loss'
+              ? 'bg-[#e05344]/15 border-[#e05344]/40 text-[#f87171]'
+              : 'bg-[#312e2b] border-[#44403a] text-zinc-300'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            {gameOutcome.subtitle.toLowerCase().includes('time') ? (
+              <Clock className="w-4 h-4 shrink-0 text-amber-400" />
+            ) : gameOutcome.subtitle.toLowerCase().includes('resignation') ? (
+              <Flag className="w-4 h-4 shrink-0 text-[#81b64c]" />
+            ) : (
+              <Trophy className="w-4 h-4 shrink-0 text-amber-400" />
+            )}
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-black tracking-wide truncate">
+                {gameOutcome.fullSentence}
+              </span>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                {report.gameResult || (gameOutcome.badgeType === 'win' ? (isUserWhite ? '1-0' : '0-1') : '1/2-1/2')} · {gameOutcome.subtitle}
+              </span>
+            </div>
+          </div>
+          <span
+            className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border shrink-0 shadow-sm ${
+              gameOutcome.badgeType === 'win'
+                ? 'bg-[#81b64c] text-white border-[#4d7a24]'
+                : gameOutcome.badgeType === 'loss'
+                ? 'bg-[#ca3431] text-white border-[#7f1d1d]'
+                : 'bg-zinc-700 text-white border-zinc-600'
+            }`}
+          >
+            {gameOutcome.title}
+          </span>
+        </div>
+
         {/* Players Row */}
         <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
           <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
@@ -292,10 +423,19 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           
           {/* White Player */}
           <div className="flex flex-col items-center gap-1 min-w-0">
-            <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center">
-              {whitePlayer.name}
+            <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center flex items-center justify-center gap-1">
+              <span className="truncate">{whitePlayer.name}</span>
+              {isUserWhite && (
+                <span className="text-[9px] font-black text-[#81b64c] bg-[#81b64c]/10 px-1 py-0.2 rounded shrink-0">
+                  YOU
+                </span>
+              )}
             </span>
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#2a2723] border border-[#3d3932] flex items-center justify-center p-2 shadow-sm">
+            <div
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#2a2723] ${
+                isUserWhite ? 'border-2 border-[#81b64c]' : 'border border-[#3d3932]'
+              } flex items-center justify-center p-2 shadow-sm relative`}
+            >
               {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover rounded-md" />
@@ -309,10 +449,19 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
           {/* Black Player */}
           <div className="flex flex-col items-center gap-1 min-w-0">
-            <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center">
-              {blackPlayer.name}
+            <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center flex items-center justify-center gap-1">
+              <span className="truncate">{blackPlayer.name}</span>
+              {!isUserWhite && (
+                <span className="text-[9px] font-black text-[#81b64c] bg-[#81b64c]/10 px-1 py-0.2 rounded shrink-0">
+                  YOU
+                </span>
+              )}
             </span>
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#272522] border-2 border-[#81b64c] flex items-center justify-center p-2 shadow-sm relative">
+            <div
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#272522] ${
+                !isUserWhite ? 'border-2 border-[#81b64c]' : 'border border-[#3d3932]'
+              } flex items-center justify-center p-2 shadow-sm relative`}
+            >
               {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover rounded-md" />
@@ -430,18 +579,23 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           <span>Continue Review</span>
         </button>
 
-        {/* Blunder Retry CTA Button */}
-        {report.blunderRetryPuzzle && (
+        {/* Interactive Mistakes SRS Practice Button */}
+        {userMistakesPuzzles.length > 0 ? (
           <button
             onClick={() => {
-              resetBlunderPuzzle();
+              loadMistakeIndex(0);
               setIsBlunderModalOpen(true);
             }}
             className="w-full py-2 rounded-lg bg-[#e05344]/15 hover:bg-[#e05344]/25 text-[#f87171] hover:text-white font-black uppercase tracking-wider text-xs border border-[#e05344] shadow-[0_2px_0_0_#7f1d1d] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <Target className="w-3.5 h-3.5 text-[#e05344]" />
-            <span>Practice & Retry Mistakes</span>
+            <span>Practice & Retry Mistakes ({userMistakesPuzzles.length})</span>
           </button>
+        ) : (
+          <div className="w-full py-1.5 px-3 rounded-lg bg-[#81b64c]/10 border border-[#81b64c]/20 text-[#81b64c] text-xs font-bold flex items-center justify-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Flawless play — 0 Blunders or Misses!</span>
+          </div>
         )}
 
         {/* Hub Bridges */}
@@ -537,12 +691,12 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   setAnalysisEngine('torch_human');
                   onEngineChange?.('torch_human');
                 }}
-                className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
                   analysisEngine === 'torch_human'
                     ? 'bg-[#f59e0b] text-white shadow-sm'
                     : 'text-zinc-400 hover:text-white'
                 }`}
-                title="Torch Human"
+                title="Torch Human (Maia NNUE)"
               >
                 <Flame className="w-2.5 h-2.5 text-amber-300" />
                 <span>Torch</span>
@@ -553,16 +707,39 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   setAnalysisEngine('stockfish');
                   onEngineChange?.('stockfish');
                 }}
-                className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
                   analysisEngine === 'stockfish'
                     ? 'bg-[#81b64c] text-white shadow-sm'
                     : 'text-zinc-400 hover:text-white'
                 }`}
-                title="Stockfish"
+                title="Stockfish 18"
               >
                 <Cpu className="w-2.5 h-2.5 text-white" />
                 <span>Stockfish</span>
               </button>
+            </div>
+
+            {/* 4-Tier Strength Switcher (Fast, Standard, Deep, Maximum) */}
+            <div className="hidden 2xl:flex items-center bg-[#141311] p-0.5 rounded-full border border-[#2e2a24] text-[9px] font-black uppercase tracking-wider ml-1">
+              {(['fast', 'standard', 'deep', 'maximum'] as EngineStrengthTier[]).map((tier) => {
+                const cfg = ENGINE_STRENGTH_CONFIGS[tier];
+                const activeTier = engineStrength || report.strengthTier || 'fast';
+                const isSelected = activeTier === tier;
+                return (
+                  <button
+                    key={tier}
+                    onClick={() => onStrengthChange?.(tier)}
+                    className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#35322b] text-[#81b64c] font-black shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                    title={`${cfg.label}: ${cfg.description}`}
+                  >
+                    <span>{cfg.badge}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -574,17 +751,19 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <button
               onClick={() => setIsOptionsOpen(!isOptionsOpen)}
               className="p-1.5 rounded-full border border-[#35322b] bg-[#211f1c] hover:bg-[#2c2823] text-zinc-300 hover:text-white transition shadow-sm cursor-pointer"
-              title="More Options"
+              title="Engine & Strength Settings"
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
 
             {isOptionsOpen && (
-              <div className="absolute top-full right-0 mt-1.5 w-60 bg-[#1e1c19] border-2 border-[#35322b] rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
-                  Engine Model
+              <div className="absolute top-full right-0 mt-1.5 w-64 bg-[#1e1c19] border-2 border-[#35322b] rounded-2xl shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {/* Engine Mode Section */}
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Engine Mode</span>
+                  <span className="text-zinc-500 font-mono text-[9px]">WASM</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 bg-[#141311] p-1 rounded-xl border border-[#2b2824] mb-2.5">
+                <div className="grid grid-cols-2 gap-1.5 bg-[#141311] p-1 rounded-xl border border-[#2b2824] mb-3">
                   <button
                     onClick={() => {
                       setAnalysisEngine('torch_human');
@@ -617,6 +796,38 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   </button>
                 </div>
 
+                {/* Engine Strength Tiers Section */}
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Strength Tier</span>
+                  <span className="text-[#81b64c] font-mono text-[9px]">
+                    {ENGINE_STRENGTH_CONFIGS[engineStrength || report.strengthTier || 'fast'].label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 bg-[#141311] p-1 rounded-xl border border-[#2b2824] mb-3">
+                  {(['fast', 'standard', 'deep', 'maximum'] as EngineStrengthTier[]).map((tier) => {
+                    const cfg = ENGINE_STRENGTH_CONFIGS[tier];
+                    const activeTier = engineStrength || report.strengthTier || 'fast';
+                    const isSelected = activeTier === tier;
+                    return (
+                      <button
+                        key={tier}
+                        onClick={() => {
+                          onStrengthChange?.(tier);
+                          setIsOptionsOpen(false);
+                        }}
+                        className={`px-2 py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-[#2a2723] border-[#81b64c] text-white shadow-sm font-black'
+                            : 'border-transparent text-zinc-400 hover:text-white hover:bg-[#201e1a]'
+                        }`}
+                      >
+                        <span className="font-bold">{cfg.badge}</span>
+                        <span className="text-[8px] text-zinc-500 font-mono">D{cfg.depth}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <div className="flex flex-col gap-1 border-t border-[#2b2824] pt-2">
                   <button
                     onClick={() => {
@@ -626,7 +837,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                     className="w-full py-1.5 px-2 rounded-lg hover:bg-[#282622] text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-2 transition cursor-pointer"
                   >
                     <Volume2 className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Test Sound</span>
+                    <span>Test Audio Feedback</span>
                   </button>
 
                   {onReanalyze && (
@@ -803,31 +1014,93 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
         </div>
       </div>
 
-      {/* Interactive Blunder Retry Modal */}
-      {isBlunderModalOpen && puzzle && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1f1d1a] border border-[#36332e] rounded-2xl w-full max-w-lg p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#2d2a26]">
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-[#e05344]" />
-                <h3 className="text-base font-black text-white">Retry Your Mistake (Move {Math.ceil(puzzle.ply / 2)})</h3>
+      {/* Interactive Mistakes SRS Practice Modal (Spaced Repetition across all user blunders/misses/mistakes) */}
+      {isBlunderModalOpen && activeMistakePuzzle && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#1f1d1a] border-2 border-[#36332e] rounded-2xl w-full max-w-xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header: Title, Step Counter, Prev/Next Navigation, Close */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#2d2a26]">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#e05344]/20 border border-[#e05344]/40 flex items-center justify-center text-[#e05344] shrink-0">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">
+                    Retry Mistakes (Move {activeMistakePuzzle.moveNumber})
+                  </h3>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400">
+                    <span>
+                      Mistake {currentMistakeIndex + 1} of {userMistakesPuzzles.length}
+                    </span>
+                    <span>•</span>
+                    <span className="text-[#81b64c]">
+                      {solvedMistakes.size} Solved
+                    </span>
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={() => setIsBlunderModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Step Navigation Pill & Close Button */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => loadMistakeIndex(currentMistakeIndex - 1)}
+                  disabled={currentMistakeIndex <= 0}
+                  className="p-1 rounded-lg bg-[#272522] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-zinc-300 border border-[#35322b] transition cursor-pointer"
+                  title="Previous Mistake"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => loadMistakeIndex(currentMistakeIndex + 1)}
+                  disabled={currentMistakeIndex >= userMistakesPuzzles.length - 1}
+                  className="p-1 rounded-lg bg-[#272522] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-zinc-300 border border-[#35322b] transition cursor-pointer"
+                  title="Next Mistake"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => setIsBlunderModalOpen(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-[#2b2824] transition-colors cursor-pointer ml-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="text-xs text-zinc-300 bg-[#161512] p-3 rounded-xl border border-[#282622]">
-              In this position, you played <strong className="text-[#f87171]">{puzzle.blunderedMoveSan}</strong>. Can you find the best winning move?
+            {/* Mistake Context Card with Exact Tactical Motif */}
+            <div className="text-xs text-zinc-200 bg-[#161512] p-3 rounded-xl border border-[#282622] flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ClassificationBadge
+                    classification={activeMistakePuzzle.classification}
+                    size="sm"
+                  />
+                  <span className="font-bold text-zinc-300">
+                    You played <strong className="text-[#f87171] font-mono">{activeMistakePuzzle.blunderedMoveSan}</strong>
+                  </span>
+                </div>
+                {solvedMistakes.has(currentMistakeIndex) && (
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] bg-[#81b64c]/15 px-2 py-0.5 rounded-full border border-[#81b64c]/30 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Solved
+                  </span>
+                )}
+              </div>
+
+              {activeMistakePuzzle.motif && (
+                <div className="text-[11px] text-amber-300 font-medium flex items-center gap-1.5 pt-0.5">
+                  <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>Tactical Motif: <strong>{activeMistakePuzzle.motif.type}</strong> — {activeMistakePuzzle.motif.description}</span>
+                </div>
+              )}
             </div>
 
+            {/* Interactive Chess Board */}
             <div className="flex justify-center">
               <ChessBoard
                 chess={blunderChess}
-                orientation={puzzle.ply % 2 !== 0 ? 'w' : 'b'}
+                orientation={activeMistakePuzzle.ply % 2 !== 0 ? 'w' : 'b'}
                 boardTheme={boardTheme}
                 pieceTheme={pieceTheme}
                 onMove={handleBlunderMove}
@@ -837,9 +1110,20 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
             {/* Status Feedback */}
             {blunderStatus === 'correct' && (
-              <div className="p-3 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 text-[#81b64c] text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Brilliant! You found the winning continuation ({puzzle.solutionSan})!</span>
+              <div className="p-3 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 text-[#81b64c] text-xs font-bold flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Brilliant! You found the winning continuation ({activeMistakePuzzle.solutionSan})!</span>
+                </div>
+                {currentMistakeIndex < userMistakesPuzzles.length - 1 && (
+                  <button
+                    onClick={() => loadMistakeIndex(currentMistakeIndex + 1)}
+                    className="px-2.5 py-1 rounded-lg bg-[#81b64c] text-white hover:bg-[#8cc653] text-[11px] font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1 shrink-0"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             )}
 
@@ -861,15 +1145,15 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
             {blunderStatus === 'revealed' && (
               <div className="p-3 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold">
-                Best move: <strong>{puzzle.solutionSan}</strong>. {puzzle.explanation}
+                Best move: <strong>{activeMistakePuzzle.solutionSan}</strong>. {activeMistakePuzzle.explanation}
               </div>
             )}
 
             {/* Modal Controls */}
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between pt-1">
               <button
                 onClick={resetBlunderPuzzle}
-                className="px-3 py-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Try Again</span>
@@ -877,7 +1161,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
               <button
                 onClick={revealBlunderSolution}
-                className="px-3 py-2 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 <span>Show Solution</span>
@@ -885,7 +1169,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
               <button
                 onClick={() => setIsBlunderModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black transition-colors cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black transition-colors cursor-pointer"
               >
                 Done
               </button>

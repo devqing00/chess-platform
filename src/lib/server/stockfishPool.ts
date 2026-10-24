@@ -86,13 +86,13 @@ function uciToSan(fen: string, uci: string): string {
   }
 }
 
-// In-process Stockfish loader
+// In-process Stockfish loader (Prioritize single-threaded asm.js for 100% reliability in Node.js)
 let initStockfishEngine: (() => any) | null = null;
 try {
-  initStockfishEngine = require('stockfish');
+  initStockfishEngine = require('stockfish/bin/stockfish-19-asm.js');
 } catch {
   try {
-    initStockfishEngine = require('stockfish/bin/stockfish-19-asm.js');
+    initStockfishEngine = require('stockfish');
   } catch (err) {
     console.warn('[Stockfish] In-process require failed, will use child process fallback:', err);
   }
@@ -121,7 +121,7 @@ class StockfishWorker {
         this.engine = initStockfishEngine();
         this.engine.listener = (line: string) => {
           const trimmed = line.trim();
-          if (trimmed === 'readyok' || trimmed === 'uciok') {
+          if (!this.isReady && trimmed.startsWith('bestmove')) {
             this.isReady = true;
           }
           if (this.currentHandler) {
@@ -129,8 +129,12 @@ class StockfishWorker {
           }
         };
         this.engine.processCommand('uci');
+        this.engine.processCommand('setoption name Threads value 1');
+        this.engine.processCommand('setoption name Hash value 32');
         this.engine.processCommand('isready');
-        this.isReady = true;
+        // Warm-up search so neural net loads before any client queries
+        this.engine.processCommand('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        this.engine.processCommand('go depth 1');
         return;
       } catch (err) {
         console.warn(`[StockfishWorker ${this.id}] In-process init failed, trying child process:`, err);
@@ -267,13 +271,24 @@ class StockfishWorker {
       let nps = 0;
 
       let timer: NodeJS.Timeout | null = null;
+      let searchFinished = false;
 
       const cleanup = () => {
-        if (timer) clearTimeout(timer);
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
         this.currentHandler = null;
         if (this.process && this.process.stdout) {
           this.process.stdout.removeListener('data', onProcessData);
         }
+      };
+
+      const finishAndResolve = (evaluation: EngineEvaluation) => {
+        if (searchFinished) return;
+        searchFinished = true;
+        cleanup();
+        resolve(evaluation);
       };
 
       const handleUciLine = (trimmed: string) => {
@@ -321,7 +336,6 @@ class StockfishWorker {
         }
 
         if (trimmed.startsWith('bestmove')) {
-          cleanup();
           const parts = trimmed.split(' ');
           const bestMoveUci = parts[1] || '';
           const lines = Array.from(linesMap.values()).sort((a, b) => a.rank - b.rank);
@@ -335,7 +349,7 @@ class StockfishWorker {
             pvSan: [],
           };
 
-          resolve({
+          finishAndResolve({
             fen,
             depth: maxDepth || depth,
             seldepth,
@@ -344,8 +358,8 @@ class StockfishWorker {
             scoreCp: top.scoreCp,
             mateIn: top.mateIn,
             scoreFormatted: top.scoreFormatted,
-            bestMoveUci: top.bestMoveUci,
-            bestMoveSan: top.bestMoveSan,
+            bestMoveUci: top.bestMoveUci || bestMoveUci,
+            bestMoveSan: top.bestMoveSan || uciToSan(fen, bestMoveUci),
             pvUci: top.pvUci,
             pvSan: top.pvSan,
             lines,
@@ -363,7 +377,8 @@ class StockfishWorker {
       };
 
       timer = setTimeout(() => {
-        cleanup();
+        if (searchFinished) return;
+        // Stop current engine search; it will emit bestmove momentarily
         if (this.engine) {
           try {
             this.engine.processCommand('stop');
@@ -374,53 +389,56 @@ class StockfishWorker {
           } catch {}
         }
 
-        const lines = Array.from(linesMap.values()).sort((a, b) => a.rank - b.rank);
-        if (lines.length > 0) {
-          const top = lines[0];
-          resolve({
+        // Hard safety timeout in case engine failed to respond with bestmove
+        setTimeout(() => {
+          if (searchFinished) return;
+          const lines = Array.from(linesMap.values()).sort((a, b) => a.rank - b.rank);
+          if (lines.length > 0) {
+            const top = lines[0];
+            finishAndResolve({
+              fen,
+              depth: maxDepth || depth,
+              seldepth,
+              nodes: nodes || 1800,
+              nps: nps || 45000,
+              scoreCp: top.scoreCp,
+              mateIn: top.mateIn,
+              scoreFormatted: top.scoreFormatted,
+              bestMoveUci: top.bestMoveUci,
+              bestMoveSan: top.bestMoveSan,
+              pvUci: top.pvUci,
+              pvSan: top.pvSan,
+              lines,
+            });
+            return;
+          }
+
+          const best = ChessEvaluator.findBestMoveAndScore(chess);
+          finishAndResolve({
             fen,
             depth: maxDepth || depth,
             seldepth,
             nodes: nodes || 1800,
             nps: nps || 45000,
-            scoreCp: top.scoreCp,
-            mateIn: top.mateIn,
-            scoreFormatted: top.scoreFormatted,
-            bestMoveUci: top.bestMoveUci,
-            bestMoveSan: top.bestMoveSan,
-            pvUci: top.pvUci,
-            pvSan: top.pvSan,
-            lines,
+            scoreCp: best.score,
+            scoreFormatted: formatEngineScore(best.score),
+            bestMoveUci: best.bestMoveUci,
+            bestMoveSan: best.bestMoveSan,
+            pvUci: [best.bestMoveUci],
+            pvSan: [best.bestMoveSan],
+            lines: [
+              {
+                rank: 1,
+                scoreCp: best.score,
+                scoreFormatted: formatEngineScore(best.score),
+                bestMoveUci: best.bestMoveUci,
+                bestMoveSan: best.bestMoveSan,
+                pvUci: [best.bestMoveUci],
+                pvSan: [best.bestMoveSan],
+              },
+            ],
           });
-          return;
-        }
-
-        // Only as last resort if engine timed out with 0 lines
-        const best = ChessEvaluator.findBestMoveAndScore(chess);
-        resolve({
-          fen,
-          depth: maxDepth || depth,
-          seldepth,
-          nodes: nodes || 1800,
-          nps: nps || 45000,
-          scoreCp: best.score,
-          scoreFormatted: formatEngineScore(best.score),
-          bestMoveUci: best.bestMoveUci,
-          bestMoveSan: best.bestMoveSan,
-          pvUci: [best.bestMoveUci],
-          pvSan: [best.bestMoveSan],
-          lines: [
-            {
-              rank: 1,
-              scoreCp: best.score,
-              scoreFormatted: formatEngineScore(best.score),
-              bestMoveUci: best.bestMoveUci,
-              bestMoveSan: best.bestMoveSan,
-              pvUci: [best.bestMoveUci],
-              pvSan: [best.bestMoveSan],
-            },
-          ],
-        });
+        }, 800);
       }, timeoutMs || 3500);
 
       // Branch 1: In-process Stockfish engine (Fastest, 0 IPC latency, 100% reliable)

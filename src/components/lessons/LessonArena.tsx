@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
-import { LESSON_TRACKS, ChessLesson, LessonStep } from '@/lib/lessonsData';
+import { LESSON_TRACKS, ChessLesson, LessonStep, LessonTrack } from '@/lib/lessonsData';
 import { BoardTheme, PieceTheme, ArrowAnnotation, MembershipTier } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
 import { useAuth } from '@/context/AuthContext';
+import { useXpSystem } from '@/hooks/useXpSystem';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 import {
   GraduationCap,
@@ -17,11 +19,25 @@ import {
   Lightbulb,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Clock,
   BookOpen,
   Award,
   Crown,
+  Target,
+  Shield,
+  Compass,
+  Layers,
+  Flame,
+  Zap,
+  Check,
+  Lock,
+  Play,
+  FileCheck,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+export type LessonScreen = 'study' | 'curriculum' | 'learning_path' | 'diplomas';
 
 interface LessonArenaProps {
   boardTheme: BoardTheme;
@@ -34,31 +50,48 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
   pieceTheme,
   tier = 'diamond',
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const [selectedTrack, setSelectedTrack] = useState(LESSON_TRACKS[0]);
+  const { profile: xpProfile, awardXp } = useXpSystem();
+
+  // Tab detection from URL query params
+  const tabQuery = searchParams?.get('tab');
+  const initialScreen: LessonScreen = useMemo(() => {
+    if (tabQuery === 'curriculum' || tabQuery === 'tracks') return 'curriculum';
+    if (tabQuery === 'path' || tabQuery === 'roadmap') return 'learning_path';
+    if (tabQuery === 'diplomas' || tabQuery === 'certificates') return 'diplomas';
+    return 'study';
+  }, [tabQuery]);
+
+  const [activeScreen, setActiveScreen] = useState<LessonScreen>(initialScreen);
+  const [selectedTrack, setSelectedTrack] = useState<LessonTrack>(LESSON_TRACKS[0]);
   const [selectedLesson, setSelectedLesson] = useState<ChessLesson>(LESSON_TRACKS[0].lessons[0]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  // Persistent progress state in localStorage
-  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('checkmate_lesson_progress_v1');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Persistent progress in localStorage
+  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
+  const [stepProgressMap, setStepProgressMap] = useState<Record<string, number>>({});
+  const [isMounted, setIsMounted] = useState(false);
 
-  const [stepProgressMap, setStepProgressMap] = useState<Record<string, number>>(() => {
-    if (typeof window === 'undefined') return {};
+  // Sync tab query changes
+  useEffect(() => {
+    if (tabQuery === 'curriculum') setActiveScreen('curriculum');
+    else if (tabQuery === 'path') setActiveScreen('learning_path');
+    else if (tabQuery === 'diplomas') setActiveScreen('diplomas');
+    else if (tabQuery === 'study') setActiveScreen('study');
+  }, [tabQuery]);
+
+  // Load localStorage progress safely on mount
+  useEffect(() => {
+    setIsMounted(true);
     try {
-      const saved = localStorage.getItem('checkmate_lesson_steps_v1');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+      const savedLessons = localStorage.getItem('checkmate_lesson_progress_v1');
+      if (savedLessons) setCompletedLessonIds(JSON.parse(savedLessons));
+      const savedSteps = localStorage.getItem('checkmate_lesson_steps_v1');
+      if (savedSteps) setStepProgressMap(JSON.parse(savedSteps));
+    } catch {}
+  }, []);
 
   const step: LessonStep = selectedLesson.steps[currentStepIndex] || selectedLesson.steps[0];
 
@@ -66,7 +99,6 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
   const [stepStatus, setStepStatus] = useState<'idle' | 'correct' | 'wrong' | 'completed'>('idle');
   const [showHint, setShowHint] = useState(false);
   const [customArrows, setCustomArrows] = useState<ArrowAnnotation[]>([]);
-  const [showCurriculumDrawer, setShowCurriculumDrawer] = useState(false);
 
   // Total lessons count across all tracks
   const totalLessonsCount = useMemo(() => {
@@ -108,7 +140,6 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
         return merged;
       });
 
-      // Calculate which lessons are fully completed
       const completed: string[] = [];
       LESSON_TRACKS.forEach((track) => {
         track.lessons.forEach((l) => {
@@ -152,53 +183,24 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
         soundService.playPuzzleSuccess();
         const isLastStep = currentStepIndex === selectedLesson.steps.length - 1;
 
-        // Persist step progress
-        const nextStepIdx = currentStepIndex + 1;
-        const newStepMap = {
-          ...stepProgressMap,
-          [selectedLesson.id]: Math.max(stepProgressMap[selectedLesson.id] || 0, nextStepIdx),
-        };
-        setStepProgressMap(newStepMap);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('checkmate_lesson_steps_v1', JSON.stringify(newStepMap));
-        }
-
         if (isLastStep) {
           setStepStatus('completed');
-          confetti({ particleCount: 75, spread: 80, origin: { y: 0.6 } });
+          awardXp(50, `Completed Lesson: ${selectedLesson.title}`);
+          try {
+            confetti({ particleCount: 55, spread: 70, origin: { y: 0.6 } });
+          } catch {}
 
-          // Mark lesson complete
-          if (!completedLessonIds.includes(selectedLesson.id)) {
-            const nextCompleted = [...completedLessonIds, selectedLesson.id];
-            setCompletedLessonIds(nextCompleted);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('checkmate_lesson_progress_v1', JSON.stringify(nextCompleted));
-            }
-          }
+          setCompletedLessonIds((prev) => {
+            if (prev.includes(selectedLesson.id)) return prev;
+            const updated = [...prev, selectedLesson.id];
+            try {
+              localStorage.setItem('checkmate_lesson_progress_v1', JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
         } else {
           setStepStatus('correct');
-        }
-
-        // Inform backend about lesson step completion
-        try {
-          await fetch('/api/lessons', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lessonId: selectedLesson.id,
-              stepId: step.stepId,
-              tier,
-            }),
-          });
-          if (user) {
-            FirestoreService.saveLessonProgress(
-              user.uid,
-              selectedLesson.id,
-              isLastStep ? selectedLesson.steps.length : nextStepIdx
-            );
-          }
-        } catch {
-          // ignore error
+          awardXp(15, `Completed Step: ${step.title}`);
         }
       } else {
         soundService.playPuzzleFail();
@@ -219,7 +221,6 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
   };
 
   const handleNextLesson = () => {
-    // Find next lesson in track, or first lesson in next track
     const currentTrackIndex = LESSON_TRACKS.findIndex((t) => t.id === selectedTrack.id);
     const currentLessonIndex = selectedTrack.lessons.findIndex((l) => l.id === selectedLesson.id);
 
@@ -250,316 +251,702 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
 
   const isCurrentLessonCompleted = completedLessonIds.includes(selectedLesson.id);
 
+  const handleSelectLesson = (lesson: ChessLesson, track: LessonTrack) => {
+    setSelectedTrack(track);
+    setSelectedLesson(lesson);
+    setCurrentStepIndex(0);
+    setActiveScreen('study');
+  };
+
+  // Diplomas / Track completions calculations
+  const trackStats = useMemo(() => {
+    return LESSON_TRACKS.map((t) => {
+      const total = t.lessons.length;
+      const completed = t.lessons.filter((l) => completedLessonIds.includes(l.id)).length;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return {
+        track: t,
+        total,
+        completed,
+        percent: pct,
+        isGraduated: completed === total && total > 0,
+      };
+    });
+  }, [completedLessonIds]);
+
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-5 lg:gap-8 items-center lg:items-start justify-center p-1 sm:p-4 select-none">
-      {/* Lesson Interactive Chessboard - Scaled smoothly up to 560px on tablet */}
-      <div className="w-full max-w-[min(100vw-2rem,_560px)] lg:max-w-[460px] xl:max-w-[500px] 2xl:max-w-[540px] shrink-0 flex flex-col items-center gap-3 mx-auto lg:mx-0">
-        <div className="w-full aspect-square">
-          <ChessBoard
-            chess={chess}
-            orientation="w"
-            boardTheme={boardTheme}
-            pieceTheme={pieceTheme}
-            onMove={handleBoardMove}
-            customArrows={customArrows}
-            disabled={stepStatus === 'correct' || stepStatus === 'completed'}
-          />
+    <div className="w-full h-full flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
+      {/* ========================================================================= */}
+      {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
+      {/* ========================================================================= */}
+      <nav className="shrink-0 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
+          <button
+            onClick={() => setActiveScreen('study')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'study'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>Interactive Board</span>
+          </button>
+
+          <button
+            onClick={() => setActiveScreen('curriculum')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'curriculum'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Full Curriculum ({totalLessonsCount})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveScreen('learning_path')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'learning_path'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Learning Road</span>
+          </button>
+
+          <button
+            onClick={() => setActiveScreen('diplomas')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'diplomas'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5" />
+            <span>Diplomas &amp; Vault</span>
+          </button>
         </div>
 
-        {/* Step Indicator Ribbon */}
-        <div className="w-full bg-[#1a1815] border-2 border-[#35322b] rounded-2xl p-3 flex items-center justify-between text-xs shadow-[0_3px_0_0_#141311]">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#81b64c] border-2 border-[#1a1815]" />
-            <span className="font-black text-white">
-              Step {step.stepId} of {selectedLesson.steps.length}: {step.title}
-            </span>
-          </div>
-          <div className="flex gap-1.5">
-            {selectedLesson.steps.map((s, idx) => (
-              <div
-                key={s.stepId}
-                className={`w-6 h-2 rounded-full border border-black/30 transition-all ${
-                  idx < currentStepIndex
-                    ? 'bg-[#81b64c]'
-                    : idx === currentStepIndex
-                    ? 'bg-white shadow-[0_1px_0_0_#999]'
-                    : 'bg-[#2b2926]'
-                }`}
-              />
-            ))}
-          </div>
+        {/* Right Ambient Indicator */}
+        <div className="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-400">
+          <span className="text-[#81b64c] font-black">{overallPercent}%</span>
+          <span>Curriculum Mastered</span>
         </div>
+      </nav>
 
-        {/* Under-Board Immediate Action & Coach Ribbon */}
-        <div className="w-full bg-[#1a1815] border-2 border-[#35322b] rounded-2xl p-2.5 sm:p-3 flex flex-col gap-2 text-xs shadow-[0_3px_0_0_#141311]">
-          <div className="flex items-center gap-2">
-            <span className="text-base shrink-0">🧑‍🏫</span>
-            <p className="text-zinc-300 font-medium text-[11px] sm:text-xs line-clamp-2">
-              {stepStatus === 'wrong'
-                ? 'Not quite! That wasn’t the principled move. Board resetting...'
-                : stepStatus === 'correct'
-                ? 'Well played! You found the correct move!'
-                : stepStatus === 'completed'
-                ? 'Lesson complete! Master Trophy earned!'
-                : step.instruction}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#2b2824]">
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => loadStep(step)}
-                className="px-3 py-1.5 rounded-xl bg-[#262420] hover:bg-[#322f29] text-zinc-300 text-xs font-bold flex items-center gap-1 border border-[#35322b] active:translate-y-[1px] transition-all cursor-pointer"
-                title="Reset this step"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </button>
-
-              <button
-                onClick={toggleHint}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all cursor-pointer active:translate-y-[1px] ${
-                  showHint
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                    : 'bg-[#262420] hover:bg-[#322f29] text-zinc-300 border-[#35322b]'
-                }`}
-                title="View move hint"
-              >
-                <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-                <span>Hint</span>
-              </button>
-            </div>
-
-            {stepStatus === 'correct' && (
-              <button
-                onClick={handleNextStep}
-                className="px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] animate-pulse cursor-pointer"
-              >
-                <span>Next Step</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-
-            {stepStatus === 'completed' && (
-              <button
-                onClick={handleNextLesson}
-                className="px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1 border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] animate-pulse cursor-pointer"
-              >
-                <span>Next Lesson</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Coach Dialogue, Instruction & Curriculum Sidebar */}
-      <div className="w-full max-w-[min(100vw-2rem,_560px)] lg:w-[400px] xl:w-[440px] shrink-0 min-w-0 flex flex-col gap-4 mx-auto lg:mx-0">
-        {/* Active Lesson Card */}
-        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl p-5 flex flex-col gap-4 shadow-[0_4px_0_0_#141311]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24]">
-                <GraduationCap className="w-5 h-5" />
+      {/* ========================================================================= */}
+      {/* 2. SUB-SCREEN 1: INTERACTIVE STUDY BOARD                                  */}
+      {/* ========================================================================= */}
+      {activeScreen === 'study' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          {/* Top Active Lesson Strip */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+                <GraduationCap className="w-4 h-4" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                  {selectedTrack.title}
-                </span>
-                <h2 className="text-base font-black text-white flex items-center gap-2">
-                  <span>{selectedLesson.title}</span>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#81b64c]">
+                    {selectedTrack.title}
+                  </span>
                   {isCurrentLessonCompleted && (
-                    <span className="text-[10px] bg-[#81b64c]/20 text-[#81b64c] border-2 border-[#81b64c]/40 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                    <span className="text-[10px] font-mono font-bold bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded-full border border-[#81b64c]/30">
                       Mastered
                     </span>
                   )}
+                </div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                  {selectedLesson.title}
                 </h2>
               </div>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-300 px-3 py-1 rounded-full border-2 border-emerald-500/30 flex items-center gap-1 font-mono shadow-[0_1px_0_0_#064e3b]">
-              <Clock className="w-3.5 h-3.5" />
-              {selectedLesson.durationMinutes} min
-            </span>
-          </div>
 
-          {/* Coach Commentary Bubble */}
-          <div className="bg-[#161512] border-2 border-[#2b2824] rounded-2xl p-3.5 flex gap-3 items-start shadow-inner">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#81b64c] to-[#5d8b32] border-2 border-[#4d7a24] shadow-[0_2px_0_0_#335318] flex items-center justify-center text-xl shrink-0">
-              🧑‍🏫
-            </div>
-            <div className="flex flex-col gap-1 text-xs">
-              <span className="font-black text-[#81b64c] uppercase tracking-wider text-[11px]">Coach Analysis</span>
-              <p className="text-zinc-300 leading-relaxed font-medium">
-                "{stepStatus === 'correct' || stepStatus === 'completed'
-                  ? step.explanation
-                  : step.instruction}"
-              </p>
-            </div>
-          </div>
-
-          {/* Feedback Status Alert */}
-          {stepStatus === 'correct' && (
-            <div className="p-3 bg-emerald-500/15 border-2 border-emerald-500/40 rounded-2xl flex items-center justify-between text-xs text-emerald-300 font-black animate-in fade-in shadow-[0_2px_0_0_#064e3b]">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Well played! You found the correct move!</span>
-              </div>
-              <button
-                onClick={handleNextStep}
-                className="px-4 py-1.5 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all"
-              >
-                <span>Next</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {stepStatus === 'completed' && (
-            <div className="p-4 bg-emerald-500/20 border-2 border-emerald-500/40 rounded-2xl flex flex-col gap-3 text-xs text-emerald-300 font-black animate-in fade-in shadow-[0_3px_0_0_#064e3b]">
-              <div className="flex items-center gap-2 text-sm text-white font-black uppercase tracking-wider">
-                <Award className="w-5 h-5 text-amber-400" />
-                <span>Lesson Complete! Master Trophy Earned!</span>
-              </div>
-              <p className="text-xs text-zinc-300 font-medium leading-relaxed">
-                You've successfully mastered {selectedLesson.title}. Review the key motifs or advance to the next course module!
-              </p>
-              <button
-                onClick={handleNextLesson}
-                className="w-full py-2.5 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all"
-              >
-                <span>Advance to Next Lesson</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {stepStatus === 'wrong' && (
-            <div className="p-3 bg-rose-500/15 border-2 border-rose-500/40 rounded-2xl text-xs text-rose-300 font-black animate-in fade-in shadow-[0_2px_0_0_#4c0519]">
-              Not quite! That wasn't the principled move. The board is resetting—try again or view the hint!
-            </div>
-          )}
-
-          {/* Hint Card */}
-          {showHint && (
-            <div className="p-3.5 bg-[#181614] rounded-2xl border-2 border-amber-500/40 text-xs text-amber-200 leading-relaxed flex items-start gap-2.5 animate-in fade-in shadow-[0_2px_0_0_#78350f]">
-              <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block text-amber-300 mb-0.5 font-black uppercase tracking-wider text-[11px]">Tactical Hint:</strong>
-                <span className="font-medium">{step.hint}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Action Buttons Bar */}
-          <div className="flex items-center justify-between pt-3 border-t-2 border-[#2d2a26]">
-            <button
-              onClick={() => loadStep(step)}
-              className="px-4 py-2 rounded-full bg-[#282622] hover:bg-[#34312b] text-zinc-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
-
-            <button
-              onClick={toggleHint}
-              className="px-4 py-2 rounded-full bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-amber-300 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
-            >
-              <Lightbulb className="w-3.5 h-3.5" />
-              <span>Hint</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Curriculum Tracks Directory Drawer */}
-        <div className="bg-[#1f1d1a] border-2 border-[#35322b] rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_0_0_#141311]">
-          {/* Progress Header */}
-          <div className="flex flex-col gap-2 pb-2.5 border-b-2 border-[#2d2a26]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-[#81b64c]" />
-                Curriculum Progress
+            {/* Step Stepper & Duration */}
+            <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+              <span className="text-[11px] font-mono text-zinc-400 bg-white/5 px-2.5 py-1 rounded-xl border border-white/5 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                <span>{selectedLesson.durationMinutes}m</span>
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-black text-[#81b64c]">
-                  {completedLessonIds.length} / {totalLessonsCount} ({overallPercent}%)
+
+              <div className="flex items-center gap-1 bg-[#141311] px-2.5 py-1 rounded-xl border border-white/5">
+                <span className="text-xs font-mono font-bold text-white">
+                  Step {step.stepId} / {selectedLesson.steps.length}
                 </span>
-                <button
-                  onClick={() => setShowCurriculumDrawer((prev) => !prev)}
-                  className="lg:hidden px-2 py-0.5 rounded-lg bg-[#262420] hover:bg-[#322f29] text-[10px] font-bold text-zinc-300 border border-[#35322b] cursor-pointer"
-                >
-                  {showCurriculumDrawer ? 'Hide ▲' : 'Browse ▼'}
-                </button>
               </div>
-            </div>
-            <div className="w-full bg-[#141311] h-2.5 rounded-full overflow-hidden border border-[#2b2824] p-0.5 shadow-inner">
-              <div
-                className="bg-gradient-to-r from-[#81b64c] to-[#a3d865] h-full transition-all duration-500 rounded-full shadow"
-                style={{ width: `${overallPercent}%` }}
-              />
             </div>
           </div>
 
-          <div className={`${showCurriculumDrawer ? 'flex' : 'hidden lg:flex'} flex-col gap-3`}>
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">Track:</span>
-              <div className="flex gap-1.5">
-                {LESSON_TRACKS.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setSelectedTrack(t);
-                      setSelectedLesson(t.lessons[0]);
-                      setCurrentStepIndex(0);
-                    }}
-                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
-                      selectedTrack.id === t.id
-                        ? 'bg-[#81b64c] text-white border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24]'
-                        : 'bg-[#161512] text-zinc-400 border-[#2d2a26] shadow-[0_2px_0_0_#141311] hover:text-white'
+          {/* Dual Column Stage: Board Left, Coach & Controls Right */}
+          <div className="flex-1 w-full min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-center">
+            {/* Left Column (7 Cols): Scaled Interactive Board */}
+            <div className="lg:col-span-7 h-full flex flex-col items-center justify-center min-h-0 gap-2">
+              <div className="h-full max-h-[360px] sm:max-h-[400px] aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative bg-[#1c1a17]">
+                <ChessBoard
+                  chess={chess}
+                  orientation="w"
+                  boardTheme={boardTheme}
+                  pieceTheme={pieceTheme}
+                  onMove={handleBoardMove}
+                  customArrows={customArrows}
+                  disabled={stepStatus === 'correct' || stepStatus === 'completed'}
+                />
+
+                {stepStatus === 'completed' && (
+                  <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-emerald-500/95 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-sm animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                    <span>Lesson Mastered (+50 XP)</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress Steps Dots */}
+              <div className="flex items-center gap-1.5 py-0.5">
+                {selectedLesson.steps.map((s, idx) => (
+                  <div
+                    key={s.stepId}
+                    className={`h-1.5 rounded-full transition-all ${
+                      idx < currentStepIndex
+                        ? 'w-6 bg-[#81b64c]'
+                        : idx === currentStepIndex
+                        ? 'w-8 bg-white'
+                        : 'w-4 bg-[#2b2926]'
                     }`}
-                  >
-                    {t.difficulty}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
 
-            <div className="divide-y divide-[#282622]">
-              {selectedTrack.lessons.map((les) => {
-                const isCurrent = selectedLesson.id === les.id;
-                const isDone = completedLessonIds.includes(les.id);
-                return (
-                  <button
-                    key={les.id}
-                    onClick={() => {
-                      setSelectedLesson(les);
-                      setCurrentStepIndex(0);
-                      setShowCurriculumDrawer(false);
-                    }}
-                    className={`w-full text-left p-2.5 sm:p-3 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
-                      isCurrent
-                        ? 'bg-[#262420] border-l-4 border-[#81b64c]'
-                        : 'hover:bg-[#23211e]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      {isDone ? (
-                        <CheckCircle2 className="w-4 h-4 text-[#81b64c] shrink-0" />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full border border-zinc-600 shrink-0" />
-                      )}
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white">{les.title}</span>
-                        <span className="text-[11px] text-zinc-400 line-clamp-1">{les.subtitle}</span>
-                      </div>
+            {/* Right Column (5 Cols): Coach Commentary & P1 Action Anchor */}
+            <div className="lg:col-span-5 h-full max-h-[420px] p-4 sm:p-5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
+              <div className="flex flex-col gap-2.5 min-h-0 overflow-y-auto pr-1">
+                {/* Step Subtitle */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Step {step.stepId}: {step.title}
+                  </span>
+                  <p className="text-xs sm:text-sm font-extrabold text-white mt-0.5 leading-snug">
+                    {step.instruction}
+                  </p>
+                </div>
+
+                {/* Coach Analysis Card */}
+                <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-relaxed font-medium">
+                  <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Coach Danny Rensch</span>
+                  </div>
+                  <p>
+                    {stepStatus === 'wrong'
+                      ? 'Not quite! That wasn’t the principled move. Board is resetting—try again or view the hint.'
+                      : stepStatus === 'correct' || stepStatus === 'completed'
+                      ? step.explanation
+                      : `"${selectedLesson.coachIntro}"`}
+                  </p>
+                </div>
+
+                {/* Hint Card if toggled */}
+                {showHint && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 leading-relaxed flex items-start gap-2 animate-in fade-in">
+                    <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block text-amber-300 font-bold text-[11px] uppercase">
+                        Tactical Clue:
+                      </strong>
+                      <span>{step.hint}</span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
-                  </button>
-                );
-              })}
+                  </div>
+                )}
+
+                {/* Controls: Reset & Hint */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    rounded="xl"
+                    onClick={() => loadStep(step)}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Step</span>
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    rounded="xl"
+                    onClick={toggleHint}
+                    className={showHint ? 'text-amber-400 border-amber-500/40' : ''}
+                  >
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{showHint ? 'Hint Active' : 'Show Hint'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Bottom Actions: EXACTLY ONE P1 PRIMARY ANCHOR */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-white/5 shrink-0">
+                {stepStatus === 'correct' ? (
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    rounded="xl"
+                    fullWidth
+                    onClick={handleNextStep}
+                  >
+                    <CheckCircle2 className="w-4 h-4 fill-black" />
+                    <span>Advance to Next Step (+25 XP)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                ) : stepStatus === 'completed' ? (
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    rounded="xl"
+                    fullWidth
+                    onClick={handleNextLesson}
+                  >
+                    <Award className="w-4 h-4 fill-black" />
+                    <span>Advance to Next Lesson (+50 XP)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    rounded="xl"
+                    fullWidth
+                    onClick={toggleHint}
+                  >
+                    <Zap className="w-4 h-4 fill-black" />
+                    <span>Reveal Tactical Hint &amp; Arrows</span>
+                  </Button>
+                )}
+
+                {/* Secondary P2 Action: Browse Full Curriculum */}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  rounded="xl"
+                  fullWidth
+                  onClick={() => setActiveScreen('curriculum')}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <span>Browse All Curriculum Tracks ({totalLessonsCount})</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. SUB-SCREEN 2: FULL CURRICULUM & TRACKS                                 */}
+      {/* ========================================================================= */}
+      {activeScreen === 'curriculum' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          {/* Top Progress & Track Picker */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white">
+                  Grandmaster Curriculum Tracks
+                </h2>
+                <p className="text-[11px] text-zinc-400">
+                  {completedLessonIds.length} of {totalLessonsCount} lessons mastered ({overallPercent}%)
+                </p>
+              </div>
+            </div>
+
+            {/* Track Switcher Pills */}
+            <div className="flex items-center gap-1.5 self-end sm:self-center">
+              {LESSON_TRACKS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTrack(t)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    selectedTrack.id === t.id
+                      ? 'bg-[#81b64c] text-black font-black'
+                      : 'bg-[#141311] text-zinc-400 hover:text-white border border-white/5'
+                  }`}
+                >
+                  <span className="capitalize">{t.difficulty}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lessons Grid in Selected Track */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-3 gap-3.5 items-stretch">
+            {selectedTrack.lessons.map((les, idx) => {
+              const isDone = completedLessonIds.includes(les.id);
+              const isCurrent = selectedLesson.id === les.id;
+
+              return (
+                <div
+                  key={les.id}
+                  className={`p-4 rounded-2xl bg-[#1c1a17] border flex flex-col justify-between gap-3 transition-all ${
+                    isCurrent
+                      ? 'border-[#81b64c]/50 shadow-md ring-1 ring-[#81b64c]/30'
+                      : 'border-white/5 hover:border-white/10'
+                  }`}
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-zinc-500 font-bold">
+                        MODULE #{idx + 1}
+                      </span>
+                      {isDone ? (
+                        <span className="text-[10px] font-bold text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          <span>Mastered</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full">
+                          {les.steps.length} Steps
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-extrabold text-white">
+                        {les.title}
+                      </h3>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed line-clamp-2">
+                        {les.subtitle}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-400 mt-1">
+                      <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>{les.durationMinutes} mins</span>
+                      <span>•</span>
+                      <span className="text-[#81b64c]">+50 XP</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant={isCurrent ? 'primary' : 'secondary'}
+                    size="sm"
+                    rounded="xl"
+                    fullWidth
+                    onClick={() => handleSelectLesson(les, selectedTrack)}
+                  >
+                    <span>{isDone ? 'Review Lesson' : isCurrent ? 'Continue Study' : 'Start Lesson'}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* EXACTLY ONE P1 PRIMARY ANCHOR */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Zap className="w-4 h-4 text-[#81b64c]" />
+              <span className="text-xs font-bold text-zinc-200">
+                Ready to study? Jump into active lesson: <strong className="text-white">{selectedLesson.title}</strong>
+              </span>
+            </div>
+
+            <Button
+              variant="primary"
+              size="md"
+              rounded="xl"
+              onClick={() => setActiveScreen('study')}
+            >
+              <Play className="w-4 h-4 fill-black" />
+              <span>Resume Active Study Board</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. SUB-SCREEN 3: GAMIFIED LEARNING ROAD                                   */}
+      {/* ========================================================================= */}
+      {activeScreen === 'learning_path' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          {/* Top HUD: Road Stats */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <Compass className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white">
+                  Gamified Quest Road
+                </h2>
+                <p className="text-[11px] text-zinc-400">
+                  Step-by-step chess mastery trail with bonus XP chests
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center font-mono text-[11px]">
+              <span className="text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
+                🔥 Streak: {xpProfile.streak}d
+              </span>
+              <span className="text-[#81b64c] font-bold bg-[#81b64c]/10 px-2.5 py-1 rounded-xl border border-[#81b64c]/20">
+                ⚡ Total: {xpProfile.totalXp} XP
+              </span>
+            </div>
+          </div>
+
+          {/* Stepped Road Cards Grid */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-3 gap-3.5 items-stretch">
+            {/* Stage 1: Fundamentals Trail */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Stage 1: Fundamentals
+                  </span>
+                  <span className="text-[11px] font-mono text-[#81b64c] font-bold">+120 XP</span>
+                </div>
+                <h3 className="text-sm font-black text-white">Board Control &amp; Piece Mobility</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Learn to claim open files, coordinate minor pieces, and tuck your king to safety before initiating attacks.
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono mt-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <span>4 Checkpoint Modules Complete</span>
+                </div>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
+                fullWidth
+                onClick={() => {
+                  setSelectedTrack(LESSON_TRACKS[0]);
+                  setSelectedLesson(LESSON_TRACKS[0].lessons[0]);
+                  setActiveScreen('study');
+                }}
+              >
+                <span>Drill Stage 1</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#81b64c]" />
+              </Button>
+            </div>
+
+            {/* Stage 2: Tactical Combos */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Stage 2: Tactical Radar
+                  </span>
+                  <span className="text-[11px] font-mono text-[#81b64c] font-bold">+150 XP</span>
+                </div>
+                <h3 className="text-sm font-black text-white">Pins, Forks &amp; Back-Rank Blasts</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Train your subconscious to instantly spot absolute pins, knight family forks, and back-rank checkmates.
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono mt-1">
+                  <Target className="w-3.5 h-3.5 text-amber-400" />
+                  <span>3 Quests Ready</span>
+                </div>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
+                fullWidth
+                onClick={() => router.push('/puzzles')}
+              >
+                <span>Launch Tactics Quest</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+              </Button>
+            </div>
+
+            {/* Stage 3: Endgame Precision */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                    Stage 3: Endgame Mastery
+                  </span>
+                  <span className="text-[11px] font-mono text-[#81b64c] font-bold">+180 XP</span>
+                </div>
+                <h3 className="text-sm font-black text-white">Lucena, Philidor &amp; King Opposition</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Convert decisive advantages in king-and-pawn endings and build the unbreakable Lucena rook bridge.
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono mt-1">
+                  <Crown className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Theoretical Endgame Lab</span>
+                </div>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
+                fullWidth
+                onClick={() => router.push('/endgames')}
+              >
+                <span>Enter Endgame Study</span>
+                <ArrowRight className="w-3.5 h-3.5 text-purple-400" />
+              </Button>
+            </div>
+          </div>
+
+          {/* EXACTLY ONE P1 PRIMARY ANCHOR */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Flame className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-bold text-zinc-200">
+                Continue your daily learning streak with the next checkpoint drill.
+              </span>
+            </div>
+
+            <Button
+              variant="primary"
+              size="md"
+              rounded="xl"
+              onClick={() => router.push('/puzzles')}
+            >
+              <Zap className="w-4 h-4 fill-black" />
+              <span>Continue Quest Trail (+30 XP)</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. SUB-SCREEN 4: DIPLOMAS & GRADUATION VAULT                              */}
+      {/* ========================================================================= */}
+      {activeScreen === 'diplomas' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          {/* Top HUD */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                <Award className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white">
+                  Check.mate Academy Diplomas
+                </h2>
+                <p className="text-[11px] text-zinc-400">
+                  Official certificates awarded upon completing curriculum milestones
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center font-mono text-[11px]">
+              <span className="text-zinc-400">Graduation Status:</span>
+              <span className="text-[#81b64c] font-black">
+                {trackStats.filter((t) => t.isGraduated).length} of {trackStats.length} Diplomas
+              </span>
+            </div>
+          </div>
+
+          {/* 3 Diplomas Cards Grid */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-3 gap-3.5 items-stretch">
+            {trackStats.map((stat, idx) => {
+              const badgeColor =
+                idx === 0
+                  ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
+                  : idx === 1
+                  ? 'text-amber-400 bg-amber-500/15 border-amber-500/30'
+                  : 'text-purple-400 bg-purple-500/15 border-purple-500/30';
+
+              return (
+                <div
+                  key={stat.track.id}
+                  className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 shadow-md"
+                >
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeColor}`}>
+                        Level {idx + 1} Certificate
+                      </span>
+                      {stat.isGraduated ? (
+                        <span className="text-[10px] font-black text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/20 px-2 py-0.5 rounded-full">
+                          Graduated
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {stat.completed}/{stat.total} Done
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-extrabold text-white">
+                        {stat.track.title}
+                      </h3>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        {stat.track.description}
+                      </p>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="flex flex-col gap-1 mt-1">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                        <span>Milestone Progress</span>
+                        <span className="text-[#81b64c] font-bold">{stat.percent}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#81b64c] to-[#a3d865] rounded-full transition-all duration-300"
+                          style={{ width: `${stat.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    rounded="xl"
+                    fullWidth
+                    onClick={() => {
+                      setSelectedTrack(stat.track);
+                      setSelectedLesson(stat.track.lessons[0]);
+                      setActiveScreen('study');
+                    }}
+                  >
+                    <span>{stat.isGraduated ? 'View Diploma' : 'Complete Requirements'}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-[#81b64c]" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* EXACTLY ONE P1 PRIMARY ANCHOR */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Award className="w-4 h-4 text-[#81b64c]" />
+              <span className="text-xs font-bold text-zinc-200">
+                Unlock official Grandmaster diplomas by completing the curriculum tracks.
+              </span>
+            </div>
+
+            <Button
+              variant="primary"
+              size="md"
+              rounded="xl"
+              onClick={() => setActiveScreen('study')}
+            >
+              <FileCheck className="w-4 h-4 fill-black" />
+              <span>Continue Academy Curriculum (+50 XP)</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

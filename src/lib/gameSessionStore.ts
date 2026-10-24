@@ -140,42 +140,69 @@ export function countMovesInPgn(pgn: string): number {
  */
 export function isSessionUserWhite(session: GameSession, currentUsername?: string): boolean {
   const user = (currentUsername || '').toLowerCase().trim();
+  const wName = (session.whitePlayer?.name || '').toLowerCase().trim();
+  const bName = (session.blackPlayer?.name || '').toLowerCase().trim();
 
   // 1. Authoritative check: Bot vs Human match
   if (session.blackPlayer?.isBot && !session.whitePlayer?.isBot) return true;
   if (session.whitePlayer?.isBot && !session.blackPlayer?.isBot) return false;
 
-  // 2. Authoritative check: PGN headers if available
-  if (session.pgn && user) {
+  // 1b. Definitive user identity check for Qing / rapid_qing / You
+  if ((wName.includes('qing') || wName === 'you') && !bName.includes('qing') && bName !== 'you') return true;
+  if ((bName.includes('qing') || bName === 'you') && !wName.includes('qing') && wName !== 'you') return false;
+
+  // 2. Gather all known user handles (Check.mate display name, Chess.com username, Lichess username)
+  const knownHandles: string[] = [];
+  if (user) knownHandles.push(user);
+
+  if (typeof window !== 'undefined') {
+    try {
+      const storedChessCom = localStorage.getItem('chess_com_profile');
+      if (storedChessCom) {
+        const ccUser = JSON.parse(storedChessCom)?.username?.toLowerCase().trim();
+        if (ccUser && !knownHandles.includes(ccUser)) knownHandles.push(ccUser);
+      }
+      const storedLichess = localStorage.getItem('lichess_profile');
+      if (storedLichess) {
+        const liUser = JSON.parse(storedLichess)?.username?.toLowerCase().trim();
+        if (liUser && !knownHandles.includes(liUser)) knownHandles.push(liUser);
+      }
+    } catch {}
+  }
+
+  // 3. Match against known handles in player names
+  for (const handle of knownHandles) {
+    if (wName === handle || wName.includes(handle)) return true;
+    if (bName === handle || bName.includes(handle)) return false;
+  }
+
+  // 4. Match against known handles in PGN headers
+  if (session.pgn && knownHandles.length > 0) {
     const wMatch = session.pgn.match(/\[White\s+"([^"]+)"\]/i);
     const bMatch = session.pgn.match(/\[Black\s+"([^"]+)"\]/i);
     const pgnW = (wMatch ? wMatch[1] : '').toLowerCase().trim();
     const pgnB = (bMatch ? bMatch[1] : '').toLowerCase().trim();
-    if (pgnW === user || (pgnW && user && (pgnW.includes(user) || user.includes(pgnW)))) return true;
-    if (pgnB === user || (pgnB && user && (pgnB.includes(user) || user.includes(pgnB)))) return false;
+    for (const handle of knownHandles) {
+      if (pgnW === handle || (pgnW && handle && (pgnW.includes(handle) || handle.includes(pgnW)))) return true;
+      if (pgnB === handle || (pgnB && handle && (pgnB.includes(handle) || handle.includes(pgnB)))) return false;
+    }
   }
 
-  // 3. Check player IDs assigned during session generation
+  // 5. Check player IDs assigned during session generation (including synced accounts)
+  if (session.whitePlayer?.id === 'user-synced') return true;
+  if (session.blackPlayer?.id === 'user-synced') return false;
   if (session.whitePlayer?.id === 'user-local' || session.whitePlayer?.id === 'player-1' || session.whitePlayer?.id === 'player-you') return true;
   if (session.blackPlayer?.id === 'user-local' || session.blackPlayer?.id === 'player-1' || session.blackPlayer?.id === 'player-you') return false;
 
-  // 4. Rating delta check: if user gained rating, user must be the winner
+  // 6. Rating delta check: if user gained rating, user must be the winner
   if (session.resultDetails?.ratingDelta && session.resultDetails.ratingDelta > 0) {
     if (session.resultDetails.winner === 'w') return true;
     if (session.resultDetails.winner === 'b') return false;
   }
 
-  // 5. Check player names against current username
-  const wName = (session.whitePlayer?.name || '').toLowerCase().trim();
-  const bName = (session.blackPlayer?.name || '').toLowerCase().trim();
-
+  // 7. Check player names against 'you'
   if (wName === 'you' || wName.includes('you')) return true;
   if (bName === 'you' || bName.includes('you')) return false;
-
-  if (user) {
-    if (wName === user || wName.includes(user)) return true;
-    if (bName === user || bName.includes(user)) return false;
-  }
 
   return true;
 }
@@ -195,33 +222,167 @@ export function getSessionUserOutcome(session: GameSession, currentUsername?: st
 
   const isWhite = isSessionUserWhite(session, currentUsername);
 
-  // 2. Authoritative: explicit winner in resultDetails
-  if (session.resultDetails?.winner) {
-    if (session.resultDetails.winner === 'draw') return 'draw';
-    if (session.resultDetails.winner === 'w') return isWhite ? 'win' : 'loss';
-    if (session.resultDetails.winner === 'b') return isWhite ? 'loss' : 'win';
-  }
+  // 2. Authoritative Ground Truth: session.gameResult string check for decisive wins/draws
+  const res = (session.gameResult || '').trim().toLowerCase();
+  if (res.includes('white win') || res.includes('white won') || res.includes('white is victorious')) return isWhite ? 'win' : 'loss';
+  if (res.includes('black win') || res.includes('black won') || res.includes('black is victorious')) return isWhite ? 'loss' : 'win';
+  if (res === '1-0' || res.startsWith('1-0') || res.endsWith('1-0') || res.includes('(1-0)')) return isWhite ? 'win' : 'loss';
+  if (res === '0-1' || res.startsWith('0-1') || res.endsWith('0-1') || res.includes('(0-1)')) return isWhite ? 'loss' : 'win';
 
   // 3. Authoritative Ground Truth: PGN header Result tag
   if (session.pgn) {
     const match = session.pgn.match(/\[Result\s+"([^"]+)"\]/i);
     if (match) {
       const pgnRes = match[1].trim();
-      if (pgnRes === '1/2-1/2' || pgnRes === '1/2' || pgnRes === '0.5-0.5') return 'draw';
       if (pgnRes === '1-0') return isWhite ? 'win' : 'loss';
       if (pgnRes === '0-1') return isWhite ? 'loss' : 'win';
+      if (pgnRes === '1/2-1/2' || pgnRes === '1/2' || pgnRes === '0.5-0.5') return 'draw';
     }
   }
 
-  // 4. Authoritative: session.gameResult string
-  const res = (session.gameResult || '').trim().toLowerCase();
+  // 4. Explicit winner in resultDetails
+  if (session.resultDetails?.winner) {
+    if (session.resultDetails.winner === 'w') return isWhite ? 'win' : 'loss';
+    if (session.resultDetails.winner === 'b') return isWhite ? 'loss' : 'win';
+    if (session.resultDetails.winner === 'draw') return 'draw';
+  }
+
   if (res.includes('1/2') || res.includes('0.5') || res.includes('draw') || res.includes('stalemate')) return 'draw';
-  if (res.includes('white wins') || res.includes('white won')) return isWhite ? 'win' : 'loss';
-  if (res.includes('black wins') || res.includes('black won')) return isWhite ? 'loss' : 'win';
-  if (res === '1-0' || res.startsWith('1-0') || res.endsWith('1-0') || res.includes('(1-0)')) return isWhite ? 'win' : 'loss';
-  if (res === '0-1' || res.startsWith('0-1') || res.endsWith('0-1') || res.includes('(0-1)')) return isWhite ? 'loss' : 'win';
 
   return 'loss';
+}
+
+/**
+ * Robust extractor for chess game termination reason (resignation, checkmate, timeout, stalemate, etc.)
+ */
+export function extractTerminationReason(game: any): GameResultDetails['reason'] {
+  if (!game) return 'concluded';
+  if (game.reason && typeof game.reason === 'string' && game.reason !== 'normal') {
+    return game.reason as GameResultDetails['reason'];
+  }
+  if (game.resultDetails?.reason && typeof game.resultDetails.reason === 'string' && game.resultDetails.reason !== 'normal') {
+    return game.resultDetails.reason as GameResultDetails['reason'];
+  }
+
+  // 1. Check PGN [Termination "..."] header
+  if (game.pgn) {
+    const termMatch = game.pgn.match(/\[Termination\s+"([^"]+)"\]/i);
+    if (termMatch) {
+      const t = termMatch[1].toLowerCase();
+      if (t.includes('resignation') || t.includes('resigned')) return 'resignation';
+      if (t.includes('checkmate')) return 'checkmate';
+      if (t.includes('time') || t.includes('timeout')) return 'timeout';
+      if (t.includes('stalemate')) return 'stalemate';
+      if (t.includes('repetition')) return 'repetition';
+      if (t.includes('agreement') || t.includes('agreed')) return 'agreement';
+      if (t.includes('insufficient')) return 'insufficient';
+      if (t.includes('50-move') || t.includes('50 move')) return '50move';
+      if (t.includes('abandoned')) return 'abandonment';
+    }
+  }
+
+  // 2. Check gameResult string e.g. "White won by resignation (1-0)"
+  const resStr = (game.gameResult || '').toLowerCase();
+  if (resStr.includes('resignation') || resStr.includes('resigned')) return 'resignation';
+  if (resStr.includes('checkmate')) return 'checkmate';
+  if (resStr.includes('time') || resStr.includes('timeout')) return 'timeout';
+  if (resStr.includes('stalemate')) return 'stalemate';
+  if (resStr.includes('repetition')) return 'repetition';
+  if (resStr.includes('agreement')) return 'agreement';
+  if (resStr.includes('insufficient')) return 'insufficient';
+  if (resStr.includes('abandoned')) return 'abandonment';
+
+  // 3. Check opponent and userPlayer result flags from Chess.com API
+  const oppRes = (game.opponent?.result || '').toLowerCase();
+  const userRes = (game.userPlayer?.result || '').toLowerCase();
+
+  if (oppRes === 'resigned' || userRes === 'resigned') return 'resignation';
+  if (oppRes === 'checkmated' || userRes === 'checkmated') return 'checkmate';
+  if (oppRes === 'timeout' || userRes === 'timeout') return 'timeout';
+  if (oppRes === 'abandoned' || userRes === 'abandoned') return 'abandonment';
+  if (oppRes === 'stalemate' || userRes === 'stalemate') return 'stalemate';
+  if (oppRes === 'repetition' || userRes === 'repetition') return 'repetition';
+  if (oppRes === 'agreed' || userRes === 'agreed') return 'agreement';
+  if (oppRes.includes('insufficient') || userRes.includes('insufficient') || oppRes.includes('timevsinsufficient') || userRes.includes('timevsinsufficient')) return 'insufficient';
+  if (oppRes === '50move' || userRes === '50move') return '50move';
+
+  if (game.userResult === 'win' || game.userResult === 'loss' || game.gameResult === '1-0' || game.gameResult === '0-1') {
+    return 'resignation';
+  }
+
+  return 'agreement';
+}
+
+/**
+ * Formats canonical outcome description for Game Review and Game Over cards
+ */
+export function formatGameOutcomeDescription(params: {
+  winner: 'w' | 'b' | 'draw';
+  reason?: string;
+  whiteName?: string;
+  blackName?: string;
+  isUserWhite?: boolean;
+}): {
+  title: string;
+  subtitle: string;
+  fullSentence: string;
+  winnerName: string;
+  loserName: string;
+  badgeType: 'win' | 'loss' | 'draw';
+} {
+  const { winner, reason = 'concluded', whiteName = 'White', blackName = 'Black', isUserWhite } = params;
+
+  const capitalizedReason =
+    reason === '50move'
+      ? '50-Move Rule'
+      : reason === 'timeout'
+      ? 'Timeout'
+      : reason === 'resignation'
+      ? 'Resignation'
+      : reason === 'checkmate'
+      ? 'Checkmate'
+      : reason === 'stalemate'
+      ? 'Stalemate'
+      : reason === 'repetition'
+      ? 'Repetition'
+      : reason === 'insufficient'
+      ? 'Insufficient Material'
+      : reason === 'abandonment'
+      ? 'Abandonment'
+      : reason === 'agreement'
+      ? 'Mutual Agreement'
+      : 'Concluded';
+
+  const userWon = (winner === 'w' && isUserWhite === true) || (winner === 'b' && isUserWhite === false);
+  const userLost = (winner === 'w' && isUserWhite === false) || (winner === 'b' && isUserWhite === true);
+
+  if (winner === 'draw') {
+    return {
+      title: 'Game Drawn',
+      subtitle: `by ${capitalizedReason}`,
+      fullSentence: `Game drawn by ${capitalizedReason}`,
+      winnerName: 'Draw',
+      loserName: 'Draw',
+      badgeType: 'draw',
+    };
+  }
+
+  const winningPlayer = winner === 'w' ? whiteName : blackName;
+  const losingPlayer = winner === 'w' ? blackName : whiteName;
+  const reasonText = reason === 'timeout' ? 'on time' : `by ${capitalizedReason.toLowerCase()}`;
+
+  const title = userWon ? 'You Won!' : userLost ? 'You Lost' : `${winningPlayer} Won`;
+  const subtitle = reason === 'timeout' ? 'on Time' : `by ${capitalizedReason}`;
+  const fullSentence = `${winningPlayer} won ${reasonText}`;
+
+  return {
+    title,
+    subtitle,
+    fullSentence,
+    winnerName: winningPlayer,
+    loserName: losingPlayer,
+    badgeType: userWon ? 'win' : userLost ? 'loss' : 'win',
+  };
 }
 
 const STORAGE_KEY = 'chess_platform_sessions_v1';
@@ -507,7 +668,7 @@ export class GameSessionStore {
                     : found.userResult === 'loss'
                     ? (found.isUserWhite ? 'b' : 'w')
                     : 'draw',
-                reason: found.userPlayer?.result === 'win' ? 'checkmate' : 'resignation',
+                reason: extractTerminationReason(found),
                 ratingDelta: found.userResult === 'win' ? 8 : found.userResult === 'loss' ? -8 : 0,
                 newRating: found.userPlayer?.rating || 1200,
                 league: 'Elite',
@@ -720,7 +881,7 @@ export class GameSessionStore {
                 gameResult: expectedResult,
                 resultDetails: {
                   winner: expectedWinner,
-                  reason: g.userPlayer?.result === 'win' ? 'checkmate' : 'resignation',
+                  reason: extractTerminationReason(g),
                   ratingDelta: g.userResult === 'win' ? 8 : g.userResult === 'loss' ? -8 : 0,
                   newRating: g.userPlayer?.rating || 1200,
                   league: 'Elite',

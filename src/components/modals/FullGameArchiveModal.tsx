@@ -21,6 +21,7 @@ import { GameSession } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
 import { soundService } from '@/lib/audioService';
 import { isSessionUserWhite, getSessionUserOutcome } from '@/lib/gameSessionStore';
+import { Button } from '@/components/ui/button';
 
 interface FullGameArchiveModalProps {
   isOpen: boolean;
@@ -421,9 +422,11 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                   {/* Right Section: Action Buttons */}
                   <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t border-[#312e28] sm:border-0">
                     {/* Copy PGN Button */}
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="full"
                       onClick={() => handleCopyPgn(session)}
-                      className="px-3 py-1.5 bg-[#211f1c] hover:bg-[#2d2a25] text-zinc-300 rounded-full border-2 border-[#3d3a34] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer text-xs flex items-center gap-1.5"
                       title="Copy PGN notation"
                     >
                       {copiedId === session.id ? (
@@ -437,19 +440,22 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                           <span className="text-[10px] font-bold">PGN</span>
                         </>
                       )}
-                    </button>
+                    </Button>
 
                     {/* Review Game Button */}
-                    <button
+                    <Button
+                      variant="primary"
+                      size="xs"
+                      rounded="full"
                       onClick={() => {
                         onClose();
                         onReviewGame(session.id);
                       }}
-                      className="flex-1 sm:flex-initial px-4 py-1.5 sm:py-2 bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider rounded-full border-2 border-[#5d8b32] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      className="flex-1 sm:flex-initial"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>Review</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );

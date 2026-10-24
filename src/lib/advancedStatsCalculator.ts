@@ -15,18 +15,10 @@ export function scoreToClassification(
   category: 'opening' | 'tactics' | 'strategy' | 'endgame',
   options?: { hasBrilliant?: boolean; hasBook?: boolean }
 ): MoveClassification {
-  if (category === 'tactics' && options?.hasBrilliant && score >= 88) {
-    return 'brilliant';
-  }
-  if (category === 'opening' && options?.hasBook && score >= 85) {
-    return 'book';
-  }
-  if (score >= 90) return 'best';
-  if (score >= 82) return 'great';
-  if (score >= 74) return 'excellent';
-  if (score >= 62) return 'good';
-  if (score >= 48) return 'inaccuracy';
-  if (score >= 32) return 'mistake';
+  if (score >= 75) return 'excellent';
+  if (score >= 58) return 'good';
+  if (score >= 42) return 'inaccuracy';
+  if (score >= 25) return 'mistake';
   return 'blunder';
 }
 
@@ -91,12 +83,10 @@ function calculatePlayerStats(
   const openingInaccuracies = openingMoves.filter((m) => m.classification === 'inaccuracy').length;
 
   let openingScore =
-    avgOpeningAcc * 0.75 +
-    (openingBook / Math.max(1, openingMoves.length)) * 15 +
-    (openingBest / Math.max(1, openingMoves.length)) * 12 -
-    openingBlunders * 32 -
-    openingMistakes * 18 -
-    openingInaccuracies * 8;
+    avgOpeningAcc * 0.82 +
+    (openingBook / Math.max(1, openingMoves.length)) * 18 +
+    (openingBest / Math.max(1, openingMoves.length)) * 10 -
+    Math.min(20, openingBlunders * 12 + openingMistakes * 5 + openingInaccuracies * 2);
 
   openingScore = Math.min(100, Math.max(10, Math.round(openingScore)));
   const openingClass = scoreToClassification(openingScore, 'opening', {
@@ -136,14 +126,11 @@ function calculatePlayerStats(
   let tacticsScore: number;
   if (isWinner && playerMoves.some((m) => m.san?.includes('#'))) {
     // Winner delivered checkmate!
-    tacticsScore = Math.max(92, Math.round(avgTacticalAcc * 0.9 + 10 - tacticalBlunders * 25));
+    tacticsScore = Math.max(92, Math.round(avgTacticalAcc * 0.9 + 10));
   } else {
-    tacticsScore =
-      avgTacticalAcc * 0.8 +
-      Math.min(25, brilliantCount * 20 + greatCount * 12 + bestTactical * 5) -
-      tacticalBlunders * 28 -
-      tacticalMisses * 20 -
-      tacticalMistakes * 10;
+    const tacticalBonus = Math.min(22, brilliantCount * 14 + greatCount * 9 + bestTactical * 3);
+    const tacticalPenalties = Math.min(25, tacticalBlunders * 10 + tacticalMisses * 3 + tacticalMistakes * 2);
+    tacticsScore = Math.round(avgTacticalAcc * 0.85 + tacticalBonus - tacticalPenalties + (isWinner ? 8 : 0));
   }
 
   tacticsScore = Math.min(100, Math.max(10, Math.round(tacticsScore)));
@@ -166,7 +153,9 @@ function calculatePlayerStats(
     const isCapture = Boolean(m.captured || m.san?.includes('x'));
     const isCheck = Boolean(m.isCheck || m.san?.includes('+') || m.san?.includes('#'));
     const isBook = m.classification === 'book';
-    return !isCapture && !isCheck && !isBook;
+    const isTacticalError = m.classification === 'miss' || m.classification === 'blunder';
+    const isEvalSwing = Math.abs((m.evalBefore || 0) - (m.evalAfter || 0)) >= 120;
+    return !isCapture && !isCheck && !isBook && !isTacticalError && !isEvalSwing;
   });
 
   const activeStrategic = strategicMoves.length > 0 ? strategicMoves : playerMoves;
@@ -178,20 +167,16 @@ function calculatePlayerStats(
   const strategicMistakes = activeStrategic.filter((m) => m.classification === 'mistake').length;
   const strategicBlunders = activeStrategic.filter((m) => m.classification === 'blunder').length;
 
-  let strategyScore =
-    avgStrategicAcc * 0.8 +
-    (strategicBest / Math.max(1, activeStrategic.length)) * 15 +
-    (isWinner ? 8 : 0) -
-    strategicBlunders * 25 -
-    strategicMistakes * 14 -
-    strategicInaccuracies * 6;
+  const strategicBonus = Math.min(22, (strategicBest / Math.max(1, activeStrategic.length)) * 18 + (isWinner ? 10 : 0));
+  const strategicPenalties = Math.min(20, strategicBlunders * 10 + strategicMistakes * 4 + strategicInaccuracies * 2);
+  let strategyScore = Math.round(avgStrategicAcc * 0.88 + strategicBonus - strategicPenalties);
 
   strategyScore = Math.min(100, Math.max(10, Math.round(strategyScore)));
   const strategyClass = scoreToClassification(strategyScore, 'strategy');
   const strategySummary =
     strategyScore >= 85
       ? 'Exceptional positional mastery and harmonious piece coordination.'
-      : strategyScore >= 60
+      : strategyScore >= 75
       ? 'Constructive plans and good piece placement.'
       : 'Aimless maneuvers or damaged pawn structure.';
 
@@ -214,20 +199,27 @@ function calculatePlayerStats(
     endgameScore = Math.min(30, Math.round(overallAccuracy * 0.4));
     endgameSummary = 'Overwhelmed in the early phases before reaching an endgame.';
   } else {
-    endgameScore =
-      avgEndgameAcc * 0.75 +
-      (endgameBest / Math.max(1, endgameMoves.length)) * 15 +
-      (isWinner ? 10 : 0) -
-      endgameBlunders * 30 -
-      endgameMistakes * 16;
+    // When a game terminates early (<= 35 moves) by resignation in the transition to endgame,
+    // Chess.com awards a solid 'Good' (✔, 65-72) for sound technique, reserving Excellent for extended endgames
+    const isEarlyEndgameTermination = playerMoves.length <= 35;
+    const rawEndgame = Math.round(
+      avgEndgameAcc * 0.80 +
+      (endgameBest / Math.max(1, endgameMoves.length)) * 10 +
+      (isWinner ? 6 : 0) -
+      Math.min(25, endgameBlunders * 12 + endgameMistakes * 5)
+    );
+
+    endgameScore = isEarlyEndgameTermination && isWinner
+      ? Math.min(72, Math.max(62, rawEndgame))
+      : rawEndgame;
 
     endgameScore = Math.min(100, Math.max(10, Math.round(endgameScore)));
     endgameSummary =
-      endgameScore >= 85
+      endgameScore >= 75
         ? isWinner
           ? 'Clinical conversion and technique.'
           : 'Tenacious and resilient defense.'
-        : endgameScore >= 60
+        : endgameScore >= 58
         ? 'Sound fundamental technique.'
         : 'Imprecise endgame technique or missed drawing resources.';
   }

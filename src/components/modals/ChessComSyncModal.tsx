@@ -19,6 +19,7 @@ import { GameSessionStore, parsePgnToMoveRecords } from '@/lib/gameSessionStore'
 import { soundService } from '@/lib/audioService';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 interface ChessComSyncModalProps {
   isOpen: boolean;
@@ -260,14 +261,17 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
               onKeyDown={(e) => e.key === 'Enter' && handleSync()}
               className="flex-1 px-4 py-2.5 bg-[#141311] border border-[#35322b] rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] font-semibold"
             />
-            <button
+            <Button
+              variant="primary"
+              size="md"
+              rounded="xl"
               onClick={handleSync}
               disabled={isLoading || !username.trim()}
-              className="px-5 py-2.5 bg-[#81b64c] hover:bg-[#72a342] disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl border border-[#5d8b32] transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
+              className="shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>{isLoading ? 'Connecting...' : currentlyConnected ? 'Update Link' : 'Connect'}</span>
-            </button>
+            </Button>
           </div>
 
           {errorMsg && (
@@ -386,13 +390,15 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
                             {g.userResult}
                           </span>
 
-                          <button
+                          <Button
+                            variant="primary"
+                            size="xs"
+                            rounded="lg"
                             onClick={() => handleReviewGame(g)}
-                            className="px-2.5 py-1 bg-[#81b64c] hover:bg-[#72a342] text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1"
                           >
                             <Sparkles className="w-3 h-3" />
                             <span>Review</span>
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))}

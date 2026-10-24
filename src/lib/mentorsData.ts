@@ -70,6 +70,49 @@ export function getMentorById(id: string): MentorProfile {
 }
 
 /**
+ * Transferable Pedagogical Principles (Section 5.2 of Spec)
+ * Maps tactical motifs and critical classifications to memorable rules of thumb.
+ */
+export const TAKEAWAYS: Record<string, string> = {
+  poisoned: 'When an opponent offers free material, calculate which defender abandoned their post.',
+  overload: 'Find the defender doing two jobs, then hand it a third.',
+  deflection: 'Ask what each defender is guarding, then force one of them to move.',
+  zwischenzug: 'Before you recapture, look for an in-between check that improves your position first.',
+  desperado: 'If a piece is lost anyway, make it take something on the way out.',
+  fork: 'Look for the square where one piece attacks two loose targets at once.',
+  pin: 'A pinned piece cannot move without exposing something more valuable behind it.',
+  skewer: 'Force the more valuable piece to step aside to win the target behind it.',
+  'discovered-attack': 'When moving a piece with tempo, check which lines of fire it unmasks.',
+  'passed-pawn': 'Passed pawns must be pushed—advance them to tie down enemy defenders.',
+  outpost: 'An advanced square supported by a pawn is a permanent thorn in the enemy camp.',
+  'seventh-rank': "A rook on the 7th rank paralyzes the opponent's defense and devours base pawns.",
+  luft: 'Always create a flight square before your rooks leave the back rank.',
+  castling: 'King safety and piece activation are essential in the opening.',
+  simplification: 'When ahead in material, trade pieces—not pawns—to seal the endgame.',
+  'hanging-piece': 'Before committing to a move, check every check, capture, and threat your opponent has.',
+  general: 'Check what each of your pieces is protecting before you move it.',
+  blunder: 'Always calculate your opponent’s most forcing responses before committing.',
+  mistake: 'When under pressure, focus on keeping your defensive coordination intact.',
+  miss: 'Look for forcing checks and captures whenever your opponent errs.',
+};
+
+export function getTakeawayForMove(motifType?: string, classification?: string): string {
+  if (motifType) {
+    const key = motifType.toLowerCase().replace(/\s+/g, '-');
+    for (const [k, v] of Object.entries(TAKEAWAYS)) {
+      if (key.includes(k) || k.includes(key)) return v;
+    }
+  }
+  const cls = (classification || '').toLowerCase();
+  if (cls === 'blunder') return TAKEAWAYS.blunder;
+  if (cls === 'mistake') return TAKEAWAYS.mistake;
+  if (cls === 'miss') return TAKEAWAYS.miss;
+  if (cls === 'brilliant') return 'A well-timed piece sacrifice blows open the position when tactical refutations favor you.';
+  if (cls === 'great') return 'When only one move holds the position, concrete calculation is required over general principles.';
+  return TAKEAWAYS.general;
+}
+
+/**
  * Dynamically generates personalized commentary for any move in the voice of the selected mentor.
  * Correctly distinguishes between moves played by the user vs opponent.
  */
@@ -81,8 +124,13 @@ export function generateMentorComment(
   evalAfter?: number,
   playerName?: string,
   isUserMove: boolean = true,
-  motif?: { type: string; description: string },
-  fenBefore?: string
+  motif?: { type: string; description: string; name?: string },
+  fenBefore?: string,
+  refutations?: {
+    accepted?: { replySan: string; lineSan: string; material: string; mateIn?: number };
+    declined?: { replySan: string; lineSan: string; material: string; mateIn?: number };
+    acceptIsBest?: boolean;
+  }
 ): string {
   const normClass = classification.toLowerCase();
   const player = playerName || (isUserMove ? 'You' : 'Opponent');
@@ -509,88 +557,68 @@ export function generateMentorComment(
 
     case 'coach-danny':
     default: {
-      if (motif) {
-        if (motif.type === 'fork') {
-          return `Tactical Fork! ${motif.description || `Attacks multiple pieces at once.`}`;
-        }
-        if (motif.type === 'pin') {
-          return `Pin! ${motif.description || `Ties down the opposing defense.`}`;
-        }
-        if (motif.type === 'skewer') {
-          return `Textbook Skewer! ${motif.description || `Attacks the piece in front to win the piece behind.`}`;
-        }
-        if (motif.type === 'seventh-rank') {
-          return `Rook on the 7th! ${motif.description || `Feasting on pawns and cutting off the enemy king.`}`;
-        }
-        if (motif.type === 'outpost') {
-          return `Knight Outpost! ${motif.description || `Anchored firmly in the center by pawns.`}`;
-        }
-        if (motif.type === 'battery') {
-          return `Artillery Battery! ${motif.description}`;
-        }
-        if (motif.type === 'intermezzo') {
-          return `Zwischenzug! ${motif.description}`;
-        }
-        if (motif.type === 'deflection') {
-          return `Deflection Strike! ${motif.description}`;
-        }
-        if (motif.type === 'simplification') {
-          return `Clean Simplification! ${motif.description || `Trades heavy pieces to seal the technical win.`}`;
-        }
-        if (motif.type === 'piece-defense') {
-          return `Smart Piece Defense! ${motif.description || `Safely retreats the attacked piece.`}`;
-        }
-        if (motif.type === 'luft') {
-          return `King Luft! ${motif.description || `Creates breathing room and stops back-rank trouble.`}`;
-        }
-        if (motif.type === 'castling') {
-          return `Castled and Secure! ${motif.description || `King safe, rook active.`}`;
-        }
-        if (motif.type === 'discovered-attack') {
-          return `Discovered Attack! ${motif.description}`;
-        }
-        if (motif.type === 'sacrifice' || normClass === 'brilliant') {
-          return `Brilliant Piece Sacrifice! ${motif.description || `Gives up material to blow open the opponent's king.`}`;
-        }
-        if (motif.type === 'hanging-piece' && ['blunder', 'mistake'].includes(normClass)) {
-          return `Hanging piece! ${motif.description}`;
-        }
-        if (motif.type === 'passed-pawn') {
-          return `Passed pawn advance! ${motif.description}`;
-        }
-      }
+      const motifText = motif ? ` ${motif.description}` : '';
 
       if (normClass === 'brilliant') {
-        return `Brilliant move! You offered a tactical sacrifice to blow open your opponent's king position and maintain a decisive attack!`;
+        let refutationText = '';
+        if (refutations?.accepted && refutations?.declined) {
+          refutationText = ` If ${refutations.accepted.replySan}, then ${refutations.accepted.lineSan}${refutations.accepted.material ? ` (${refutations.accepted.material})` : ''}. If ${refutations.declined.replySan}, then ${refutations.declined.lineSan}${refutations.declined.material ? ` (${refutations.declined.material})` : ''}.`;
+        } else if (refutations?.accepted) {
+          refutationText = ` If ${refutations.accepted.replySan}, then ${refutations.accepted.lineSan}${refutations.accepted.material ? ` (${refutations.accepted.material})` : ''}.`;
+        }
+        return `Brilliant move!${motifText || ' You offered a stunning piece sacrifice that blows open the defense!'}${refutationText}`;
       }
+
       if (normClass === 'great') {
-        return `Great move! The only move in this position that preserves your advantage. Every other option conceded the initiative.`;
+        let refutationText = '';
+        if (refutations?.accepted && refutations.acceptIsBest === false) {
+          refutationText = ` Accepting with ${refutations.accepted.replySan} runs into ${refutations.accepted.lineSan}${refutations.accepted.material ? ` (${refutations.accepted.material})` : ''}.`;
+        }
+        return `Great move! ${san} was the ONLY move on the board that preserves your advantage.${refutationText}`;
       }
+
       if (normClass === 'best') {
-        return `Best move! That was the top recommended choice in this position.`;
+        if (motif?.type === 'fork') {
+          return `Best move! Tactical Fork! ${motif.description || `Attacks two loose targets at once.`}`;
+        }
+        if (motif?.type === 'pin') {
+          return `Best move! Absolute Pin! Ties down their defenses completely.`;
+        }
+        if (motif?.type === 'skewer') {
+          return `Best move! Textbook Skewer! Forces the high-value piece away to win material behind it.`;
+        }
+        return `Best move!${motifText} Clean, principled, and matches the engine's top calculation.`;
       }
+
       if (normClass === 'excellent') {
-        return `Excellent move! Keeps maximum pressure and solid positional control.`;
+        return `Excellent move!${motifText} Maintains maximum pressure and solid positional control.`;
       }
+
       if (normClass === 'good') {
-        return `Good move. A completely sound and playable continuation.`;
+        return `Good move. A sound and playable continuation that preserves the balance.`;
       }
+
       if (normClass === 'book') {
-        return `${san} is recognized opening book theory, establishing classical control over the center.`;
+        return `${san} is standard opening book theory, establishing classical control over the center.`;
       }
+
       if (normClass === 'inaccuracy') {
-        return `Inaccuracy. ${betterMoveText ? `Playing ${betterMoveText} was slightly sharper.` : 'This allows the opponent minor counterplay.'}`;
+        return `Inaccuracy. ${betterMoveText ? `Playing ${betterMoveText} was sharper.` : 'This allows the opponent slight counterplay.'}`;
       }
+
       if (normClass === 'mistake') {
-        return `Mistake! This surrenders momentum. ${betterMoveText ? `A much stronger move was ${betterMoveText}.` : 'A more defensive setup was required.'}`;
+        return `Mistake! This surrenders momentum. ${betterMoveText ? `A much stronger continuation was ${betterMoveText}.` : 'A more defensive setup was required.'}`;
       }
+
       if (normClass === 'miss') {
-        return `Miss! You missed a decisive tactical advantage! ${betterMoveText ? `${betterMoveText} was winning on the spot.` : 'A winning sequence was overlooked.'}`;
+        return `Miss! You missed a decisive tactical advantage! ${betterMoveText ? `Finding ${betterMoveText} was winning on the spot.` : 'A winning sequence was overlooked.'}`;
       }
+
       if (normClass === 'blunder') {
         return `Blunder! ${betterMoveText ? `Playing ${betterMoveText} was needed to hold the position.` : 'This severely compromises your position or hangs material.'}`;
       }
-      return `${san} was played. Keep calculating!`;
+
+      return `${san} was played. Stay sharp and calculate forcing moves!`;
     }
   }
 }

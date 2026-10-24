@@ -130,7 +130,14 @@ export async function GET(request: NextRequest) {
           combinedGames.sort((a, b) => (b.end_time || 0) - (a.end_time || 0));
 
           recentGames = combinedGames.slice(0, 50).map((g, index) => {
-            const isUserWhite = g.white.username.toLowerCase() === username.toLowerCase();
+            const canonicalUser = (profileData.username || username || '').toLowerCase().trim();
+            const wUserLower = (g.white?.username || '').toLowerCase().trim();
+            const bUserLower = (g.black?.username || '').toLowerCase().trim();
+            const isUserWhite =
+              wUserLower === canonicalUser ||
+              wUserLower === username.toLowerCase() ||
+              (canonicalUser && wUserLower.includes(canonicalUser) && !bUserLower.includes(canonicalUser)) ||
+              (canonicalUser.includes('qing') && wUserLower.includes('qing') && !bUserLower.includes('qing'));
             const userPlayer = isUserWhite ? g.white : g.black;
             const oppPlayer = isUserWhite ? g.black : g.white;
 
@@ -159,6 +166,53 @@ export async function GET(request: NextRequest) {
               } else {
                 userResult = 'draw';
               }
+            }
+
+            // Extract authoritative termination reason from PGN header e.g. [Termination "rapid_qing won by resignation"]
+            let termination = '';
+            if (g.pgn) {
+              const termMatch = g.pgn.match(/\[Termination\s+"([^"]+)"\]/);
+              if (termMatch) termination = termMatch[1].trim();
+            }
+
+            // Map termination to canonical reason
+            let reason:
+              | 'resignation'
+              | 'checkmate'
+              | 'timeout'
+              | 'stalemate'
+              | 'insufficient'
+              | 'agreement'
+              | 'repetition'
+              | '50move'
+              | 'abandonment'
+              | 'concluded' = 'concluded';
+            const termLower = termination.toLowerCase();
+            const userResLower = (userPlayer.result || '').toLowerCase();
+            const oppResLower = (oppPlayer.result || '').toLowerCase();
+
+            if (termLower.includes('resignation') || userResLower === 'resigned' || oppResLower === 'resigned') {
+              reason = 'resignation';
+            } else if (termLower.includes('checkmate') || userResLower === 'checkmated' || oppResLower === 'checkmated') {
+              reason = 'checkmate';
+            } else if (termLower.includes('time') || termLower.includes('timeout') || userResLower === 'timeout' || oppResLower === 'timeout') {
+              reason = 'timeout';
+            } else if (termLower.includes('abandoned') || userResLower === 'abandoned' || oppResLower === 'abandoned') {
+              reason = 'abandonment';
+            } else if (termLower.includes('stalemate') || userResLower === 'stalemate' || oppResLower === 'stalemate') {
+              reason = 'stalemate';
+            } else if (termLower.includes('repetition') || userResLower === 'repetition' || oppResLower === 'repetition') {
+              reason = 'repetition';
+            } else if (termLower.includes('agreement') || userResLower === 'agreed' || oppResLower === 'agreed') {
+              reason = 'agreement';
+            } else if (termLower.includes('insufficient') || userResLower.includes('insufficient') || oppResLower.includes('insufficient')) {
+              reason = 'insufficient';
+            } else if (termLower.includes('50-move') || userResLower === '50move' || oppResLower === '50move') {
+              reason = '50move';
+            } else if (userResult === 'win' || userResult === 'loss') {
+              reason = 'resignation';
+            } else {
+              reason = 'agreement';
             }
 
             // Extract gameId from URL e.g. "https://www.chess.com/game/live/185198673712"
@@ -198,6 +252,8 @@ export async function GET(request: NextRequest) {
               isUserWhite,
               userResult,
               gameResult,
+              termination: termination || (userResult === 'win' ? (isUserWhite ? `White won by ${reason}` : `Black won by ${reason}`) : userResult === 'loss' ? (isUserWhite ? `Black won by ${reason}` : `White won by ${reason}`) : `Game drawn by ${reason}`),
+              reason,
               movesCount,
               userPlayer: {
                 username: userPlayer.username,
@@ -262,12 +318,22 @@ export async function GET(request: NextRequest) {
     };
 
     playerCache.set(username, { data: payload, timestamp: Date.now() });
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
+      },
+    });
   } catch (error: any) {
     console.error('Error syncing Chess.com account:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Internal error syncing Chess.com' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        },
+      }
     );
   }
 }

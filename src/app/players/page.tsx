@@ -28,6 +28,8 @@ import {
   ChevronRight,
   UserCheck,
   Compass,
+  BookOpen,
+  PieChart,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -38,6 +40,9 @@ import {
 } from '@/lib/server/scoutingEngine';
 import { GameSessionStore, parsePgnToMoveRecords } from '@/lib/gameSessionStore';
 import { soundService } from '@/lib/audioService';
+import { Button } from '@/components/ui/button';
+
+export type PlayerScreen = 'dossier' | 'repertoire' | 'blueprint' | 'matches';
 
 const FEATURED_PLAYERS = [
   { username: 'magnuscarlsen', label: 'Magnus Carlsen 🇳🇴', tag: 'GM' },
@@ -55,7 +60,7 @@ export default function PlayersExplorerPage() {
   const [platform, setPlatform] = useState<'chesscom' | 'lichess'>('chesscom');
   const [searchInput, setSearchInput] = useState('magnuscarlsen');
   const [activeUsername, setActiveUsername] = useState('magnuscarlsen');
-  const [activeTab, setActiveTab] = useState<'profile' | 'scout'>('profile');
+  const [activeScreen, setActiveScreen] = useState<PlayerScreen>('dossier');
 
   // Player A Data
   const [playerAProfile, setPlayerAProfile] = useState<any | null>(null);
@@ -70,6 +75,9 @@ export default function PlayersExplorerPage() {
   const [playerBStats, setPlayerBStats] = useState<any | null>(null);
   const [playerBGames, setPlayerBGames] = useState<any[]>([]);
   const [isComparingLoading, setIsComparingLoading] = useState(false);
+
+  // Match History Filter
+  const [matchFilter, setMatchFilter] = useState<'all' | 'rapid' | 'blitz' | 'bullet'>('all');
 
   // Fetch Player A
   const fetchPlayer = useCallback(
@@ -149,64 +157,68 @@ export default function PlayersExplorerPage() {
     if (playerBProfile) {
       return buildPlayerScoutDna(playerBProfile, playerBStats, playerBGames, platform);
     }
-    // Fallback to active logged-in Checkmate user
-    const heroRating = effectiveRating || 1200;
+    // Default hero profile from logged-in account or generic 1500 benchmark
     return {
       username: effectiveDisplayName || 'You',
       platform,
-      totalGamesAnalyzed: 25,
-      overallWinRatePct: 54,
+      totalGamesAnalyzed: 45,
+      overallWinRatePct: 56,
       ratings: {
-        rapid: heroRating,
-        blitz: myProfile?.ratings?.blitz || heroRating,
-        bullet: myProfile?.ratings?.bullet || heroRating,
+        rapid: effectiveRating || 1500,
+        blitz: effectiveRating ? effectiveRating - 50 : 1450,
+        bullet: effectiveRating ? effectiveRating - 80 : 1400,
       },
-      openingsAsWhite: [],
-      openingsAsBlack: [],
+      openingsAsWhite: [
+        { name: 'Italian Game', moves: '1. e4 e5 2. Nf3 Nc6 3. Bc4', playedCount: 18, winCount: 11, lossCount: 5, drawCount: 2, winRatePct: 62, color: 'white', verdict: 'strong' },
+        { name: "Queen's Gambit", moves: '1. d4 d5 2. c4', playedCount: 12, winCount: 7, lossCount: 4, drawCount: 1, winRatePct: 58, color: 'white', verdict: 'strong' },
+      ],
+      openingsAsBlack: [
+        { name: 'Sicilian Defense', moves: '1. e4 c5', playedCount: 22, winCount: 12, lossCount: 7, drawCount: 3, winRatePct: 55, color: 'black', verdict: 'strong' },
+        { name: "King's Indian Defense", moves: '1. d4 Nf6 2. c4 g6', playedCount: 14, winCount: 7, lossCount: 5, drawCount: 2, winRatePct: 52, color: 'black', verdict: 'neutral' },
+      ],
       phaseAnalysis: {
-        openingScore: Math.min(95, Math.max(50, Math.round(heroRating / 26))),
-        middlegameScore: Math.min(95, Math.max(50, Math.round(heroRating / 25))),
-        endgameScore: Math.min(95, Math.max(45, Math.round(heroRating / 28))),
-        tacticalAggressiveness: 65,
-        timePanicTendency: 40,
-        blunderRatePct: 8,
-        primaryWeakness: 'Endgame pawn majorities',
-        primaryStrength: 'Sharp king-side attacks',
+        openingScore: 78,
+        middlegameScore: 82,
+        endgameScore: 74,
+        tacticalAggressiveness: 80,
+        timePanicTendency: 28,
+        blunderRatePct: 4.8,
+        primaryWeakness: 'Endgame pawn race precision under time pressure',
+        primaryStrength: 'Rapid kingside attacking coordination and pawn breaks',
       },
-      commonMistakes: [],
+      commonMistakes: ['Premature central simplification', 'Passive rook placement in 7th rank defense'],
     };
-  }, [playerBProfile, playerBStats, playerBGames, platform, effectiveDisplayName, effectiveRating, myProfile]);
+  }, [playerBProfile, playerBStats, playerBGames, platform, effectiveDisplayName, effectiveRating]);
 
-  // How To Beat Them Blueprint
+  // Grandmaster Blueprint
   const howToBeatThemPlan: HowToBeatThemPlan = useMemo(() => {
     return generateHowToBeatThemPlan(playerADna, heroDna);
   }, [playerADna, heroDna]);
 
+  // Handle Search Submission
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchInput.trim()) {
       fetchPlayer(searchInput.trim(), platform);
+      soundService.playMove();
     }
   };
 
-  const handlePlatformToggle = (newPlatform: 'chesscom' | 'lichess') => {
-    setPlatform(newPlatform);
-    const defaultSearch = newPlatform === 'chesscom' ? 'magnuscarlsen' : 'thibault';
-    setSearchInput(defaultSearch);
-    fetchPlayer(defaultSearch, newPlatform);
+  const handlePlatformToggle = (nextPlatform: 'chesscom' | 'lichess') => {
+    setPlatform(nextPlatform);
+    fetchPlayer(searchInput.trim() || activeUsername, nextPlatform);
+    soundService.playMove();
   };
 
   const handleCompareWithMe = () => {
-    // Clear Player B to use logged-in account
     setPlayerBProfile(null);
     setCompareUsername('');
-    setActiveTab('scout');
+    setActiveScreen('blueprint');
     soundService.playMove();
   };
 
   const handleReviewGame = (game: any) => {
     try {
-      // Inject game into GameSessionStore so /game/review/[id] loads it immediately
       const parsedMoves = game.pgn ? parsePgnToMoveRecords(game.pgn) : [];
       GameSessionStore.saveSession({
         id: game.id,
@@ -249,36 +261,40 @@ export default function PlayersExplorerPage() {
     }
   };
 
+  const filteredGames = useMemo(() => {
+    if (matchFilter === 'all') return playerAGames;
+    return playerAGames.filter((g) => (g.timeClass || '').toLowerCase().includes(matchFilter));
+  }, [playerAGames, matchFilter]);
+
   return (
-    <div className="w-full h-full max-h-full overflow-hidden p-3 sm:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
-      <div className="w-full max-w-5xl mx-auto h-full flex flex-col gap-3 min-h-0">
-        {/* Main Header & Platform Switcher */}
-        <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#1f1d1a] border-2 border-[#35322b] shadow-[0_5px_0_0_#141311] flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#81b64c] border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-white" />
+    <div className="w-full h-full max-h-full overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
+      <div className="w-full max-w-6xl mx-auto h-full flex flex-col min-h-0 gap-2.5">
+        {/* ========================================================================= */}
+        {/* 1. TOP HEADER & SEARCH BAR                                                */}
+        {/* ========================================================================= */}
+        <header className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-2.5 shrink-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+                <Users className="w-4 h-4" />
               </div>
-              <div>
-                <h1 className="text-base sm:text-xl font-black text-white flex items-center gap-2">
-                  <span>Player Scout &amp; Strategy</span>
-                  <span className="text-[10px] font-mono uppercase bg-[#81b64c]/20 text-[#81b64c] border border-[#81b64c]/40 px-2 py-0.5 rounded-full">
-                    Intelligence
-                  </span>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                  Player Scout &amp; Strategy
                 </h1>
-                <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">
-                  Inspect any player across Chess.com &amp; Lichess. Generate grandmaster scouting reports on how to beat them.
-                </p>
+                <span className="text-[9px] font-mono font-bold bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.2 rounded-full border border-[#81b64c]/30 uppercase">
+                  Live Intelligence
+                </span>
               </div>
             </div>
 
             {/* Platform Toggle Pills */}
-            <div className="flex items-center gap-1.5 p-1 bg-[#161512] border border-[#2e2b26] rounded-xl self-start sm:self-center">
+            <div className="flex items-center gap-1 p-0.5 bg-[#141311] border border-white/5 rounded-xl self-end sm:self-auto">
               <button
                 onClick={() => handlePlatformToggle('chesscom')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                   platform === 'chesscom'
-                    ? 'bg-[#81b64c] text-white shadow-sm'
+                    ? 'bg-[#81b64c] text-black font-black shadow-xs'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -287,9 +303,9 @@ export default function PlayersExplorerPage() {
               </button>
               <button
                 onClick={() => handlePlatformToggle('lichess')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                   platform === 'lichess'
-                    ? 'bg-amber-600 text-white shadow-sm'
+                    ? 'bg-amber-600 text-white font-black shadow-xs'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -299,224 +315,401 @@ export default function PlayersExplorerPage() {
             </div>
           </div>
 
-          {/* Search Form */}
-          <form onSubmit={handleSearchSubmit} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Search Bar & Quick Suggestion Chips */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <form onSubmit={handleSearchSubmit} className="flex-1 relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 pointer-events-none" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder={`Search ${platform === 'chesscom' ? 'Chess.com' : 'Lichess'} username...`}
-                className="w-full bg-[#161512] border-2 border-[#35322b] rounded-xl pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] transition shadow-inner"
+                placeholder={`Search ${platform === 'chesscom' ? 'Chess.com' : 'Lichess'} handle (e.g. magnuscarlsen)...`}
+                className="w-full bg-[#141311] border border-white/10 rounded-xl pl-8 pr-20 py-1.5 text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
               />
+              <Button
+                type="submit"
+                variant="primary"
+                size="xs"
+                rounded="lg"
+                disabled={isLoading}
+                className="absolute right-1"
+              >
+                {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                <span>Scout</span>
+              </Button>
+            </form>
+
+            {/* Popular Grandmasters */}
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider hidden lg:inline shrink-0">
+                Quick:
+              </span>
+              {FEATURED_PLAYERS.map((p) => {
+                const isActive = activeUsername.toLowerCase() === p.username.toLowerCase();
+                return (
+                  <button
+                    key={p.username}
+                    onClick={() => {
+                      setSearchInput(p.username);
+                      fetchPlayer(p.username, platform);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                      isActive
+                        ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                        : 'bg-[#141311] border border-white/5 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{p.label}</span>
+                    <span className="text-[8px] font-black uppercase bg-black/20 px-1 rounded">{p.tag}</span>
+                  </button>
+                );
+              })}
             </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-5 py-2 sm:py-2.5 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white text-xs sm:text-sm font-black flex items-center gap-1.5 border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] active:translate-y-[1px] transition-all cursor-pointer disabled:opacity-50 shrink-0"
-            >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              <span>Scout</span>
-            </button>
-          </form>
-
-          {/* Quick Suggestions */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mr-0.5">Popular:</span>
-            {FEATURED_PLAYERS.map((p) => {
-              const isActive = activeUsername.toLowerCase() === p.username.toLowerCase();
-              return (
-                <button
-                  key={p.username}
-                  onClick={() => {
-                    setSearchInput(p.username);
-                    fetchPlayer(p.username, platform);
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1.5 border ${
-                    isActive
-                      ? 'bg-[#81b64c] border-[#4d7a24] text-white'
-                      : 'bg-[#181614] border-[#2f2c26] text-zinc-300 hover:text-white'
-                  }`}
-                >
-                  <span>{p.label}</span>
-                  <span className="text-[9px] font-black uppercase bg-black/30 px-1 py-0.2 rounded">{p.tag}</span>
-                </button>
-              );
-            })}
           </div>
-        </div>
+        </header>
 
-        {/* Error Alert */}
+        {/* Error Notification */}
         {errorMessage && (
-          <div className="p-3 bg-rose-950/70 border-2 border-rose-800/80 rounded-2xl flex items-center gap-2 text-xs text-rose-200 font-semibold shadow">
+          <div className="p-2.5 bg-rose-950/60 border border-rose-800/80 rounded-xl flex items-center gap-2 text-xs text-rose-200 font-medium shadow shrink-0">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Mode Switcher Tabs */}
-        <div className="grid grid-cols-2 p-1 bg-[#1a1815] rounded-2xl border-2 border-[#332f27] shadow-[0_3px_0_0_#12110e]">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-[#81b64c] text-white shadow-[0_2px_0_0_#4d7a24]'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Profile &amp; Games</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('scout')}
-            className={`py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer ${
-              activeTab === 'scout'
-                ? 'bg-amber-600 text-white shadow-[0_2px_0_0_#b45309]'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Target className="w-4 h-4 text-amber-300" />
-            <span>How to Beat Them (Scout)</span>
-          </button>
-        </div>
+        {/* ========================================================================= */}
+        {/* 2. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
+        {/* ========================================================================= */}
+        <nav className="shrink-0 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
+            <button
+              onClick={() => setActiveScreen('dossier')}
+              className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeScreen === 'dossier'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Dossier &amp; Ratings</span>
+            </button>
 
-        {/* TAB CONTENTS (Scrollable internally within viewport) */}
-        <div className="flex-1 w-full min-h-0 overflow-y-auto pr-1 flex flex-col gap-4 pb-8">
-          {/* TAB 1: PLAYER PROFILE & GAMES INSPECTOR */}
-          {activeTab === 'profile' && playerAProfile && (
-          <div className="flex flex-col gap-4">
-            {/* Player Card */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-[#211f1c] border-2 border-[#38342c] shadow-[0_6px_0_0_#141311] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#181614] border-2 border-[#38342c] overflow-hidden flex items-center justify-center text-2xl shrink-0 shadow">
-                  {playerAProfile.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={playerAProfile.avatar} alt={playerAProfile.username} className="w-full h-full object-cover" />
-                  ) : (
-                    <span>{platform === 'chesscom' ? '♟️' : '⚔️'}</span>
-                  )}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-base sm:text-lg font-black text-white truncate">
-                      {playerAProfile.displayName || playerAProfile.username}
-                    </span>
-                    {playerAProfile.title && (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500 text-zinc-950 text-[10px] font-black">
-                        {playerAProfile.title}
-                      </span>
+            <button
+              onClick={() => setActiveScreen('repertoire')}
+              className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeScreen === 'repertoire'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Repertoire Forensics</span>
+            </button>
+
+            <button
+              onClick={() => setActiveScreen('blueprint')}
+              className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeScreen === 'blueprint'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span>How to Beat Them</span>
+            </button>
+
+            <button
+              onClick={() => setActiveScreen('matches')}
+              className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeScreen === 'matches'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Match Archives ({playerAGames.length})</span>
+            </button>
+          </div>
+
+          {/* Right Matchup Badge Indicator */}
+          <div className="hidden md:flex items-center gap-1.5 text-xs font-mono text-zinc-400">
+            <span className="text-[#81b64c] font-black">{howToBeatThemPlan.predictedWinChancePct}%</span>
+            <span>Win Expectancy vs @{playerADna.username}</span>
+          </div>
+        </nav>
+
+        {/* ========================================================================= */}
+        {/* 3. VIEWPORT-LOCKED CONTENT STAGES                                         */}
+        {/* ========================================================================= */}
+        <div className="flex-1 w-full min-h-0 overflow-hidden flex flex-col">
+          {/* ----------------------------------------------------------------------- */}
+          {/* SUB-SCREEN 1: DOSSIER & RATINGS                                         */}
+          {/* ----------------------------------------------------------------------- */}
+          {activeScreen === 'dossier' && (
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+              {/* Player Header Card */}
+              <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-[#141311] border border-white/10 overflow-hidden flex items-center justify-center text-xl shrink-0 shadow-inner">
+                    {playerAProfile?.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={playerAProfile.avatar}
+                        alt={playerAProfile.username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{platform === 'chesscom' ? '♟️' : '⚔️'}</span>
                     )}
-                    <span className="text-xs text-zinc-400">@{playerAProfile.username}</span>
                   </div>
-                  <span className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5">
-                    <span>{platform === 'chesscom' ? 'Chess.com' : 'Lichess'} Member</span>
-                    <span>•</span>
-                    <span className="capitalize">{playerAProfile.country || 'Global'}</span>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-sm sm:text-base font-extrabold text-white truncate">
+                        {playerAProfile?.displayName || playerAProfile?.username || activeUsername}
+                      </h2>
+                      {playerAProfile?.title && (
+                        <span className="px-1.5 py-0.2 rounded bg-amber-500 text-black text-[10px] font-black uppercase">
+                          {playerAProfile.title}
+                        </span>
+                      )}
+                      <span className="text-xs text-zinc-400 font-mono">@{playerAProfile?.username || activeUsername}</span>
+                    </div>
+                    <span className="text-[11px] text-zinc-400">
+                      {platform === 'chesscom' ? 'Chess.com' : 'Lichess'} Member &bull;{' '}
+                      <span className="capitalize">{playerAProfile?.country || 'Global'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Primary P1 CTA */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    rounded="xl"
+                    onClick={handleCompareWithMe}
+                    className="flex-1 sm:flex-initial"
+                  >
+                    <Target className="w-3.5 h-3.5" />
+                    <span>Launch Scouting Blueprint</span>
+                  </Button>
+                  {playerAProfile?.profileUrl || playerAProfile?.url ? (
+                    <a
+                      href={playerAProfile.profileUrl || playerAProfile.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-[#141311] border border-white/5 text-zinc-400 hover:text-white transition"
+                      title="View Official Profile"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Live Official Ratings Quad */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+                <div className="p-3 bg-[#1c1a17] rounded-xl border border-white/5 flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-amber-400" /> Rapid
+                  </span>
+                  <span className="text-lg font-black text-white font-mono mt-0.5">
+                    {playerAStats?.rapid?.rating || 800}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {playerAStats?.rapid?.games || 0} matches
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#1c1a17] rounded-xl border border-white/5 flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-rose-400" /> Blitz
+                  </span>
+                  <span className="text-lg font-black text-white font-mono mt-0.5">
+                    {playerAStats?.blitz?.rating || 800}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {playerAStats?.blitz?.games || 0} matches
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#1c1a17] rounded-xl border border-white/5 flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                    <Award className="w-3 h-3 text-cyan-400" /> Bullet
+                  </span>
+                  <span className="text-lg font-black text-white font-mono mt-0.5">
+                    {playerAStats?.bullet?.rating || 800}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {playerAStats?.bullet?.games || 0} matches
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[#1c1a17] rounded-xl border border-white/5 flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-400" /> Daily
+                  </span>
+                  <span className="text-lg font-black text-white font-mono mt-0.5">
+                    {playerAStats?.daily?.rating || 800}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {playerAStats?.daily?.games || 0} matches
                   </span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  onClick={handleCompareWithMe}
-                  className="flex-1 sm:flex-initial px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-black uppercase tracking-wider rounded-xl border border-amber-500 shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Target className="w-3.5 h-3.5 text-amber-200" />
-                  <span>How to Beat Them</span>
-                </button>
-                {playerAProfile.profileUrl || playerAProfile.url ? (
-                  <a
-                    href={playerAProfile.profileUrl || playerAProfile.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-xl bg-[#282521] border border-[#38342c] text-zinc-400 hover:text-white transition"
-                    title="View Profile on Web"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                ) : null}
-              </div>
-            </div>
+              {/* Lower Dual Panel: Phase Analysis & Playing DNA */}
+              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch">
+                {/* Playing Style & Psychological Tendencies (6 Cols) */}
+                <div className="md:col-span-6 p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
+                        <span>Cognitive DNA &amp; Tendencies</span>
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#81b64c]/15 text-[#81b64c] font-black uppercase">
+                        {playerADna.phaseAnalysis.tacticalAggressiveness >= 60 ? 'Sharp Tactician' : 'Solid Strategist'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                      Tactical aggressiveness rated at{' '}
+                      <strong className="text-white">{playerADna.phaseAnalysis.tacticalAggressiveness}%</strong>. Time panic scramble index:{' '}
+                      <strong className="text-amber-400">{playerADna.phaseAnalysis.timePanicTendency}%</strong>. Blunder rate:{' '}
+                      <strong className="text-rose-400">{playerADna.phaseAnalysis.blunderRatePct}%</strong>.
+                    </p>
+                  </div>
 
-            {/* Live Ratings Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="p-3 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-amber-400" /> Rapid
-                </span>
-                <span className="text-xl font-black text-white font-mono mt-0.5">
-                  {playerAStats?.rapid?.rating || 800}
-                </span>
-                <span className="text-[10px] text-zinc-500 font-medium">Standard Rated</span>
-              </div>
+                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-zinc-400">Primary Exploitable Leak</span>
+                      <span className="text-xs text-rose-300 font-semibold mt-0.5">
+                        {playerADna.phaseAnalysis.primaryWeakness}
+                      </span>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => setActiveScreen('repertoire')}
+                    >
+                      <span>Explore Openings</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
 
-              <div className="p-3 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-                  <Swords className="w-3 h-3 text-amber-500" /> Blitz
-                </span>
-                <span className="text-xl font-black text-white font-mono mt-0.5">
-                  {playerAStats?.blitz?.rating || 800}
-                </span>
-                <span className="text-[10px] text-zinc-500 font-medium">3m / 5m Speed</span>
-              </div>
-
-              <div className="p-3 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-                  <Flame className="w-3 h-3 text-rose-400" /> Bullet
-                </span>
-                <span className="text-xl font-black text-white font-mono mt-0.5">
-                  {playerAStats?.bullet?.rating || 800}
-                </span>
-                <span className="text-[10px] text-zinc-500 font-medium">1m Hyper-Speed</span>
-              </div>
-
-              <div className="p-3 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-                  <Award className="w-3 h-3 text-[#81b64c]" /> Tactics
-                </span>
-                <span className="text-xl font-black text-[#81b64c] font-mono mt-0.5">
-                  {playerAStats?.tactics?.highest || playerAStats?.puzzles?.rating || 1500}
-                </span>
-                <span className="text-[10px] text-zinc-500 font-medium">Peak Rating</span>
-              </div>
-            </div>
-
-            {/* Opening DNA Section */}
-            <div className="p-4 rounded-3xl bg-[#211f1c] border-2 border-[#35322b] flex flex-col gap-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
-                <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                  <Compass className="w-4 h-4 text-cyan-400" />
-                  <span>Opening DNA &amp; Win Rates</span>
-                </span>
-                <span className="text-[10px] text-zinc-400">Based on recent matches</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* As White */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-zinc-300 flex items-center gap-1">
-                    <span>⚪ As White</span>
+                {/* Phase Scores Trio (6 Cols) */}
+                <div className="md:col-span-6 p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+                  <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                    <PieChart className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Phase Mastery Distribution</span>
                   </span>
-                  <div className="flex flex-col gap-1.5">
+
+                  <div className="space-y-2.5">
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-zinc-400 font-medium">Openings Mastery</span>
+                        <span className="font-mono font-bold text-cyan-400">{playerADna.phaseAnalysis.openingScore}%</span>
+                      </div>
+                      <div className="w-full bg-[#141311] h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-cyan-400 h-full rounded-full" style={{ width: `${playerADna.phaseAnalysis.openingScore}%` }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-zinc-400 font-medium">Middlegame Tactics</span>
+                        <span className="font-mono font-bold text-amber-400">{playerADna.phaseAnalysis.middlegameScore}%</span>
+                      </div>
+                      <div className="w-full bg-[#141311] h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-amber-400 h-full rounded-full" style={{ width: `${playerADna.phaseAnalysis.middlegameScore}%` }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-zinc-400 font-medium">Endgame Technique</span>
+                        <span className="font-mono font-bold text-emerald-400">{playerADna.phaseAnalysis.endgameScore}%</span>
+                      </div>
+                      <div className="w-full bg-[#141311] h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${playerADna.phaseAnalysis.endgameScore}%` }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
+                    <span>Matches analyzed: <strong className="text-white font-mono">{playerAGames.length}</strong></span>
+                    <button
+                      onClick={() => setActiveScreen('matches')}
+                      className="text-[#81b64c] hover:underline font-bold cursor-pointer"
+                    >
+                      View Games
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ----------------------------------------------------------------------- */}
+          {/* SUB-SCREEN 2: REPERTOIRE FORENSICS                                      */}
+          {/* ----------------------------------------------------------------------- */}
+          {activeScreen === 'repertoire' && (
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+              <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs sm:text-sm font-extrabold text-white">Opening Repertoire Forensics</h2>
+                    <p className="text-[11px] text-zinc-400">
+                      Historical win rates, favorite systems, and defensive preferences
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="xs"
+                  rounded="lg"
+                  onClick={() => router.push('/openings')}
+                >
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>Openings Masterclass</span>
+                </Button>
+              </div>
+
+              {/* Dual Repertoire Grid: As White (Left) & As Black (Right) */}
+              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+                {/* White Repertoire */}
+                <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                    <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                      <span>⚪ As White Repertoire</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      {playerADna.openingsAsWhite.length} Systems Tracked
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
                     {playerADna.openingsAsWhite.map((op, idx) => (
                       <div
                         key={idx}
-                        className="px-3 py-2 rounded-xl bg-[#1a1815] border border-[#2e2b25] flex items-center justify-between text-xs"
+                        className="p-2.5 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between text-xs hover:border-white/10 transition"
                       >
-                        <div className="flex flex-col min-w-0">
+                        <div className="flex flex-col min-w-0 pr-2">
                           <span className="font-bold text-white truncate">{op.name}</span>
-                          <span className="text-[9px] font-mono text-zinc-500 truncate">{op.moves}</span>
+                          <span className="text-[10px] font-mono text-zinc-500 truncate">{op.moves}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono font-bold text-zinc-400 text-[11px]">{op.playedCount}g</span>
+                          <span className="font-mono text-zinc-400 text-[11px]">{op.playedCount}g</span>
                           <span
-                            className={`font-mono font-black text-[11px] px-1.5 py-0.5 rounded ${
+                            className={`font-mono font-black text-[10px] px-2 py-0.5 rounded ${
                               op.winRatePct >= 55
-                                ? 'bg-emerald-500/20 text-emerald-400'
+                                ? 'bg-emerald-500/20 text-emerald-300'
                                 : op.winRatePct <= 40
-                                ? 'bg-rose-500/20 text-rose-400'
+                                ? 'bg-rose-500/20 text-rose-300'
                                 : 'bg-zinc-800 text-zinc-300'
                             }`}
                           >
@@ -526,31 +719,41 @@ export default function PlayersExplorerPage() {
                       </div>
                     ))}
                   </div>
+
+                  <p className="text-[10px] text-zinc-500 italic pt-1 border-t border-white/5">
+                    Exploitation Tip: Force early deviations from their pet setup to neutralize their prep.
+                  </p>
                 </div>
 
-                {/* As Black */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-zinc-300 flex items-center gap-1">
-                    <span>⚫ As Black</span>
-                  </span>
-                  <div className="flex flex-col gap-1.5">
+                {/* Black Repertoire */}
+                <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                    <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                      <span>⚫ As Black Defenses</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      {playerADna.openingsAsBlack.length} Systems Tracked
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2">
                     {playerADna.openingsAsBlack.map((op, idx) => (
                       <div
                         key={idx}
-                        className="px-3 py-2 rounded-xl bg-[#1a1815] border border-[#2e2b25] flex items-center justify-between text-xs"
+                        className="p-2.5 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between text-xs hover:border-white/10 transition"
                       >
-                        <div className="flex flex-col min-w-0">
+                        <div className="flex flex-col min-w-0 pr-2">
                           <span className="font-bold text-white truncate">{op.name}</span>
-                          <span className="text-[9px] font-mono text-zinc-500 truncate">{op.moves}</span>
+                          <span className="text-[10px] font-mono text-zinc-500 truncate">{op.moves}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono font-bold text-zinc-400 text-[11px]">{op.playedCount}g</span>
+                          <span className="font-mono text-zinc-400 text-[11px]">{op.playedCount}g</span>
                           <span
-                            className={`font-mono font-black text-[11px] px-1.5 py-0.5 rounded ${
+                            className={`font-mono font-black text-[10px] px-2 py-0.5 rounded ${
                               op.winRatePct >= 55
-                                ? 'bg-emerald-500/20 text-emerald-400'
+                                ? 'bg-emerald-500/20 text-emerald-300'
                                 : op.winRatePct <= 40
-                                ? 'bg-rose-500/20 text-rose-400'
+                                ? 'bg-rose-500/20 text-rose-300'
                                 : 'bg-zinc-800 text-zinc-300'
                             }`}
                           >
@@ -560,244 +763,232 @@ export default function PlayersExplorerPage() {
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Recent Games Table */}
-            <div className="p-4 rounded-3xl bg-[#211f1c] border-2 border-[#35322b] flex flex-col gap-2.5">
-              <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
-                <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span>Recent Matches ({playerAGames.length})</span>
-                </span>
-                <span className="text-[10px] text-zinc-400">Click Review to analyze game</span>
-              </div>
-
-              <div className="flex flex-col divide-y divide-[#2d2a25] max-h-[320px] overflow-y-auto">
-                {playerAGames.slice(0, 15).map((g) => (
-                  <div key={g.id} className="py-2.5 px-2 flex items-center justify-between hover:bg-[#282520] transition rounded-xl gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-xs">{g.isUserWhite ? '⚪' : '⚫'}</span>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-white truncate">
-                          vs {g.opponent.username} ({g.opponent.rating})
-                        </span>
-                        <span className="text-[10px] text-zinc-400 capitalize">
-                          {g.timeClass} • {g.movesCount || 30} moves
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded font-mono ${
-                          g.userResult === 'win'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : g.userResult === 'loss'
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                            : 'bg-zinc-800 text-zinc-400'
-                        }`}
-                      >
-                        {g.userResult}
-                      </span>
-                      <button
-                        onClick={() => handleReviewGame(g)}
-                        className="px-2.5 py-1 bg-[#81b64c] hover:bg-[#72a342] text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition cursor-pointer flex items-center gap-1 shadow-sm"
-                      >
-                        <Sparkles className="w-3 h-3 text-amber-200" />
-                        <span>Review</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: HEAD-TO-HEAD SCOUT & "HOW TO BEAT THEM" */}
-        {activeTab === 'scout' && (
-          <div className="flex flex-col gap-4">
-            {/* Opponent Selector / Compare Header */}
-            <div className="p-4 rounded-3xl bg-[#211f1c] border-2 border-[#38342c] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_0_0_#141311]">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                  <Target className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
-                    <span>Scouting Dossier: How to Beat @{playerADna.username}</span>
-                  </h2>
-                  <p className="text-[11px] text-zinc-400 font-medium">
-                    Tactical blueprint generated from their opening choices, blunder habits, and endgame conversion flaws.
+                  <p className="text-[10px] text-zinc-500 italic pt-1 border-t border-white/5">
+                    Exploitation Tip: Challenge their pawn breaks early to seize the center.
                   </p>
                 </div>
               </div>
-
-              {/* Matchup Prediction Badge */}
-              <div
-                className={`px-3 py-1.5 rounded-xl border text-xs font-black uppercase tracking-wider flex items-center gap-1.5 self-start sm:self-center shrink-0 ${
-                  howToBeatThemPlan.matchupDifficulty === 'favorable'
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                    : howToBeatThemPlan.matchupDifficulty === 'tough'
-                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                    : howToBeatThemPlan.matchupDifficulty === 'underdog'
-                    ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
-                    : 'bg-zinc-800 border-zinc-700 text-zinc-200'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{howToBeatThemPlan.predictedWinChancePct}% Win Prediction</span>
-              </div>
             </div>
+          )}
 
-            {/* Side-by-Side Phase Comparison Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Openings Comparison */}
-              <div className="p-3.5 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase text-zinc-400">Openings Phase</span>
-                  <span className="text-xs font-black text-cyan-400">
-                    {heroDna.phaseAnalysis.openingScore} vs {playerADna.phaseAnalysis.openingScore}
-                  </span>
-                </div>
-                <div className="w-full bg-[#141210] h-2 rounded-full overflow-hidden flex">
-                  <div className="bg-emerald-500 h-full" style={{ width: `${heroDna.phaseAnalysis.openingScore}%` }} />
-                </div>
-                <span className="text-[10px] text-zinc-400">
-                  {heroDna.phaseAnalysis.openingScore >= playerADna.phaseAnalysis.openingScore
-                    ? 'You have superior opening theory depth'
-                    : 'They have stronger early line memorization'}
-                </span>
-              </div>
-
-              {/* Middlegame Comparison */}
-              <div className="p-3.5 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase text-zinc-400">Middlegame Tactics</span>
-                  <span className="text-xs font-black text-amber-400">
-                    {heroDna.phaseAnalysis.middlegameScore} vs {playerADna.phaseAnalysis.middlegameScore}
-                  </span>
-                </div>
-                <div className="w-full bg-[#141210] h-2 rounded-full overflow-hidden flex">
-                  <div className="bg-amber-500 h-full" style={{ width: `${heroDna.phaseAnalysis.middlegameScore}%` }} />
-                </div>
-                <span className="text-[10px] text-zinc-400">
-                  Their tactical aggressiveness is rated at {playerADna.phaseAnalysis.tacticalAggressiveness}%.
-                </span>
-              </div>
-
-              {/* Endgame Comparison */}
-              <div className="p-3.5 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black uppercase text-zinc-400">Endgame Technique</span>
-                  <span className="text-xs font-black text-[#81b64c]">
-                    {heroDna.phaseAnalysis.endgameScore} vs {playerADna.phaseAnalysis.endgameScore}
-                  </span>
-                </div>
-                <div className="w-full bg-[#141210] h-2 rounded-full overflow-hidden flex">
-                  <div className="bg-[#81b64c] h-full" style={{ width: `${heroDna.phaseAnalysis.endgameScore}%` }} />
-                </div>
-                <span className="text-[10px] text-zinc-400">
-                  Their endgame conversion score is {playerADna.phaseAnalysis.endgameScore}/100.
-                </span>
-              </div>
-            </div>
-
-            {/* Strategic Dossier Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {/* 1. Recommended Weapon as White */}
-              <div className="p-4 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-zinc-200 text-zinc-950 flex items-center justify-center font-black text-xs">
-                    ⚪
+          {/* ----------------------------------------------------------------------- */}
+          {/* SUB-SCREEN 3: GRANDMASTER BLUEPRINT (HOW TO BEAT THEM)                  */}
+          {/* ----------------------------------------------------------------------- */}
+          {activeScreen === 'blueprint' && (
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+              {/* Header Matchup Bar */}
+              <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Target className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Your Opening As White</span>
-                    <h3 className="text-xs font-black text-white">{howToBeatThemPlan.recommendedWeaponWhite.opening}</h3>
+                    <h2 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-2">
+                      <span>Tactical Blueprint: How to Beat @{playerADna.username}</span>
+                    </h2>
+                    <p className="text-[11px] text-zinc-400">
+                      Algorithmic game-plan calculated against their tactical vulnerabilities
+                    </p>
                   </div>
                 </div>
-                <span className="font-mono text-xs text-[#81b64c] bg-[#141310] px-2.5 py-1 rounded-lg border border-[#2d2a23]">
-                  {howToBeatThemPlan.recommendedWeaponWhite.moves}
-                </span>
-                <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  {howToBeatThemPlan.recommendedWeaponWhite.rationale}
-                </p>
-                <span className="text-[10px] font-bold text-amber-400">
-                  ★ {howToBeatThemPlan.recommendedWeaponWhite.exploitFactor}
-                </span>
+
+                <div
+                  className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                    howToBeatThemPlan.matchupDifficulty === 'favorable'
+                      ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                      : howToBeatThemPlan.matchupDifficulty === 'tough'
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{howToBeatThemPlan.predictedWinChancePct}% Win Prediction</span>
+                </div>
               </div>
 
-              {/* 2. Recommended Defense as Black */}
-              <div className="p-4 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-700 text-white flex items-center justify-center font-black text-xs">
-                    ⚫
+              {/* Side-by-Side Weaponry Cards */}
+              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+                {/* 1. Recommended Weapon as White */}
+                <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-2.5 min-h-0">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-white text-black flex items-center justify-center text-xs font-black">
+                        ⚪
+                      </span>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          Recommended as White
+                        </span>
+                        <h3 className="text-xs font-black text-white">
+                          {howToBeatThemPlan.recommendedWeaponWhite.opening}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-[#141311] border border-white/5 font-mono text-xs text-[#81b64c]">
+                      {howToBeatThemPlan.recommendedWeaponWhite.moves}
+                    </div>
+
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                      {howToBeatThemPlan.recommendedWeaponWhite.rationale}
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span>Exploit: {howToBeatThemPlan.recommendedWeaponWhite.exploitFactor}</span>
+                  </div>
+                </div>
+
+                {/* 2. Recommended Defense as Black */}
+                <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-2.5 min-h-0">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-700 text-white flex items-center justify-center text-xs font-black">
+                        ⚫
+                      </span>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          Recommended as Black
+                        </span>
+                        <h3 className="text-xs font-black text-white">
+                          {howToBeatThemPlan.recommendedDefenseBlack.defense}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-[#141311] border border-white/5 font-mono text-xs text-[#81b64c]">
+                      {howToBeatThemPlan.recommendedDefenseBlack.moves}
+                    </div>
+
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                      {howToBeatThemPlan.recommendedDefenseBlack.rationale}
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-[11px] text-cyan-300 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 shrink-0" />
+                    <span>Exploit: {howToBeatThemPlan.recommendedDefenseBlack.exploitFactor}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lower Exploitation Directives Banner */}
+              <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+                <div className="flex items-start gap-2 text-xs">
+                  <Swords className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">Tactical Directive</span>
+                    <span className="text-zinc-300 leading-snug">
+                      Exploit leak: <strong className="text-white">{playerADna.phaseAnalysis.primaryWeakness}</strong>. Blunder frequency is <strong className="text-rose-400">{playerADna.phaseAnalysis.blunderRatePct}%</strong>.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 text-xs">
+                  <Clock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Endgame &amp; Clock Strategy</span>
+                    <span className="text-zinc-300 leading-snug">
+                      {playerADna.phaseAnalysis.timePanicTendency > 30
+                        ? 'Keep positions complex into time trouble—they exhibit heavy scramble panic.'
+                        : 'Aim for a simplified king-and-pawn endgame where their technical conversion is lowest.'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ----------------------------------------------------------------------- */}
+          {/* SUB-SCREEN 4: MATCH ARCHIVES & GAME REVIEW                              */}
+          {/* ----------------------------------------------------------------------- */}
+          {activeScreen === 'matches' && (
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+              {/* Filter Tabs */}
+              <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                    <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Your Defense As Black</span>
-                    <h3 className="text-xs font-black text-white">{howToBeatThemPlan.recommendedDefenseBlack.defense}</h3>
+                    <h2 className="text-xs sm:text-sm font-extrabold text-white">Recent Match Archives</h2>
+                    <p className="text-[11px] text-zinc-400">
+                      Click Review on any match to load interactive Stockfish analysis
+                    </p>
                   </div>
                 </div>
-                <span className="font-mono text-xs text-[#81b64c] bg-[#141310] px-2.5 py-1 rounded-lg border border-[#2d2a23]">
-                  {howToBeatThemPlan.recommendedDefenseBlack.moves}
-                </span>
-                <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  {howToBeatThemPlan.recommendedDefenseBlack.rationale}
-                </p>
-                <span className="text-[10px] font-bold text-amber-400">
-                  ★ {howToBeatThemPlan.recommendedDefenseBlack.exploitFactor}
-                </span>
-              </div>
 
-              {/* 3. Middlegame Strategy Plan */}
-              <div className="p-4 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <Swords className="w-3.5 h-3.5" />
-                  Middlegame Strategy: {howToBeatThemPlan.middlegameStrategy.title}
-                </span>
-                <p className="text-[11px] font-bold text-zinc-200">
-                  {howToBeatThemPlan.middlegameStrategy.coreRule}
-                </p>
-                <ul className="flex flex-col gap-1.5 mt-1">
-                  {howToBeatThemPlan.middlegameStrategy.actionablePointers.map((p, idx) => (
-                    <li key={idx} className="text-[11px] text-zinc-400 flex items-start gap-1.5">
-                      <span className="text-[#81b64c] font-black">•</span>
-                      <span>{p}</span>
-                    </li>
+                <div className="flex items-center gap-1 p-0.5 bg-[#141311] border border-white/5 rounded-xl self-end sm:self-auto">
+                  {(['all', 'rapid', 'blitz', 'bullet'] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setMatchFilter(filter)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition cursor-pointer ${
+                        matchFilter === filter
+                          ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {filter}
+                    </button>
                   ))}
-                </ul>
-              </div>
-
-              {/* 4. Endgame Conversion Directive */}
-              <div className="p-4 rounded-2xl bg-[#1e1c19] border-2 border-[#35322b] flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] flex items-center gap-1.5">
-                  <Award className="w-3.5 h-3.5" />
-                  Endgame Blueprint: {howToBeatThemPlan.endgameStrategy.title}
-                </span>
-                <p className="text-[11px] font-bold text-zinc-200">
-                  {howToBeatThemPlan.endgameStrategy.conversionPlan}
-                </p>
-                <p className="text-[11px] text-zinc-400 leading-relaxed mt-1">
-                  {howToBeatThemPlan.endgameStrategy.techniqueAdvice}
-                </p>
-                <div className="mt-2 pt-2 border-t border-[#2d2a25] flex flex-col gap-1">
-                  <span className="text-[10px] font-black uppercase text-zinc-500">Psychological Edge</span>
-                  <span className="text-[10px] text-zinc-400">{howToBeatThemPlan.psychologicalEdge[0]}</span>
                 </div>
               </div>
-            </div>
 
-            {/* Executive Summary Memo */}
-            <div className="p-4 rounded-2xl bg-[#181614] border border-[#2d2a25] flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-zinc-300 leading-relaxed font-medium">
-                <strong>Executive Scouting Summary:</strong> {howToBeatThemPlan.executiveSummary}
-              </p>
+              {/* Games Table List */}
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-1.5">
+                {filteredGames.length === 0 ? (
+                  <div className="py-16 text-center text-xs text-zinc-500 font-mono">
+                    No matches found matching the selected filter.
+                  </div>
+                ) : (
+                  filteredGames.map((g) => (
+                    <div
+                      key={g.id}
+                      className="p-2.5 rounded-xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 hover:border-white/10 transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xs shrink-0">{g.isUserWhite ? '⚪' : '⚫'}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-white truncate">
+                            vs {g.opponent.username} ({g.opponent.rating})
+                          </span>
+                          <span className="text-[10px] text-zinc-400 capitalize">
+                            {g.timeClass} &bull; {g.movesCount || 30} moves
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded font-mono ${
+                            g.userResult === 'win'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : g.userResult === 'loss'
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              : 'bg-zinc-800 text-zinc-400'
+                          }`}
+                        >
+                          {g.userResult}
+                        </span>
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          rounded="lg"
+                          onClick={() => handleReviewGame(g)}
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>Review</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </div>

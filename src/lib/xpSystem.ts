@@ -252,6 +252,39 @@ export const XpSystem = {
     } catch {}
   },
 
+  getDefaultProfile(): XpProfile {
+    const today = new Date().toISOString().split('T')[0];
+    const stored = {
+      totalXp: 180, // Default starter XP
+      streak: 1,
+      dailyXp: 0,
+      dailyGoal: 50,
+      lastActiveDate: today,
+    };
+    const { level, xpInLevel, xpNeeded, progressPercent } = calculateLevelFromXp(stored.totalXp);
+    const { current: league, next: nextLeague, progressPercent: leagueProgressPercent } = getLeagueForXp(stored.totalXp);
+    const levelTitle = getTitleForLevel(level);
+    const leagueRank = Math.max(1, 30 - Math.floor((leagueProgressPercent / 100) * 29));
+
+    return {
+      totalXp: stored.totalXp,
+      level,
+      levelTitle,
+      xpInCurrentLevel: xpInLevel,
+      xpNeededForNextLevel: xpNeeded,
+      levelProgressPercent: progressPercent,
+      league,
+      nextLeague,
+      leagueProgressPercent,
+      leagueRank,
+      streak: stored.streak,
+      dailyXp: stored.dailyXp,
+      dailyGoal: stored.dailyGoal,
+      dailyGoalAchieved: stored.dailyXp >= stored.dailyGoal,
+      lastActiveDate: stored.lastActiveDate,
+    };
+  },
+
   getProfile(): XpProfile {
     const today = new Date().toISOString().split('T')[0];
 

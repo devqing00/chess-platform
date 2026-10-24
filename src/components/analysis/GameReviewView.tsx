@@ -19,7 +19,13 @@ import {
   PieceColor,
   GamePlayer,
   ArrowAnnotation,
+  GameResultDetails,
+  EngineStrengthTier,
+  ENGINE_STRENGTH_CONFIGS,
+  KeyMoment,
 } from '@/types/chess';
+import { matchOpeningFromMoves } from '@/lib/openingsData';
+import { formatGameOutcomeDescription, extractTerminationReason, isSessionUserWhite } from '@/lib/gameSessionStore';
 import {
   ArrowLeft,
   Share2,
@@ -47,11 +53,25 @@ import {
   RefreshCw,
   MoreHorizontal,
   BookOpen,
+  Zap,
 } from 'lucide-react';
 import { EvalBar } from '../board/EvalBar';
 import { soundService } from '@/lib/audioService';
 import { ChessEvaluator } from '@/lib/chessEngine';
 import confetti from 'canvas-confetti';
+
+const PIP_COLORS: Record<string, string> = {
+  brilliant: '#06b6d4',  // Cyan
+  great: '#059669',      // Emerald
+  best: '#81b64c',       // Vibrant Green
+  excellent: '#4ade80',  // Light Green
+  good: '#84cc16',       // Yellow-Green
+  book: '#a855f7',       // Purple / Book
+  inaccuracy: '#eab308', // Amber / Yellow
+  mistake: '#f97316',    // Orange
+  miss: '#ef4444',       // Crimson Red
+  blunder: '#b91c1c',    // Dark Red
+};
 
 const PIECE_VALUES: Record<PieceSymbol, number> = {
   p: 1,
@@ -138,9 +158,15 @@ interface GameReviewViewProps {
   pieceTheme: PieceTheme;
   whiteAccuracy?: number;
   blackAccuracy?: number;
+  keyMoments?: KeyMoment[];
+  gameResult?: string | null;
+  resultDetails?: GameResultDetails | null;
+  termination?: string;
+  engineStrength?: EngineStrengthTier;
   onBackToGame: () => void;
   onBackToSummary?: () => void;
   onEngineChange?: (engine: 'torch_human' | 'stockfish') => void;
+  onStrengthChange?: (strength: EngineStrengthTier) => void;
   onReanalyze?: () => void;
 }
 
@@ -153,9 +179,15 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   pieceTheme,
   whiteAccuracy,
   blackAccuracy,
+  keyMoments,
+  gameResult,
+  resultDetails,
+  termination,
+  engineStrength,
   onBackToGame,
   onBackToSummary,
   onEngineChange,
+  onStrengthChange,
   onReanalyze,
 }) => {
   const router = useRouter();
@@ -164,6 +196,39 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
 
   const [notationFilter, setNotationFilter] = useState<'all' | 'highlights'>('all');
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  const isUserWhite = useMemo(() => {
+    return isSessionUserWhite({
+      whitePlayer,
+      blackPlayer,
+      gameResult: gameResult || undefined,
+      resultDetails: resultDetails || undefined,
+      pgn: '',
+    } as any);
+  }, [whitePlayer, blackPlayer, gameResult, resultDetails]);
+
+  const gameOutcome = useMemo(() => {
+    let winner = resultDetails?.winner;
+    const res = (gameResult || '').trim().toLowerCase();
+    if (res.includes('white win') || res.includes('white won') || res.includes('1-0')) {
+      winner = 'w';
+    } else if (res.includes('black win') || res.includes('black won') || res.includes('0-1')) {
+      winner = 'b';
+    } else if (!winner) {
+      if (gameResult === '1-0') winner = 'w';
+      else if (gameResult === '0-1') winner = 'b';
+      else if (gameResult?.includes('1/2') || gameResult?.includes('0.5')) winner = 'draw';
+      else winner = isUserWhite ? 'w' : 'b';
+    }
+    const reason = resultDetails?.reason || (termination ? extractTerminationReason({ pgn: `[Termination "${termination}"]` }) : 'resignation');
+    return formatGameOutcomeDescription({
+      winner,
+      reason,
+      whiteName: whitePlayer.name,
+      blackName: blackPlayer.name,
+      isUserWhite,
+    });
+  }, [resultDetails, gameResult, termination, whitePlayer.name, blackPlayer.name, isUserWhite]);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -175,8 +240,12 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   });
 
   const activeNotationItemRef = useRef<HTMLButtonElement | null>(null);
+  const pipTimelineDesktopRef = useRef<HTMLDivElement | null>(null);
+  const pipTimelineMobileRef = useRef<HTMLDivElement | null>(null);
+  const pipDesktopRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const pipMobileRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Auto-scroll the active move into view inside the notation list
+  // Auto-scroll the active move into view inside the notation list and pip timeline
   useEffect(() => {
     if (activeNotationItemRef.current) {
       activeNotationItemRef.current.scrollIntoView({
@@ -185,7 +254,26 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
         behavior: 'smooth',
       });
     }
+    if (activeMoveIndex >= 0) {
+      pipDesktopRefs.current[activeMoveIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+      pipMobileRefs.current[activeMoveIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
   }, [activeMoveIndex]);
+
+  // Dynamically compute active ECO opening theory from move history up to activeMoveIndex
+  const activeOpening = useMemo(() => {
+    if (moves.length === 0 || activeMoveIndex < 0) return null;
+    const currentSanList = moves.slice(0, activeMoveIndex + 1).map((m) => m.san);
+    return matchOpeningFromMoves(currentSanList);
+  }, [moves, activeMoveIndex]);
 
   const [showBestMove, setShowBestMove] = useState(false);
   const [showFollowUpMove, setShowFollowUpMove] = useState(false);
@@ -219,16 +307,6 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       }
     };
   }, []);
-
-  const isUserWhite = useMemo(() => {
-    if (whitePlayer.id === 'user-local' || whitePlayer.id === 'player-1') return true;
-    if (blackPlayer.id === 'user-local' || blackPlayer.id === 'player-1') return false;
-    const wName = (whitePlayer.name || '').toLowerCase();
-    const bName = (blackPlayer.name || '').toLowerCase();
-    if (wName.includes('you') || wName.includes('qing')) return true;
-    if (bName.includes('you') || bName.includes('qing')) return false;
-    return true;
-  }, [whitePlayer, blackPlayer]);
 
   const [orientation, setOrientation] = useState<PieceColor>(() => {
     // User piece whether white or black MUST be the bottom one
@@ -602,8 +680,12 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       }
       return `Retry: Find Best Move`;
     }
-    return formatClassificationDescription(activeMove.san, activeClass);
-  }, [activeMove, showBestMove, showFollowUpMove, isRetryMode, retryMove, activeClass, bestMoveVariation, followUpVariation]);
+    const base = formatClassificationDescription(activeMove.san, activeClass);
+    if (activeMoveIndex === moves.length - 1) {
+      return `${base} · ${gameOutcome.fullSentence}`;
+    }
+    return base;
+  }, [activeMove, showBestMove, showFollowUpMove, isRetryMode, retryMove, activeClass, bestMoveVariation, followUpVariation, activeMoveIndex, moves.length, gameOutcome.fullSentence]);
 
   const displayedComment = useMemo(() => {
     if (!activeMove) return 'Step through the moves below to review the critical turning points and engine accuracy.';
@@ -627,8 +709,17 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       }
       return `Can you find the best move for ${movingPlayerName}? Make your move directly on the board.`;
     }
+    if (activeMoveIndex === moves.length - 1) {
+      return `${coachComment} Game ended: ${gameOutcome.fullSentence} (${gameOutcome.subtitle}).`;
+    }
+    if (activeClass === 'book') {
+      if (activeOpening) {
+        return `Book move! Standard grandmaster opening theory in the ${activeOpening.name} [${activeOpening.eco}]. ${activeOpening.description || 'Focus on controlling the center, developing pieces smoothly, and securing early king safety.'}`;
+      }
+      return `${activeMove.san} is standard grandmaster opening theory, following time-tested principles for piece development.`;
+    }
     return coachComment;
-  }, [activeMove, showBestMove, showFollowUpMove, isRetryMode, retrySuccess, retryMove, coachComment, movingPlayerName, nextPlayerName, bestMoveVariation, followUpVariation]);
+  }, [activeMove, showBestMove, showFollowUpMove, isRetryMode, retrySuccess, retryMove, coachComment, movingPlayerName, nextPlayerName, bestMoveVariation, followUpVariation, activeMoveIndex, moves.length, gameOutcome.fullSentence, gameOutcome.subtitle, activeClass, activeOpening]);
 
   // Compute chess board position: actually plays Best Move or Follow-up on the board
   const { currentChess, activeSquareHighlight, displayedLastMove } = useMemo(() => {
@@ -742,10 +833,15 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
     return Math.min(95, Math.max(5, winProb * 100));
   }, [activeMove]);
 
-  // Key moments (Brilliant, Great, Blunders, Mistakes) for the Next CTA
-  const keyMomentIndices = useMemo(() => {
+  // Key moments (Turning points from report or fallback classification filters)
+  const keyMomentIndices: number[] = useMemo(() => {
+    if (keyMoments && keyMoments.length > 0) {
+      return keyMoments
+        .map((km: KeyMoment) => km.moveIndex)
+        .filter((idx: number) => typeof idx === 'number' && idx >= 0 && idx < moves.length);
+    }
     const indices: number[] = [];
-    moves.forEach((m, idx) => {
+    moves.forEach((m: MoveRecord, idx: number) => {
       if (
         m.classification === 'brilliant' ||
         m.classification === 'great' ||
@@ -757,7 +853,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       }
     });
     return indices;
-  }, [moves]);
+  }, [moves, keyMoments]);
 
   const handleToggleBest = () => {
     stopFastForward();
@@ -1155,11 +1251,12 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 setAnalysisEngine('torch_human');
                 onEngineChange?.('torch_human');
               }}
-              className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all duration-150 cursor-pointer ${
+              className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-150 cursor-pointer ${
                 analysisEngine === 'torch_human'
                   ? 'bg-[#f59e0b] text-white shadow'
                   : 'text-zinc-400 hover:text-white'
               }`}
+              title="Torch Human (Maia NNUE)"
             >
               <Flame className="w-2.5 h-2.5 text-amber-300" />
               <span>Torch</span>
@@ -1169,15 +1266,39 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 setAnalysisEngine('stockfish');
                 onEngineChange?.('stockfish');
               }}
-              className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all duration-150 cursor-pointer ${
+              className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-150 cursor-pointer ${
                 analysisEngine === 'stockfish'
                   ? 'bg-[#81b64c] text-white shadow'
                   : 'text-zinc-400 hover:text-white'
               }`}
+              title="Stockfish 18"
             >
               <Cpu className="w-2.5 h-2.5 text-white" />
               <span>Stockfish</span>
             </button>
+          </div>
+
+          {/* 4-Tier Strength Switcher (Fast, Standard, Deep, Maximum) */}
+          <div className="hidden 2xl:flex items-center bg-[#141311] p-0.5 rounded-full border border-[#2e2a24] text-[9px] font-black uppercase tracking-wider ml-1">
+            {(['fast', 'standard', 'deep', 'maximum'] as EngineStrengthTier[]).map((tier) => {
+              const cfg = ENGINE_STRENGTH_CONFIGS[tier];
+              const activeTier = engineStrength || 'fast';
+              const isSelected = activeTier === tier;
+              return (
+                <button
+                  key={tier}
+                  onClick={() => onStrengthChange?.(tier)}
+                  className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#35322b] text-[#81b64c] font-black shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                  title={`${cfg.label}: ${cfg.description}`}
+                >
+                  <span>{cfg.badge}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1294,6 +1415,39 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       <Cpu className="w-2.5 h-2.5" />
                       <span>Stockfish</span>
                     </button>
+                  </div>
+                </div>
+
+                {/* Engine Strength Tier Selector */}
+                <div className="pt-1 border-t border-[#2d2a26]">
+                  <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider px-1 mb-1 flex items-center justify-between">
+                    <span>Strength Tier</span>
+                    <span className="text-[#81b64c] font-mono text-[8px]">
+                      {ENGINE_STRENGTH_CONFIGS[engineStrength || 'fast'].label}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 bg-[#141311] p-1 rounded-lg">
+                    {(['fast', 'standard', 'deep', 'maximum'] as EngineStrengthTier[]).map((tier) => {
+                      const cfg = ENGINE_STRENGTH_CONFIGS[tier];
+                      const activeTier = engineStrength || 'fast';
+                      const isSelected = activeTier === tier;
+                      return (
+                        <button
+                          key={tier}
+                          onClick={() => {
+                            onStrengthChange?.(tier);
+                            setIsMoreMenuOpen(false);
+                          }}
+                          className={`px-1.5 py-1 rounded text-[10px] flex items-center justify-center gap-1 border ${
+                            isSelected
+                              ? 'bg-[#2a2723] border-[#81b64c] text-white font-black'
+                              : 'border-transparent text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          <span>{cfg.badge}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1507,6 +1661,34 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 </div>
               </div>
 
+              {/* Mobile Move Advantage Pip Timeline (~28px) */}
+              <div
+                ref={pipTimelineMobileRef}
+                className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1 bg-[#141311] border-b border-[#2d2a26] flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0 h-7"
+              >
+                {moves.map((m, idx) => {
+                  const isSelected = activeMoveIndex === idx;
+                  const cls = getCleanClassification(m.classification);
+                  const pipColor = PIP_COLORS[cls] || '#81b64c';
+                  return (
+                    <button
+                      key={`mobile-pip-${idx}`}
+                      ref={(el) => {
+                        pipMobileRefs.current[idx] = el;
+                      }}
+                      onClick={() => navigateToMove(idx)}
+                      className={`relative shrink-0 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+                        isSelected
+                          ? 'w-4 h-4 ring-2 ring-white scale-110 shadow-sm'
+                          : 'w-2.5 h-2.5 opacity-75'
+                      }`}
+                      style={{ backgroundColor: pipColor }}
+                      title={`${Math.floor(idx / 2) + 1}${idx % 2 === 0 ? '.' : '...'}${m.san} (${cls})`}
+                    />
+                  );
+                })}
+              </div>
+
               {/* Mobile Review Navigation & Action Bar (~40px) */}
               <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1 bg-[#181614] flex items-center justify-between gap-1 shrink-0 h-10">
                 <div className="flex items-center gap-1">
@@ -1651,8 +1833,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       {displayedHeaderTitle}
                     </span>
                     {activeMove?.motif && (
-                      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/30 uppercase tracking-wider shrink-0">
+                      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/30 uppercase tracking-wider shrink-0" title={activeMove.motif.description}>
                         ⚡ {activeMove.motif.type.replace('-', ' ')}
+                      </span>
+                    )}
+                    {activeOpening && (activeClass === 'book' || activeMoveIndex <= 14) && (
+                      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-900 border border-purple-500/30 tracking-tight shrink-0" title={activeOpening.description}>
+                        📖 [{activeOpening.eco}] {activeOpening.name}
                       </span>
                     )}
                   </div>
@@ -1730,8 +1917,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                     No major turning points detected.
                   </div>
                 ) : (
-                  keyMomentIndices.map((moveIdx) => {
+                  keyMomentIndices.map((moveIdx: number) => {
                     const m = moves[moveIdx];
+                    const km = keyMoments?.find((k: KeyMoment) => k.moveIndex === moveIdx);
                     const isSelected = activeMoveIndex === moveIdx;
                     const turnNum = Math.floor(moveIdx / 2) + 1;
                     const isWhite = moveIdx % 2 === 0;
@@ -1742,19 +1930,26 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         key={`highlight-${moveIdx}`}
                         ref={isSelected ? activeNotationItemRef : null}
                         onClick={() => navigateToMove(moveIdx)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-xs ${
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer text-xs ${
                           isSelected
                             ? 'bg-[#81b64c] text-white font-bold shadow-sm'
                             : 'bg-[#24221e] hover:bg-[#2c2924] text-zinc-200 border border-[#302d27]'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-mono ${isSelected ? 'text-white/80' : 'text-zinc-500'}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-[10px] font-mono shrink-0 ${isSelected ? 'text-white/80' : 'text-zinc-500'}`}>
                             #{moveIdx + 1}
                           </span>
-                          <span className="font-bold">{moveLabel}</span>
+                          <div className="text-left min-w-0">
+                            <span className="font-bold block">{moveLabel}</span>
+                            {km?.description && (
+                              <span className={`text-[10px] block truncate font-sans ${isSelected ? 'text-white/90' : 'text-zinc-400'}`}>
+                                {km.description}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           {m.classification && (
                             <ClassificationBadge
                               classification={getCleanClassification(m.classification)}
@@ -1857,6 +2052,53 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   className="h-full bg-white transition-all duration-300 rounded-full"
                   style={{ width: `${evalPercent}%` }}
                 />
+              </div>
+            </div>
+
+            {/* Middle: Move Advantage Heatmap / Pip Timeline */}
+            <div className="w-full flex flex-col gap-1 pt-1.5 border-t border-[#2a2723]">
+              <div className="flex items-center justify-between text-[9px] font-bold text-zinc-400 px-0.5">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5 text-[#81b64c]" />
+                  <span>Advantage Pip Timeline</span>
+                </span>
+                <span className="font-mono text-zinc-500 text-[9px]">
+                  Ply {activeMoveIndex + 1} / {moves.length}
+                </span>
+              </div>
+
+              <div
+                ref={pipTimelineDesktopRef}
+                className="w-full flex items-center gap-1 overflow-x-auto py-1.5 px-1 custom-scrollbar scroll-smooth bg-[#141311] rounded-lg border border-[#2b2824]"
+              >
+                {moves.map((m, idx) => {
+                  const isSelected = activeMoveIndex === idx;
+                  const cls = getCleanClassification(m.classification);
+                  const pipColor = PIP_COLORS[cls] || '#81b64c';
+                  const moveNum = Math.floor(idx / 2) + 1;
+                  const isWhitePly = idx % 2 === 0;
+
+                  return (
+                    <button
+                      key={`desktop-pip-${idx}`}
+                      ref={(el) => {
+                        pipDesktopRefs.current[idx] = el;
+                      }}
+                      onClick={() => navigateToMove(idx)}
+                      className={`relative shrink-0 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+                        isSelected
+                          ? 'w-4 h-4 ring-2 ring-white scale-110 z-10 shadow-[0_0_8px_rgba(255,255,255,0.7)]'
+                          : 'w-2.5 h-2.5 hover:scale-125 hover:z-10 opacity-75 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: pipColor }}
+                      title={`Move ${moveNum}${isWhitePly ? '.' : '...'}${m.san} (${cls.toUpperCase()})`}
+                    >
+                      {isSelected && (
+                        <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -2153,7 +2395,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
 
             <div className="flex-1 overflow-y-auto max-h-[45vh] p-1 font-mono text-xs custom-scrollbar">
               {notationFilter === 'highlights' ? (
-                keyMomentIndices.map((moveIdx) => {
+                keyMomentIndices.map((moveIdx: number) => {
                   const m = moves[moveIdx];
                   const isSelected = activeMoveIndex === moveIdx;
                   const turnNum = Math.floor(moveIdx / 2) + 1;

@@ -23,8 +23,12 @@ import {
   Play,
   Layers,
   Bot,
+  BookOpen,
+  Zap,
 } from 'lucide-react';
-import { SlideDrawer } from '@/components/ui/SlideDrawer';
+import { Button } from '@/components/ui/button';
+
+export type OpeningScreen = 'study' | 'catalog' | 'counter' | 'traps';
 
 interface OpeningExplorerProps {
   boardTheme: BoardTheme;
@@ -39,21 +43,22 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
   const { awardXp } = useXpSystem();
   const dossiers = useMemo(() => OpeningCounterEngine.listAllDossiers(), []);
 
+  const [activeScreen, setActiveScreen] = useState<OpeningScreen>('study');
   const [selectedDossier, setSelectedDossier] = useState<FullOpeningMasteryDossier>(dossiers[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | '1.e4' | '1.d4' | 'flank'>('all');
   const [orientation, setOrientation] = useState<PieceColor>('w');
-  const [isCatalogDrawerOpen, setIsCatalogDrawerOpen] = useState(false);
 
   // Continuation drill state
   const [drillIndex, setDrillIndex] = useState(0);
   const [drillStatus, setDrillStatus] = useState<'idle' | 'practicing' | 'completed'>('idle');
-  const [coachFeedback, setCoachFeedback] = useState<string>('');
+  const [coachFeedback, setCoachFeedback] = useState<string>(
+    `Opening loaded: ${dossiers[0].name}. Inspect the counter-opening strategy or practice the continuation.`
+  );
 
   // Chess instance synced to opening moves
   const [chess, setChess] = useState<Chess>(() => {
     const c = new Chess();
-    // Parse moves string (e.g. "1. e4 e5 2. Nf3 Nc6 3. Bb5")
     const cleanMoves = dossiers[0].moves.replace(/\d+\./g, '').trim().split(/\s+/);
     cleanMoves.forEach((san) => {
       try { c.move(san); } catch {}
@@ -71,7 +76,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
     setChess(c);
     setDrillIndex(0);
     setDrillStatus('idle');
-    setCoachFeedback(`Opening loaded: ${dossier.name}. Inspect the counter-opening strategy on the right.`);
+    setCoachFeedback(`Opening loaded: ${dossier.name}. Inspect the counter-opening strategy or practice lines.`);
     soundService.playMove();
   }, []);
 
@@ -98,305 +103,559 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
         to,
         promotion: promotion || 'q',
       });
+
       if (!move) return;
 
-      const currentBranch = selectedDossier.continuationTree[drillIndex];
+      setChess(copy);
+      soundService.playMove();
 
-      if (currentBranch && move.san.toLowerCase() === currentBranch.moveSan.toLowerCase()) {
-        setChess(copy);
-        soundService.playMove();
+      // Check against continuation tree if in practice mode
+      if (drillStatus === 'practicing') {
+        const tree = selectedDossier.continuationTree;
+        const currentTarget = tree[drillIndex];
 
-        setCoachFeedback(`Correct! ${move.san}: ${currentBranch.coachNote}`);
-
-        // Opponent master response
-        setTimeout(() => {
-          if (currentBranch.responseSan) {
-            const oppCopy = new Chess(copy.fen());
-            try {
-              oppCopy.move(currentBranch.responseSan);
-              setChess(oppCopy);
-              soundService.playMove();
-            } catch {}
-          }
-
-          const nextIndex = drillIndex + 1;
-          if (nextIndex >= selectedDossier.continuationTree.length) {
-            setDrillStatus('completed');
-            soundService.playGameEndWin();
-            awardXp(30, `Mastered Continuation: ${selectedDossier.name}`);
-            setCoachFeedback(`Continuation line mastered! You have successfully practiced the ${selectedDossier.bestCounterOpening.counterName}.`);
+        if (currentTarget && move.san === currentTarget.moveSan) {
+          soundService.playPuzzleSuccess();
+          if (drillIndex < tree.length - 1) {
+            setDrillIndex((prev) => prev + 1);
+            setCoachFeedback(`Correct! ${currentTarget.coachNote} Play the next continuation move.`);
           } else {
-            setDrillIndex(nextIndex);
+            setDrillStatus('completed');
+            setCoachFeedback(`Flawless! You completed the ${selectedDossier.name} counter-opening sequence.`);
+            awardXp(30, `Mastered Opening: ${selectedDossier.name}`);
           }
-        }, 500);
-      } else {
-        // Move made outside continuation line
-        setChess(copy);
-        soundService.playMove();
-        setCoachFeedback(`${move.san} played. Explore freely or click Reset to practice the recommended counter-line.`);
+        } else {
+          soundService.playPuzzleFail();
+          setCoachFeedback(`Move ${move.san} deviates from the top theoretical counter. Try again or check the strategy.`);
+        }
       }
     } catch {
-      // Invalid move ignored
+      // Invalid move
     }
   };
 
   const handleResetBoard = () => {
-    loadOpeningDossier(selectedDossier);
+    const c = new Chess();
+    const cleanMoves = selectedDossier.moves.replace(/\d+\./g, '').trim().split(/\s+/);
+    cleanMoves.forEach((san) => {
+      try { c.move(san); } catch {}
+    });
+    setChess(c);
+    setDrillStatus('idle');
+    setDrillIndex(0);
+    setCoachFeedback(`Board reset to ${selectedDossier.name} starting position.`);
+    soundService.playMove();
   };
 
   return (
-    <div className="w-full h-full min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch select-none text-zinc-100">
-      {/* LEFT COLUMN (3 Cols on desktop / Drawer on small screens): OPENINGS DIRECTORY */}
-      <div className="hidden lg:flex lg:col-span-3 h-full p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex-col gap-3 min-h-0">
-        <div className="flex flex-col gap-2 shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Opening Directory
-            </span>
-            <span className="text-[10px] font-mono text-zinc-500 font-bold">
-              {filteredDossiers.length} Lines
-            </span>
-          </div>
+    <div className="w-full h-full flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
+      {/* ========================================================================= */}
+      {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
+      {/* ========================================================================= */}
+      <nav className="shrink-0 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
+          <button
+            onClick={() => setActiveScreen('study')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'study'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Interactive Board</span>
+          </button>
 
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2" />
-            <input
-              type="text"
-              placeholder="Search ECO or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-2.5 py-1 rounded-lg bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
-            />
-          </div>
+          <button
+            onClick={() => setActiveScreen('catalog')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'catalog'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Opening Catalog ({filteredDossiers.length})</span>
+          </button>
 
-          {/* Category Filters */}
-          <div className="flex items-center gap-1">
-            {(['all', '1.e4', '1.d4', 'flank'] as const).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`flex-1 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
-                  categoryFilter === cat
-                    ? 'bg-[#81b64c] text-black font-black'
-                    : 'bg-white/5 text-zinc-400 hover:text-white'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={() => setActiveScreen('counter')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'counter'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span>Counter Strategy</span>
+          </button>
+
+          <button
+            onClick={() => setActiveScreen('traps')}
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeScreen === 'traps'
+                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Traps &amp; Pitfalls</span>
+          </button>
         </div>
 
-        {/* Directory List */}
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-1.5">
-          {filteredDossiers.map((d) => {
-            const isSelected = selectedDossier.eco === d.eco;
-            return (
-              <button
-                key={d.eco}
-                onClick={() => loadOpeningDossier(d)}
-                className={`w-full p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
-                  isSelected
-                    ? 'bg-white/15 border-[#81b64c] shadow-sm'
-                    : 'bg-white/5 border-white/5 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white truncate max-w-[150px]">
-                    {d.name}
+        {/* Current Active Opening Chip */}
+        <div className="hidden md:flex items-center gap-2 text-xs font-mono">
+          <span className="text-[#81b64c] font-black">{selectedDossier.eco}</span>
+          <span className="text-zinc-400 truncate max-w-[200px]">{selectedDossier.name}</span>
+        </div>
+      </nav>
+
+      {/* ========================================================================= */}
+      {/* 2. SUB-SCREEN 1: INTERACTIVE BOARD & CONTINUATION STEPPER                 */}
+      {/* ========================================================================= */}
+      {activeScreen === 'study' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          {/* Top Active Opening Info Strip */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <Compass className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.2 rounded-full border border-[#81b64c]/30">
+                    {selectedDossier.eco}
                   </span>
-                  <span className="text-[10px] font-mono font-bold text-[#81b64c] bg-[#81b64c]/10 px-1.5 py-0.2 rounded">
-                    {d.eco}
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                    {selectedDossier.moves.split(' ').slice(0, 4).join(' ')}
                   </span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono truncate">{d.moves}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                  {selectedDossier.name}
+                </h2>
+              </div>
+            </div>
 
-      {/* CENTER COLUMN (5 Cols): INTERACTIVE BOARD & CONTINUATION STEPPER */}
-      <div className="lg:col-span-5 h-full p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
-        {/* Top Board HUD */}
-        <div className="flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-extrabold text-white truncate">
-              {selectedDossier.name}
-            </span>
-            <span className="text-[10px] font-mono text-zinc-400">({selectedDossier.eco})</span>
+            {/* Controls: Flip, Reset, Catalog */}
+            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="lg"
+                onClick={() => setOrientation((prev) => (prev === 'w' ? 'b' : 'w'))}
+                title="Flip Board"
+              >
+                <span>Flip ({orientation === 'w' ? '⚪' : '⚫'})</span>
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="lg"
+                onClick={handleResetBoard}
+                title="Reset to Opening Moves"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="lg"
+                onClick={() => setActiveScreen('catalog')}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-[#81b64c]" />
+                <span>Change Opening</span>
+              </Button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setOrientation((prev) => (prev === 'w' ? 'b' : 'w'))}
-              className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-semibold cursor-pointer"
-              title="Flip Board"
-            >
-              Flip: {orientation === 'w' ? '⚪' : '⚫'}
-            </button>
-            <button
-              onClick={handleResetBoard}
-              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 cursor-pointer"
-              title="Reset to Opening Moves"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+          {/* Dual Column Layout: Board Left (7 Cols), Coach Danny & Controls Right (5 Cols) */}
+          <div className="flex-1 w-full min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-center">
+            {/* Left Column (7 Cols): Scaled Interactive Board */}
+            <div className="lg:col-span-7 h-full flex flex-col items-center justify-center min-h-0 gap-2">
+              <div className="h-full max-h-[360px] sm:max-h-[400px] aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative bg-black">
+                <ChessBoard
+                  chess={chess}
+                  orientation={orientation}
+                  boardTheme={boardTheme}
+                  pieceTheme={pieceTheme}
+                  onMove={handleMove}
+                />
+              </div>
+            </div>
 
-        {/* The Board */}
-        <div className="flex-1 min-h-0 flex items-center justify-center">
-          <div className="h-full max-h-[400px] aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-xl bg-black">
-            <ChessBoard
-              chess={chess}
-              orientation={orientation}
-              boardTheme={boardTheme}
-              pieceTheme={pieceTheme}
-              onMove={handleMove}
-            />
-          </div>
-        </div>
+            {/* Right Column (5 Cols): Coach Danny Strategy & Primary Actions */}
+            <div className="lg:col-span-5 h-full p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+              {/* Coach Danny Live Feedback */}
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                  <div className="w-7 h-7 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] block">
+                      Coach Danny &bull; Strategic Directive
+                    </span>
+                    <span className="text-xs font-bold text-white">{selectedDossier.name}</span>
+                  </div>
+                </div>
 
-        {/* Coach Danny Live Continuation Feedback */}
-        <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-snug shrink-0">
-          <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Coach Danny &bull; Continuation Strategy</span>
-          </div>
-          <p>{coachFeedback}</p>
-        </div>
+                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 text-xs text-zinc-300 leading-relaxed font-sans">
+                  {coachFeedback}
+                </div>
 
-        {/* Continuation Line Stepper Buttons */}
-        <div className="flex items-center gap-2 pt-1 border-t border-white/5 shrink-0">
-          <button
-            onClick={() => {
-              setDrillStatus('practicing');
-              setDrillIndex(0);
-              const c = new Chess();
-              const cleanMoves = selectedDossier.moves.replace(/\d+\./g, '').trim().split(/\s+/);
-              cleanMoves.forEach((san) => {
-                try { c.move(san); } catch {}
-              });
-              setChess(c);
-              const branch = selectedDossier.continuationTree[0];
-              setCoachFeedback(`Practice Mode Active: Play the counter move ${branch?.moveSan || 'your move'}.`);
-            }}
-            className="flex-1 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-          >
-            <Play className="w-3.5 h-3.5" />
-            <span>Practice Counter Continuation</span>
-          </button>
+                {/* Best Counter Quick Preview */}
+                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between gap-2">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] uppercase font-bold text-zinc-500">Refutation Weapon</span>
+                    <span className="text-xs font-bold text-white truncate">
+                      {selectedDossier.bestCounterOpening.counterName}
+                    </span>
+                    <span className="text-[10px] font-mono text-amber-400">
+                      {selectedDossier.bestCounterOpening.counterMoves}
+                    </span>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    rounded="lg"
+                    onClick={() => setActiveScreen('counter')}
+                    className="shrink-0"
+                  >
+                    <span>Full Plan</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
 
-          <button
-            onClick={() => router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`)}
-            className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-            title="Spar current position against Bot"
-          >
-            <Bot className="w-3.5 h-3.5 text-amber-400" />
-            <span>Spar Bot</span>
-          </button>
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN (4 Cols): COUNTER-OPENING STRATEGY DOSSIER */}
-      <div className="lg:col-span-4 h-full p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
-        <div className="flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
-          {/* Header Badge */}
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              <span>Recommended Counter-System</span>
-            </span>
-            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-              {selectedDossier.bestCounterOpening.difficulty}
-            </span>
-          </div>
-
-          {/* Counter Name & Moves Card */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-br from-rose-950/30 to-[#141311] border border-rose-500/30 flex flex-col gap-1.5">
-            <h4 className="text-sm font-extrabold text-white">
-              {selectedDossier.bestCounterOpening.counterName}
-            </h4>
-            <span className="font-mono text-xs font-bold text-rose-300">
-              {selectedDossier.bestCounterOpening.counterMoves}
-            </span>
-            <span className="text-[10px] text-zinc-400 font-mono">
-              Advantage: {selectedDossier.bestCounterOpening.winRateAdvantage}
-            </span>
-          </div>
-
-          {/* Why It Works Breakdown */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Why This Counter Works
-            </span>
-            <p className="text-xs text-zinc-300 leading-relaxed font-medium">
-              {selectedDossier.bestCounterOpening.whyItWorks}
-            </p>
-          </div>
-
-          {/* Key Pawn Breaks */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Key Strategic Pawn Breaks
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedDossier.bestCounterOpening.keyPawnBreaks.map((pb, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[11px] font-mono font-bold text-amber-300"
+              {/* Action Anchors */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-white/5 shrink-0">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  rounded="xl"
+                  fullWidth
+                  onClick={() => {
+                    setDrillStatus('practicing');
+                    setDrillIndex(0);
+                    handleResetBoard();
+                    const branch = selectedDossier.continuationTree[0];
+                    setCoachFeedback(`Practice Active: Play the refutation move ${branch?.moveSan || 'on the board'}.`);
+                  }}
                 >
-                  {pb}
-                </span>
-              ))}
-            </div>
-          </div>
+                  <Play className="w-4 h-4 fill-black" />
+                  <span>Practice Counter Continuation (+30 XP)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
 
-          {/* Winning Roadmap */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Strategic Winning Roadmap
-            </span>
-            <div className="flex flex-col gap-1 text-xs text-zinc-300">
-              {selectedDossier.winningRoadmap.map((step, idx) => (
-                <div key={idx} className="flex items-start gap-1.5">
-                  <span className="text-[#81b64c] font-black shrink-0">&bull;</span>
-                  <span>{step}</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    rounded="xl"
+                    onClick={() => router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`)}
+                  >
+                    <Bot className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Spar Against Bot</span>
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    rounded="xl"
+                    onClick={() => setActiveScreen('traps')}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Pitfalls ({selectedDossier.commonTraps?.length || 0})</span>
+                  </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. SUB-SCREEN 2: OPENING CATALOG & DIRECTORY                              */}
+      {/* ========================================================================= */}
+      {activeScreen === 'catalog' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          {/* Search & Category Filter Bar */}
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex-1 relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search openings by ECO or name (e.g. Italian, Sicilian, E10)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#141311] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 p-0.5 bg-[#141311] border border-white/5 rounded-xl">
+              {(['all', '1.e4', '1.d4', 'flank'] as const).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition cursor-pointer ${
+                    categoryFilter === cat
+                      ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {cat}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Common Pitfalls & Traps Alert */}
-          {selectedDossier.commonTraps && selectedDossier.commonTraps.length > 0 && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-col gap-1 text-xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Tactical Pitfalls to Avoid</span>
-              </span>
-              <p className="text-zinc-300 leading-snug">{selectedDossier.commonTraps[0]}</p>
-            </div>
-          )}
-        </div>
+          {/* Opening Cards Grid */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
+            {filteredDossiers.map((d) => {
+              const isSelected = selectedDossier.eco === d.eco;
+              return (
+                <div
+                  key={d.eco}
+                  className={`p-3.5 rounded-2xl bg-[#1c1a17] border flex flex-col justify-between gap-2.5 transition cursor-pointer hover:border-white/20 ${
+                    isSelected ? 'border-[#81b64c]/60 shadow-md ring-1 ring-[#81b64c]/30' : 'border-white/5'
+                  }`}
+                  onClick={() => {
+                    loadOpeningDossier(d);
+                    setActiveScreen('study');
+                  }}
+                >
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-[#81b64c] bg-[#81b64c]/10 px-2 py-0.5 rounded">
+                        {d.eco}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 font-mono">
+                        {d.bestCounterOpening.difficulty}
+                      </span>
+                    </div>
 
-        {/* P1 PRIMARY ACTION ANCHOR - EXACTLY ONE PER SCREEN */}
-        <div className="pt-2 border-t border-white/5 shrink-0">
-          <button
-            onClick={() => {
-              setDrillStatus('practicing');
-              setDrillIndex(0);
-              const branch = selectedDossier.continuationTree[0];
-              setCoachFeedback(`Drill Active: Play ${branch?.moveSan} on the board to refute the opening.`);
-            }}
-            className="w-full py-3.5 px-4 rounded-xl bg-[#81b64c] hover:bg-[#92cb56] text-black font-black text-xs sm:text-sm tracking-tight shadow-md hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
-          >
-            <span>Master Counter Line (+30 XP)</span>
-            <ArrowRight className="w-4 h-4 stroke-[3]" />
-          </button>
+                    <h3 className="text-xs font-extrabold text-white truncate">{d.name}</h3>
+                    <p className="font-mono text-[10px] text-zinc-400 truncate">{d.moves}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-500 truncate max-w-[150px]">
+                      Counter: <strong className="text-amber-400">{d.bestCounterOpening.counterName}</strong>
+                    </span>
+                    <Button variant="secondary" size="xs" rounded="lg">
+                      <span>Study</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. SUB-SCREEN 3: COUNTER-OPENING STRATEGY & ROADMAP                       */}
+      {/* ========================================================================= */}
+      {activeScreen === 'counter' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white">
+                  Counter Strategy vs {selectedDossier.name}
+                </h2>
+                <p className="text-[11px] text-zinc-400">
+                  Recommended refutation: <strong className="text-rose-300">{selectedDossier.bestCounterOpening.counterName}</strong>
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              size="xs"
+              rounded="lg"
+              onClick={() => setActiveScreen('study')}
+            >
+              <span>Back to Board</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+            {/* Why It Works & Pawn Breaks */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+              <div className="flex flex-col gap-2.5">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Why This Counter Works</span>
+                </span>
+                <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                  {selectedDossier.bestCounterOpening.whyItWorks}
+                </p>
+
+                <div className="pt-2 border-t border-white/5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">
+                    Crucial Pawn Breaks
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedDossier.bestCounterOpening.keyPawnBreaks.map((pb, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg bg-[#141311] border border-white/10 text-xs font-mono font-bold text-amber-300"
+                      >
+                        {pb}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-mono">
+                Advantage: {selectedDossier.bestCounterOpening.winRateAdvantage}
+              </div>
+            </div>
+
+            {/* Strategic Winning Roadmap */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 pb-2 border-b border-white/5">
+                <Target className="w-3.5 h-3.5 text-[#81b64c]" />
+                <span>Grandmaster Winning Roadmap</span>
+              </span>
+
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 text-xs text-zinc-300">
+                {selectedDossier.winningRoadmap.map((step, idx) => (
+                  <div key={idx} className="p-2.5 rounded-xl bg-[#141311] border border-white/5 flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#81b64c]/20 text-[#81b64c] font-black text-[10px] flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span className="leading-snug">{step}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                variant="primary"
+                size="sm"
+                rounded="xl"
+                fullWidth
+                onClick={() => {
+                  setActiveScreen('study');
+                  setDrillStatus('practicing');
+                  setDrillIndex(0);
+                }}
+              >
+                <span>Drill This Roadmap on Board (+30 XP)</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. SUB-SCREEN 4: TRAPS & PITFALLS                                          */}
+      {/* ========================================================================= */}
+      {activeScreen === 'traps' && (
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-white">
+                  Tactical Traps &bull; {selectedDossier.name}
+                </h2>
+                <p className="text-[11px] text-zinc-400">
+                  Known pitfalls to dodge when contesting this system
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              size="xs"
+              rounded="lg"
+              onClick={() => setActiveScreen('study')}
+            >
+              <span>Back to Board</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+            {/* Traps List */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 pb-2 border-b border-white/5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Documented Traps in {selectedDossier.eco}</span>
+              </span>
+
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2.5">
+                {selectedDossier.commonTraps && selectedDossier.commonTraps.length > 0 ? (
+                  selectedDossier.commonTraps.map((trap, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-[#141311] border border-amber-500/20 text-xs text-zinc-300 flex items-start gap-2.5"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-black text-[10px] flex items-center justify-center shrink-0">
+                        !
+                      </span>
+                      <p className="leading-relaxed">{trap}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-12 text-center text-xs text-zinc-500 font-mono">
+                    No immediate known traps recorded for this line. Play principled central chess.
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-white/5 text-[11px] text-zinc-500">
+                Rule of Thumb: Always calculate checks and captures before committing to non-developing moves.
+              </div>
+            </div>
+
+            {/* Direct Bot Sparring Challenge */}
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
+              <div className="flex flex-col gap-2.5">
+                <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 pb-2 border-b border-white/5">
+                  <Bot className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <span>Interactive Bot Sparring</span>
+                </span>
+
+                <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                  Test your defenses against the computer engine right from the critical tabiya of{' '}
+                  <strong className="text-white">{selectedDossier.name}</strong>.
+                </p>
+
+                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 font-mono text-xs text-[#81b64c] truncate">
+                  {selectedDossier.moves}
+                </div>
+              </div>
+
+              <Button
+                variant="primary"
+                size="lg"
+                rounded="xl"
+                fullWidth
+                onClick={() => router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`)}
+              >
+                <Bot className="w-4 h-4 fill-black" />
+                <span>Spar This Opening Against Bot</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

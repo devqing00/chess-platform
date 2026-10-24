@@ -58,13 +58,13 @@ function TrainingContent() {
             {/* Daily Streak */}
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#201e1a] border-2 border-[#35322b] rounded-xl text-[11px] font-black text-amber-400 shadow-[0_2px_0_0_#141311]">
               <Flame className="w-3.5 h-3.5 fill-amber-400 shrink-0" />
-              <span className="font-mono">{xpProfile.streak}d</span>
+              <span className="font-mono" suppressHydrationWarning>{xpProfile.streak}d</span>
             </div>
 
             {/* XP Total */}
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#201e1a] border-2 border-[#35322b] rounded-xl text-[11px] font-black text-emerald-400 shadow-[0_2px_0_0_#141311]">
               <Zap className="w-3.5 h-3.5 fill-emerald-400 shrink-0" />
-              <span className="font-mono">{xpProfile.totalXp} XP</span>
+              <span className="font-mono" suppressHydrationWarning>{xpProfile.totalXp} XP</span>
             </div>
 
             {/* League Badge */}
@@ -77,7 +77,7 @@ function TrainingContent() {
               }}
             >
               <Award className="w-3.5 h-3.5 shrink-0" />
-              <span>{xpProfile.league.name}</span>
+              <span suppressHydrationWarning>{xpProfile.league.name}</span>
             </div>
           </div>
         </div>
