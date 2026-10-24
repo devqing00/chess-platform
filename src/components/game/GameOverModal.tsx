@@ -83,7 +83,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const opponentIsBot = Boolean(isUserWhite ? blackPlayer.isBot : whitePlayer.isBot);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-200">
       {/* Main Results Card */}
       <div className="w-full max-w-sm max-h-[95vh] overflow-y-auto bg-[#211f1c] text-zinc-100 rounded-3xl shadow-[0_8px_0_0_#141311] flex flex-col animate-in zoom-in-95 duration-200 border-2 border-[#35322b]">
         {/* Dynamic Result Header Banner */}

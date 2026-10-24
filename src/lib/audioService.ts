@@ -525,6 +525,40 @@ class SoundService {
     });
   }
 
+  // Cinematic Fighting Game VS Impact Boom
+  public playVersusImpact() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const t = ctx.currentTime;
+    const dest = this.getSfxDestination();
+
+    // 1. Sub-bass boom
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(140, t);
+    subOsc.frequency.exponentialRampToValueAtTime(35, t + 0.45);
+    subGain.gain.setValueAtTime(0.4, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+    subOsc.connect(subGain).connect(dest);
+    subOsc.start(t);
+    subOsc.stop(t + 0.7);
+
+    // 2. Metallic clash
+    const metalOsc = ctx.createOscillator();
+    const metalGain = ctx.createGain();
+    metalOsc.type = 'triangle';
+    metalOsc.frequency.setValueAtTime(650, t);
+    metalOsc.frequency.exponentialRampToValueAtTime(220, t + 0.25);
+    metalGain.gain.setValueAtTime(0.25, t);
+    metalGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    metalOsc.connect(metalGain).connect(dest);
+    metalOsc.start(t);
+    metalOsc.stop(t + 0.45);
+  }
+
   // Puzzle success / combo streak
   public playPuzzleSuccess() {
     if (!this.soundEnabled) return;

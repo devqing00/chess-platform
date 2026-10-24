@@ -18,6 +18,7 @@ import {
 import { soundService } from '@/lib/audioService';
 import { Button } from '@/components/ui/button';
 import confetti from 'canvas-confetti';
+import { MatchVersusIntro } from '../game/MatchVersusIntro';
 import {
   Crown,
   Zap,
@@ -134,6 +135,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
   const [isBotThinking, setIsBotThinking] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState<'w' | 'b'>('w');
   const [copiedFen, setCopiedFen] = useState(false);
+  const [showVersusIntro, setShowVersusIntro] = useState(false);
 
   // Synchronize internal chess.js instance whenever FEN changes
   useEffect(() => {
@@ -159,6 +161,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
     if (initial.chess960Index !== undefined) {
       setSelected960Index(initial.chess960Index);
     }
+    setShowVersusIntro(true);
     soundService.playMove();
   };
 
@@ -1093,6 +1096,27 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
           </div>
         )}
       </main>
+
+      {/* Fighting Game Style Intro Face-Off */}
+      <MatchVersusIntro
+        isOpen={showVersusIntro}
+        onComplete={() => setShowVersusIntro(false)}
+        whitePlayer={{
+          name: 'You',
+          avatar: '🧑‍💻',
+          rating: 1200,
+          title: 'PLAYER',
+          country: 'US',
+        }}
+        blackPlayer={{
+          name: vsBot ? `Variant Bot (${botDifficulty})` : 'Player 2',
+          avatar: vsBot ? '🤖' : '♟️',
+          rating: vsBot ? (botDifficulty === 'master' ? 2200 : botDifficulty === 'club' ? 1500 : 900) : 1200,
+          title: vsBot ? 'BOT' : undefined,
+          isBot: vsBot,
+        }}
+        gameFormat={`${currentVariantMeta.name} • Arena Battle`}
+      />
     </div>
   );
 };

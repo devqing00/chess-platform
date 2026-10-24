@@ -11,7 +11,9 @@ import { useAuth } from '@/context/AuthContext';
 import { soundService } from '@/lib/audioService';
 import { Button } from '@/components/ui/button';
 import { GameSessionStore } from '@/lib/gameSessionStore';
-import { GamePlayer } from '@/types/chess';
+import { GamePlayer, GameResultDetails } from '@/types/chess';
+import { GameOverModal } from '@/components/game/GameOverModal';
+import { MatchVersusIntro } from '@/components/game/MatchVersusIntro';
 import {
   getPersistentGuestUid,
   getEffectiveUserProfile,
@@ -61,6 +63,12 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
 
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncTimestampRef = useRef<number>(Date.now());
+
+  // Result modal & Versus Intro states
+  const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(true);
+  const [showVersusIntro, setShowVersusIntro] = useState(false);
+  const versusIntroShownRef = useRef(false);
+  const prevGameStatusRef = useRef<LiveSyncGame['status'] | null>(null);
 
   // Leave confirmation modal state
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
@@ -285,10 +293,39 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     };
   }, [game?.status]);
 
+  // Game status transition audio & modal trigger watchdog
+  useEffect(() => {
+    if (!game) return;
+
+    if (prevGameStatusRef.current !== game.status) {
+      if (game.status === 'completed') {
+        setIsGameOverModalOpen(true);
+        if (game.winner === 'draw') {
+          soundService.playGameEndDraw();
+        } else if (game.winner === playerColor) {
+          soundService.playGameEndWin();
+        } else {
+          soundService.playGameEndLoss();
+        }
+      } else if (game.status === 'active' && prevGameStatusRef.current !== 'active') {
+        if (!versusIntroShownRef.current && game.whitePlayer && game.blackPlayer) {
+          versusIntroShownRef.current = true;
+          setShowVersusIntro(true);
+        }
+      }
+      prevGameStatusRef.current = game.status;
+    }
+  }, [game?.status, game?.winner, game?.whitePlayer, game?.blackPlayer, playerColor]);
+
   const handleConfirmLeave = async () => {
     if (!game || game.status !== 'active') {
       setShowLeaveConfirmation(false);
-      router.push(pendingNavigationUrl || '/play');
+      if (pendingNavigationUrl) {
+        router.push(pendingNavigationUrl);
+        setPendingNavigationUrl(null);
+      } else {
+        router.push('/play');
+      }
       return;
     }
 
@@ -299,7 +336,14 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     }
 
     setShowLeaveConfirmation(false);
-    router.push(pendingNavigationUrl || '/play');
+
+    // CRITICAL: Only redirect away if the user actually requested external navigation (e.g. back button).
+    // If the player clicked in-game Resign, pendingNavigationUrl is null: DO NOT redirect them!
+    // Keep them on screen so they see their GameOverModal with defeat stats, review accuracy, and rematch options.
+    if (pendingNavigationUrl) {
+      router.push(pendingNavigationUrl);
+      setPendingNavigationUrl(null);
+    }
   };
 
   // 4. Handle Player Move
@@ -418,6 +462,36 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const opponentTime = isWhite ? localBlackTime : localWhiteTime;
   const myTime = isWhite ? localWhiteTime : localBlackTime;
   const opponentDisconnected = game?.disconnectedPlayer && game.disconnectedPlayer !== playerColor;
+
+  // Normalized Reason & Result Details for GameOverModal
+  const mappedReason = useMemo((): GameResultDetails['reason'] => {
+    if (!game?.winReason) return 'concluded';
+    const r = game.winReason.toLowerCase();
+    if (r.includes('resign')) return 'resignation';
+    if (r.includes('checkmate')) return 'checkmate';
+    if (r.includes('time') || r.includes('flag')) return 'timeout';
+    if (r.includes('stalemate')) return 'stalemate';
+    if (r.includes('insufficient')) return 'insufficient';
+    if (r.includes('agreement') || r.includes('agreed') || r.includes('draw')) return 'agreement';
+    if (r.includes('repetition')) return 'repetition';
+    if (r.includes('50')) return '50move';
+    if (r.includes('abort') || r.includes('disconnect') || r.includes('departure')) return 'abandonment';
+    return 'concluded';
+  }, [game?.winReason]);
+
+  const resultDetails = useMemo((): GameResultDetails | null => {
+    if (!game || game.status !== 'completed' || !game.winner) return null;
+    const isWinner = game.winner === playerColor;
+    const isDraw = game.winner === 'draw';
+    const ratingDelta = isDraw ? 0 : isWinner ? 12 : -12;
+    const currentRating = activeProfile.ratings.blitz || 1200;
+    return {
+      winner: game.winner,
+      reason: mappedReason,
+      ratingDelta,
+      newRating: Math.max(100, currentRating + ratingDelta),
+    };
+  }, [game?.status, game?.winner, playerColor, mappedReason, activeProfile.ratings.blitz]);
 
   const handlePlayBotFallback = () => {
     const humanPlayer: GamePlayer = {
@@ -733,43 +807,20 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           )}
 
           {/* ----------------------------------------------------------------- */}
-          {/* OVERLAY D: GAME OVER (VICTORY / DEFEAT)                            */}
+          {/* FLOATING INSPECT/REOPEN RESULT BUTTON WHEN MODAL IS CLOSED       */}
           {/* ----------------------------------------------------------------- */}
-          {game?.status === 'completed' && (
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center gap-3 z-20 animate-in zoom-in-95">
-              <div className="w-12 h-12 rounded-2xl bg-[#81b64c]/20 border border-[#81b64c]/40 text-[#81b64c] flex items-center justify-center">
-                <Award className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-white">
-                  {game.winner === 'draw'
-                    ? 'Game Drawn'
-                    : game.winner === playerColor
-                    ? '🏆 You Won!'
-                    : 'Defeat'}
-                </h3>
-                <p className="text-xs text-zinc-400 mt-1">{game.winReason}</p>
-              </div>
-
-              <div className="flex gap-2 mt-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  rounded="xl"
-                  onClick={() => router.push(`/game/review/${gameId}`)}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Review Accuracy</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  rounded="xl"
-                  onClick={() => router.push('/play')}
-                >
-                  <span>Play Again</span>
-                </Button>
-              </div>
+          {game?.status === 'completed' && !isGameOverModalOpen && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2">
+              <Button
+                variant="primary"
+                size="sm"
+                rounded="xl"
+                onClick={() => setIsGameOverModalOpen(true)}
+                className="shadow-2xl border border-white/20 px-4 py-1.5 font-black text-xs flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white cursor-pointer"
+              >
+                <Award className="w-4 h-4" />
+                <span>View Match Result</span>
+              </Button>
             </div>
           )}
         </div>
@@ -1030,6 +1081,60 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. FIGHTING GAME STYLE MATCH INTRO SPLASH                                */}
+      {/* ========================================================================= */}
+      {game?.whitePlayer && game?.blackPlayer && (
+        <MatchVersusIntro
+          isOpen={showVersusIntro}
+          onComplete={() => setShowVersusIntro(false)}
+          whitePlayer={{
+            name: game.whitePlayer.name || 'White',
+            avatar: game.whitePlayer.avatar,
+            rating: game.whitePlayer.rating,
+            title: game.whitePlayer.title,
+            country: game.whitePlayer.country,
+          }}
+          blackPlayer={{
+            name: game.blackPlayer.name || 'Black',
+            avatar: game.blackPlayer.avatar,
+            rating: game.blackPlayer.rating,
+            title: game.blackPlayer.title,
+            country: game.blackPlayer.country,
+          }}
+          gameFormat={`${Math.floor((game.timeControlSec || 600) / 60)}m ${game.incrementSec ? `+${game.incrementSec}s` : ''} • Live Arena`}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. HIGH-ELEVATION GAME OVER MODAL (z-[100] OUTSIDE BOARD PIECES)          */}
+      {/* ========================================================================= */}
+      {resultDetails && (
+        <GameOverModal
+          isOpen={isGameOverModalOpen && game?.status === 'completed'}
+          onClose={() => setIsGameOverModalOpen(false)}
+          result={resultDetails}
+          whitePlayer={{
+            id: game?.whitePlayer?.uid || 'w',
+            name: game?.whitePlayer?.name || 'White',
+            rating: game?.whitePlayer?.rating || 1200,
+            avatar: game?.whitePlayer?.avatar || '♟️',
+            country: game?.whitePlayer?.country || 'US',
+          }}
+          blackPlayer={{
+            id: game?.blackPlayer?.uid || 'b',
+            name: game?.blackPlayer?.name || 'Black',
+            rating: game?.blackPlayer?.rating || 1200,
+            avatar: game?.blackPlayer?.avatar || '♟️',
+            country: game?.blackPlayer?.country || 'US',
+          }}
+          userColor={playerColor}
+          onReviewGame={() => router.push(`/game/review/${gameId}`)}
+          onRematch={() => router.push('/play')}
+          onNewGame={() => router.push('/play')}
+        />
       )}
     </div>
   );

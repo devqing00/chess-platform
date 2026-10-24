@@ -27,6 +27,7 @@ import { PlayerCard } from '@/components/game/PlayerCard';
 import { MoveHistory } from '@/components/game/MoveHistory';
 import { MobileBottomBar } from '@/components/game/MobileBottomBar';
 import { GameOverModal } from '@/components/game/GameOverModal';
+import { MatchVersusIntro } from '@/components/game/MatchVersusIntro';
 
 import {
   RotateCcw,
@@ -101,6 +102,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [isResignModalOpen, setIsResignModalOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [showVersusIntro, setShowVersusIntro] = useState(false);
+  const versusIntroShownRef = useRef(false);
 
   const [whiteTime, setWhiteTime] = useState<number>(600);
   const [blackTime, setBlackTime] = useState<number>(600);
@@ -173,6 +176,12 @@ export default function GameRoomPage({ params }: GamePageProps) {
         setOrientation('b');
       } else {
         setOrientation('w');
+      }
+
+      // Trigger Fighting Game Style Intro on new game start
+      if (!session.isGameOver && (!session.moves || session.moves.length === 0) && !versusIntroShownRef.current) {
+        versusIntroShownRef.current = true;
+        setShowVersusIntro(true);
       }
 
       // Initial bot welcome quote
@@ -825,6 +834,19 @@ export default function GameRoomPage({ params }: GamePageProps) {
               activeClassification={null}
               disabled={Boolean(gameResult)}
             />
+
+            {/* Floating Re-Open Result Button when reviewing final board */}
+            {resultDetails && !isGameOverModalOpen && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2 pointer-events-auto">
+                <button
+                  onClick={() => setIsGameOverModalOpen(true)}
+                  className="shadow-2xl border border-white/20 px-4 py-1.5 rounded-xl font-black text-xs flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white cursor-pointer transition-transform hover:scale-105"
+                >
+                  <Award className="w-4 h-4" />
+                  <span>View Match Result</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Bottom Player Bar (User) */}
@@ -1112,6 +1134,29 @@ export default function GameRoomPage({ params }: GamePageProps) {
           onNewGame={() => router.push('/play')}
         />
       )}
+
+      {/* Cinematic Fighting Game Style Intro Face-off */}
+      <MatchVersusIntro
+        isOpen={showVersusIntro}
+        onComplete={() => setShowVersusIntro(false)}
+        whitePlayer={{
+          name: whitePlayer.name,
+          avatar: whitePlayer.avatar,
+          rating: whitePlayer.rating,
+          title: whitePlayer.title,
+          country: whitePlayer.country,
+          isBot: whitePlayer.isBot,
+        }}
+        blackPlayer={{
+          name: blackPlayer.name,
+          avatar: blackPlayer.avatar,
+          rating: blackPlayer.rating,
+          title: blackPlayer.title,
+          country: blackPlayer.country,
+          isBot: blackPlayer.isBot,
+        }}
+        gameFormat={botPlayer ? `Bot Battle • Vs ${botPlayer.name}` : `${variant.toUpperCase()} Match`}
+      />
     </div>
   );
 }

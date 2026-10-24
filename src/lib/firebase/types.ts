@@ -143,6 +143,8 @@ export interface LiveSyncGame {
     rating: number;
     online: boolean;
     avatar?: string;
+    title?: string;
+    country?: string;
   };
   blackPlayer?: {
     uid: string;
@@ -150,6 +152,8 @@ export interface LiveSyncGame {
     rating: number;
     online: boolean;
     avatar?: string;
+    title?: string;
+    country?: string;
   };
   drawOfferFrom?: 'w' | 'b' | null;
   rematchRequestedBy?: 'w' | 'b' | null;
