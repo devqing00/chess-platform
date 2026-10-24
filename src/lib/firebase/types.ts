@@ -128,7 +128,15 @@ export interface LiveSyncGame {
   timeControlSec: number;
   incrementSec?: number;
   variant?: string;
-  status: 'waiting' | 'active' | 'completed' | 'abandoned';
+  status: 'pending_challenge' | 'waiting' | 'active' | 'completed' | 'aborted' | 'abandoned';
+  hostUid?: string;
+  hostName?: string;
+  hostRating?: number;
+  hostAvatar?: string;
+  hostColorChoice?: 'w' | 'b' | 'random';
+  firstMoveDeadline?: number | null;
+  startedAt?: number;
+  rated?: boolean;
   whitePlayer: {
     uid: string;
     name: string;

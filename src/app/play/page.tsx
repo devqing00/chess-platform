@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { GameSessionStore, getSessionUserOutcome, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { syncExternalAccountGames } from '@/lib/syncService';
 import { MatchmakingService } from '@/lib/firebase/matchmakingService';
+import { GameSyncService } from '@/lib/firebase/gameSyncService';
+import { UserProfile } from '@/lib/firebase/types';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
 import { ChessVariant, GamePlayer, GameSession } from '@/types/chess';
@@ -31,6 +33,8 @@ import {
   Copy,
   Check,
   ArrowRight,
+  Link as LinkIcon,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -93,7 +97,7 @@ export default function PlayLobbyPage() {
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControlOption>(
     QUICK_TIME_CONTROLS[3] // Default 10m Rapid
   );
-  const [selectedMode, setSelectedMode] = useState<'bot' | 'online_pvp' | 'pass_and_play'>('bot');
+  const [selectedMode, setSelectedMode] = useState<'bot' | 'online_pvp' | 'friend_challenge' | 'pass_and_play'>('bot');
   const [selectedBotId, setSelectedBotId] = useState<string>('martin');
   const [playAsColor, setPlayAsColor] = useState<'w' | 'random' | 'b'>('w');
   const [selectedVariant, setSelectedVariant] = useState<ChessVariant>('standard');
@@ -111,11 +115,11 @@ export default function PlayLobbyPage() {
   // Queue state
   const [isQueueing, setIsQueueing] = useState(false);
   const [queueElapsed, setQueueElapsed] = useState(0);
-  const [challengeRoomCode, setChallengeRoomCode] = useState('');
+  const [queueTimeoutReached, setQueueTimeoutReached] = useState(false);
+  const [isCreatingChallenge, setIsCreatingChallenge] = useState(false);
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
 
   const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const matchmakingFallbackRef = useRef<NodeJS.Timeout | null>(null);
   const queueCleanupRef = useRef<(() => void) | null>(null);
 
   const [recentGames, setRecentGames] = useState<GameSession[]>([]);
@@ -193,77 +197,71 @@ export default function PlayLobbyPage() {
     return matchesCategory && matchesSearch;
   });
 
-  // Handle Online Matchmaking Queue
+  // Handle Real Online Matchmaking Queue (100% Genuine Human Players via Firestore)
   const handleStartOnlineQueue = async () => {
     setIsQueueing(true);
     setQueueElapsed(0);
+    setQueueTimeoutReached(false);
 
     queueTimerRef.current = setInterval(() => {
-      setQueueElapsed((prev) => prev + 1);
+      setQueueElapsed((prev) => {
+        const next = prev + 1;
+        if (next >= 20) {
+          setQueueTimeoutReached(true);
+        }
+        return next;
+      });
     }, 1000);
 
-    const onlineOpponents = [
-      { name: 'Magnus_Carlsen_Fan', rating: 1240, avatar: '🇳🇴', country: 'NO' },
-      { name: 'BlitzKing99', rating: 1315, avatar: '🇺🇸', country: 'US' },
-      { name: 'TacticalDragon', rating: 1180, avatar: '🇩🇪', country: 'DE' },
-      { name: 'CheckmateArtist', rating: 1290, avatar: '🇫🇷', country: 'FR' },
-    ];
+    const userProfile: UserProfile = profile || {
+      uid: user?.uid || `guest-${Date.now()}`,
+      email: user?.email || null,
+      displayName: effectiveDisplayName || 'Guest Player',
+      avatar: effectiveAvatar || '♟️',
+      tier: 'free',
+      country: effectiveCountry || 'US',
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      isAnonymous: !user?.uid,
+      ratings: {
+        blitz: effectiveRating || 1200,
+        rapid: effectiveRating || 1200,
+        bullet: effectiveRating || 1200,
+        daily: 1200,
+        puzzles: 1200,
+        puzzleRush: 0,
+      },
+      stats: {
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        winStreak: 0,
+      },
+    };
 
-    if (user?.uid && profile) {
-      try {
-        const { ticketId, unsubscribe } = await MatchmakingService.enterQueue(
-          profile,
-          selectedTimeControl.sec,
-          selectedTimeControl.inc,
-          selectedVariant,
-          (matchedGameId: string) => {
-            if (queueTimerRef.current) clearInterval(queueTimerRef.current);
-            if (matchmakingFallbackRef.current) clearTimeout(matchmakingFallbackRef.current);
-            setIsQueueing(false);
-            router.push(`/play/live/${matchedGameId}`);
-          }
-        );
-
-        queueCleanupRef.current = () => {
-          unsubscribe();
-          MatchmakingService.cancelQueue(ticketId);
-        };
-      } catch (err) {
-        console.error('Matchmaking service error:', err);
-      }
-    }
-
-    matchmakingFallbackRef.current = setTimeout(() => {
-      setIsQueueing(false);
-      const opponentData = onlineOpponents[Math.floor(Math.random() * onlineOpponents.length)];
-
-      const whitePlayer: GamePlayer = {
-        id: user?.uid || 'player-you',
-        name: effectiveDisplayName,
-        rating: effectiveRating || 1200,
-        avatar: effectiveAvatar,
-        country: effectiveCountry.toUpperCase(),
-      };
-
-      const blackPlayer: GamePlayer = {
-        id: `opponent-${Date.now()}`,
-        name: opponentData.name,
-        rating: opponentData.rating,
-        avatar: opponentData.avatar,
-        country: opponentData.country,
-      };
-
-      const session = GameSessionStore.createSession(
-        whitePlayer,
-        blackPlayer,
+    try {
+      const { ticketId, unsubscribe } = await MatchmakingService.enterQueue(
+        userProfile,
         selectedTimeControl.sec,
+        selectedTimeControl.inc,
         selectedVariant,
-        undefined,
-        selectedTimeControl.inc
+        (matchedGameId: string) => {
+          if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+          setIsQueueing(false);
+          router.push(`/play/live/${matchedGameId}`);
+        }
       );
 
-      router.push(`/game/${session.id}`);
-    }, 3200);
+      queueCleanupRef.current = () => {
+        unsubscribe();
+        MatchmakingService.cancelQueue(ticketId);
+      };
+    } catch (err) {
+      console.error('Matchmaking service error:', err);
+      setIsQueueing(false);
+      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+    }
   };
 
   const handleCancelQueue = () => {
@@ -271,13 +269,58 @@ export default function PlayLobbyPage() {
       queueCleanupRef.current();
       queueCleanupRef.current = null;
     }
-    if (matchmakingFallbackRef.current) {
-      clearTimeout(matchmakingFallbackRef.current);
-    }
     if (queueTimerRef.current) {
       clearInterval(queueTimerRef.current);
     }
     setIsQueueing(false);
+    setQueueTimeoutReached(false);
+  };
+
+  // Handle Create Private Friend Challenge
+  const handleCreateFriendChallenge = async () => {
+    try {
+      setIsCreatingChallenge(true);
+      const hostProfile: UserProfile = profile || {
+        uid: user?.uid || `guest-${Date.now()}`,
+        email: user?.email || null,
+        displayName: effectiveDisplayName || 'Host Player',
+        avatar: effectiveAvatar || '♟️',
+        tier: 'free',
+        country: effectiveCountry || 'US',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        isAnonymous: !user?.uid,
+        ratings: {
+          blitz: effectiveRating || 1200,
+          rapid: effectiveRating || 1200,
+          bullet: effectiveRating || 1200,
+          daily: 1200,
+          puzzles: 1200,
+          puzzleRush: 0,
+        },
+        stats: {
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          winStreak: 0,
+        },
+      };
+
+      const gameId = await GameSyncService.createFriendChallengeWithAutoId(
+        hostProfile,
+        selectedTimeControl.sec,
+        selectedTimeControl.inc,
+        selectedVariant,
+        playAsColor,
+        true
+      );
+
+      router.push(`/play/live/${gameId}`);
+    } catch (err) {
+      console.error('Failed to create friend challenge:', err);
+      setIsCreatingChallenge(false);
+    }
   };
 
   // Handle Play Against Bot or Pass & Play
@@ -323,14 +366,9 @@ export default function PlayLobbyPage() {
     router.push(`/game/${session.id}`);
   };
 
-  const handleGenerateRoomLink = () => {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setChallengeRoomCode(code);
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://checkmate.app';
-    const link = `${origin}/play?room=${code}`;
-    navigator.clipboard.writeText(link);
-    setHasCopiedLink(true);
-    setTimeout(() => setHasCopiedLink(false), 2500);
+  const handleSelectFriendChallenge = () => {
+    setSelectedMode('friend_challenge');
+    setActiveScreen('arena');
   };
 
   const handleApplyCustomClock = () => {
@@ -368,16 +406,14 @@ export default function PlayLobbyPage() {
         {/* Right: Quick Action Triggers */}
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
-            variant="secondary"
+            variant={selectedMode === 'friend_challenge' ? 'primary' : 'secondary'}
             size="xs"
             rounded="xl"
-            onClick={handleGenerateRoomLink}
-            title="Generate private room invite link"
+            onClick={handleSelectFriendChallenge}
+            title="Challenge a friend with private invite link"
           >
-            <Share2 className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">
-              {hasCopiedLink ? 'Link Copied!' : 'Play a Friend'}
-            </span>
+            <Share2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Play a Friend</span>
           </Button>
           <Button
             variant="secondary"
@@ -466,10 +502,10 @@ export default function PlayLobbyPage() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                     Select Game Mode
                   </span>
-                  <div className="grid grid-cols-3 gap-1.5 bg-[#141311] p-1 rounded-xl border border-white/5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-[#141311] p-1 rounded-xl border border-white/5">
                     <button
                       onClick={() => setSelectedMode('bot')}
-                      className={`py-2 px-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         selectedMode === 'bot'
                           ? 'bg-[#81b64c] text-black shadow-sm font-black'
                           : 'text-zinc-400 hover:text-white'
@@ -481,7 +517,7 @@ export default function PlayLobbyPage() {
 
                     <button
                       onClick={() => setSelectedMode('online_pvp')}
-                      className={`py-2 px-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         selectedMode === 'online_pvp'
                           ? 'bg-amber-600 text-white shadow-sm font-black'
                           : 'text-zinc-400 hover:text-white'
@@ -492,8 +528,20 @@ export default function PlayLobbyPage() {
                     </button>
 
                     <button
+                      onClick={() => setSelectedMode('friend_challenge')}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        selectedMode === 'friend_challenge'
+                          ? 'bg-blue-600 text-white shadow-sm font-black'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Friend Link</span>
+                    </button>
+
+                    <button
                       onClick={() => setSelectedMode('pass_and_play')}
-                      className={`py-2 px-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         selectedMode === 'pass_and_play'
                           ? 'bg-purple-600 text-white shadow-sm font-black'
                           : 'text-zinc-400 hover:text-white'
@@ -590,19 +638,59 @@ export default function PlayLobbyPage() {
               {/* P1 PRIMARY ACTION ANCHOR - EXACTLY ONE ON SCREEN */}
               <div className="pt-2">
                 {isQueueing ? (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 py-3.5 px-4 rounded-xl bg-amber-600/30 border border-amber-500/40 text-amber-300 font-extrabold text-sm flex items-center justify-center gap-2 animate-pulse">
-                      <RotateCw className="w-4 h-4 animate-spin" />
-                      <span>Searching match ({queueElapsed}s)...</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 py-3 px-4 rounded-xl bg-amber-600/30 border border-amber-500/40 text-amber-300 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 animate-pulse">
+                        <RotateCw className="w-4 h-4 animate-spin" />
+                        <span>Searching global queue ({queueElapsed}s)...</span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="md"
+                        rounded="xl"
+                        onClick={handleCancelQueue}
+                      >
+                        Cancel
+                      </Button>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="md"
-                      rounded="xl"
-                      onClick={handleCancelQueue}
-                    >
-                      Cancel
-                    </Button>
+
+                    {queueTimeoutReached && (
+                      <div className="p-3 rounded-xl bg-[#141311] border border-amber-500/30 flex flex-col gap-2 text-xs animate-in fade-in">
+                        <div className="flex items-center gap-1.5 text-amber-300 font-bold">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>No live opponents in this rating window right now</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400">
+                          You can continue searching or switch instantly:
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button
+                            variant="secondary"
+                            size="xs"
+                            rounded="lg"
+                            onClick={() => {
+                              handleCancelQueue();
+                              setSelectedMode('friend_challenge');
+                            }}
+                          >
+                            <Share2 className="w-3 h-3 text-blue-400" />
+                            <span>Challenge a Friend via Link</span>
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="xs"
+                            rounded="lg"
+                            onClick={() => {
+                              handleCancelQueue();
+                              setSelectedMode('bot');
+                            }}
+                          >
+                            <Bot className="w-3 h-3 text-[#81b64c]" />
+                            <span>Play vs {chosenBot.name}</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <Button
@@ -610,14 +698,23 @@ export default function PlayLobbyPage() {
                     size="xl"
                     rounded="xl"
                     fullWidth
+                    disabled={isCreatingChallenge}
                     onClick={
-                      selectedMode === 'online_pvp' ? handleStartOnlineQueue : handleStartLocalOrBotMatch
+                      selectedMode === 'online_pvp'
+                        ? handleStartOnlineQueue
+                        : selectedMode === 'friend_challenge'
+                        ? handleCreateFriendChallenge
+                        : handleStartLocalOrBotMatch
                     }
                   >
                     <Play className="w-4 h-4 fill-black" />
                     <span>
-                      {selectedMode === 'online_pvp'
+                      {isCreatingChallenge
+                        ? 'Creating Challenge Link...'
+                        : selectedMode === 'online_pvp'
                         ? `Find 1v1 Opponent (${selectedTimeControl.label} ${selectedTimeControl.sub})`
+                        : selectedMode === 'friend_challenge'
+                        ? `Create Challenge Link (${selectedTimeControl.label})`
                         : selectedMode === 'bot'
                         ? `Play vs ${chosenBot.name} (${selectedTimeControl.label} ${selectedTimeControl.sub})`
                         : `Start Pass & Play (${selectedTimeControl.label})`}
@@ -679,17 +776,41 @@ export default function PlayLobbyPage() {
               {selectedMode === 'online_pvp' && (
                 <div className="flex flex-col gap-3">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                    Global Matchmaking Pool
+                    Live Global Matchmaking
                   </span>
                   <div className="p-5 rounded-2xl bg-[#141311] border border-white/5 flex flex-col items-center text-center gap-3">
                     <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl animate-pulse">
                       <Globe className="w-8 h-8" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">Live Rating Pairings</h3>
+                      <h3 className="text-sm font-bold text-white">Genuine Rating Pairings</h3>
                       <p className="text-xs text-zinc-400 mt-1 max-w-xs">
-                        Match with players worldwide in your rating band with Stockfish anti-cheat validation.
+                        Queues against real human players connected to the platform in your rating tier. 0 fake demo bots.
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedMode === 'friend_challenge' && (
+                <div className="flex flex-col gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                    Private 1v1 Friend Challenge
+                  </span>
+                  <div className="p-5 rounded-2xl bg-[#141311] border border-blue-500/20 flex flex-col items-center text-center gap-3">
+                    <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 text-2xl">
+                      <Share2 className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Shareable Invite Link</h3>
+                      <p className="text-xs text-zinc-400 mt-1 max-w-xs">
+                        Generate a private link to send to a friend via WhatsApp, Discord, or SMS. They review your format and accept to begin immediately!
+                      </p>
+                    </div>
+                    <div className="w-full p-2.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-300 flex items-center justify-around font-mono">
+                      <span>Format: {selectedTimeControl.label}</span>
+                      <span>&bull;</span>
+                      <span>Color: {playAsColor === 'w' ? 'White ⚪' : playAsColor === 'b' ? 'Black ⚫' : 'Random 🌓'}</span>
                     </div>
                   </div>
                 </div>
@@ -1174,7 +1295,7 @@ export default function PlayLobbyPage() {
 
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-zinc-400 font-mono">
-            Mode: {selectedMode === 'bot' ? 'vs Bot' : selectedMode === 'online_pvp' ? 'Online 1v1' : 'Pass & Play'}
+            Mode: {selectedMode === 'bot' ? 'vs Bot' : selectedMode === 'online_pvp' ? 'Online 1v1' : selectedMode === 'friend_challenge' ? 'Friend Challenge' : 'Pass & Play'}
           </span>
           <span className="text-zinc-600">•</span>
           <span className="text-[11px] text-zinc-300 font-mono">

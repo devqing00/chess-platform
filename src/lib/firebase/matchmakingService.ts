@@ -111,6 +111,8 @@ export class MatchmakingService {
         whitePlayer,
         blackPlayer,
         moves: [],
+        firstMoveDeadline: Date.now() + 30000,
+        startedAt: Date.now(),
         updatedAt: Date.now(),
       });
 

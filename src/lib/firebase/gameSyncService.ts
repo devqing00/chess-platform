@@ -42,6 +42,10 @@ export class GameSyncService {
 
     if (snap.exists()) {
       const data = snap.data() as LiveSyncGame;
+      // If it's a pending challenge, do not auto-join; the guest must review settings and approve
+      if (data.status === 'pending_challenge') {
+        return data;
+      }
       // If black slot is open and user isn't white, join as black
       if (!data.blackPlayer && data.whitePlayer.uid !== user.uid) {
         const updated: Partial<LiveSyncGame> = {
@@ -53,6 +57,8 @@ export class GameSyncService {
             avatar: user.avatar,
           },
           status: 'active',
+          startedAt: Date.now(),
+          firstMoveDeadline: Date.now() + 30000,
           updatedAt: Date.now(),
         };
         await updateDoc(gameDocRef, updated);
@@ -85,6 +91,152 @@ export class GameSyncService {
 
     await setDoc(gameDocRef, newGame);
     return newGame;
+  }
+
+  /**
+   * Create a challenge room awaiting opponent approval
+   */
+  public static async createFriendChallenge(
+    gameId: string,
+    host: UserProfile,
+    timeControlSec: number = 600,
+    incrementSec: number = 0,
+    variant: string = 'standard',
+    hostColorChoice: 'w' | 'b' | 'random' = 'random',
+    rated: boolean = true
+  ): Promise<LiveSyncGame> {
+    const gameDocRef = doc(db, 'live_games', gameId);
+
+    const challengeRoom: LiveSyncGame = {
+      id: gameId,
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      turn: 'w',
+      moves: [],
+      whiteTime: timeControlSec,
+      blackTime: timeControlSec,
+      timeControlSec,
+      incrementSec,
+      variant,
+      status: 'pending_challenge',
+      hostUid: host.uid,
+      hostName: host.displayName,
+      hostRating: host.ratings.blitz || 1200,
+      hostAvatar: host.avatar,
+      hostColorChoice,
+      rated,
+      whitePlayer: {
+        uid: host.uid,
+        name: host.displayName,
+        rating: host.ratings.blitz || 1200,
+        online: true,
+        avatar: host.avatar,
+      },
+      updatedAt: Date.now(),
+    };
+
+    await setDoc(gameDocRef, challengeRoom);
+    return challengeRoom;
+  }
+
+  /**
+   * Helper to create friend challenge and return the new gameId
+   */
+  public static async createFriendChallengeWithAutoId(
+    host: UserProfile,
+    timeControlSec: number = 600,
+    incrementSec: number = 0,
+    variant: string = 'standard',
+    hostColorChoice: 'w' | 'b' | 'random' = 'random',
+    rated: boolean = true
+  ): Promise<string> {
+    const gameId = `challenge-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    await this.createFriendChallenge(
+      gameId,
+      host,
+      timeControlSec,
+      incrementSec,
+      variant,
+      hostColorChoice,
+      rated
+    );
+    return gameId;
+  }
+
+  /**
+   * Guest approves and accepts challenge; assigns colors & starts game immediately
+   */
+  public static async acceptFriendChallenge(
+    gameId: string,
+    guest: UserProfile
+  ): Promise<void> {
+    const gameDocRef = doc(db, 'live_games', gameId);
+    const snap = await getDoc(gameDocRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data() as LiveSyncGame;
+    const choice = data.hostColorChoice || 'random';
+    const isHostWhite =
+      choice === 'w' ? true : choice === 'b' ? false : Math.random() < 0.5;
+
+    const hostPlayerData = {
+      uid: data.hostUid || data.whitePlayer.uid,
+      name: data.hostName || data.whitePlayer.name,
+      rating: data.hostRating || data.whitePlayer.rating,
+      online: true,
+      avatar: data.hostAvatar || data.whitePlayer.avatar,
+    };
+
+    const guestPlayerData = {
+      uid: guest.uid,
+      name: guest.displayName,
+      rating: guest.ratings.blitz || 1200,
+      online: true,
+      avatar: guest.avatar,
+    };
+
+    const whitePlayer = isHostWhite ? hostPlayerData : guestPlayerData;
+    const blackPlayer = isHostWhite ? guestPlayerData : hostPlayerData;
+
+    await updateDoc(gameDocRef, {
+      status: 'active',
+      whitePlayer,
+      blackPlayer,
+      whiteTime: data.timeControlSec,
+      blackTime: data.timeControlSec,
+      turn: 'w',
+      startedAt: Date.now(),
+      firstMoveDeadline: Date.now() + 30000, // 30s first-move clock
+      updatedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Guest declines friend challenge
+   */
+  public static async declineFriendChallenge(gameId: string): Promise<void> {
+    const gameDocRef = doc(db, 'live_games', gameId);
+    await updateDoc(gameDocRef, {
+      status: 'completed',
+      winReason: 'Challenge was declined by opponent.',
+      updatedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Abort a game (e.g. failure to make move 1 within 30s, or mutual early abort with 0 rating impact)
+   */
+  public static async abortGame(gameId: string, reason: string): Promise<void> {
+    try {
+      const gameDocRef = doc(db, 'live_games', gameId);
+      await updateDoc(gameDocRef, {
+        status: 'aborted',
+        winner: null,
+        winReason: reason,
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      console.warn('Failed to abort game:', e);
+    }
   }
 
   /**
