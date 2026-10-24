@@ -105,6 +105,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [whiteTime, setWhiteTime] = useState<number>(600);
   const [blackTime, setBlackTime] = useState<number>(600);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(false);
+  const [isBotThinking, setIsBotThinking] = useState<boolean>(false);
 
   // Bot & Chat States
   const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; isBot?: boolean }[]>([]);
@@ -144,6 +145,11 @@ export default function GameRoomPage({ params }: GamePageProps) {
       setIncrementSeconds(session.incrementSeconds || 0);
       setWhiteTime(session.timeControl);
       setBlackTime(session.timeControl);
+
+      // Start White's clock immediately once game is initialized across all modes (Pass & Play, vs Bot, etc.)
+      if (session.timeControl > 0 && !session.isGameOver) {
+        setIsClockRunning(true);
+      }
 
       if (session.moves && session.moves.length > 0) {
         setMoveHistory(session.moves);
@@ -391,6 +397,100 @@ export default function GameRoomPage({ params }: GamePageProps) {
     return () => clearInterval(interval);
   }, [isClockRunning, chess, gameResult, triggerGameOver]);
 
+  // Bot Turn execution with ELO-scaled move generator
+  const handleBotMove = useCallback((
+    currentChessInstance: Chess,
+    currentMoves: MoveRecord[],
+    botColor: 'w' | 'b' = 'b'
+  ) => {
+    if (currentChessInstance.isGameOver()) return;
+    try {
+      const fenBefore = currentChessInstance.fen();
+
+      const botMoveResult = generateBotMove(
+        currentChessInstance,
+        currentBotObj || CHESS_BOTS[0]
+      );
+
+      if (!botMoveResult) return;
+
+      const botMove = currentChessInstance.move({
+        from: botMoveResult.from as Square,
+        to: botMoveResult.to as Square,
+        promotion: (botMoveResult.promotion as PieceSymbol) || 'q',
+      });
+
+      if (!botMove) return;
+
+      const fenAfter = currentChessInstance.fen();
+      const isCheckNow = currentChessInstance.isCheck();
+
+      if (currentChessInstance.isCheckmate()) {
+        triggerGameOver(
+          botColor,
+          'checkmate',
+          `${botPlayer?.name || 'Bot'} wins by Checkmate!`
+        );
+      } else if (currentChessInstance.isDraw() || currentChessInstance.isStalemate()) {
+        triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
+      } else if (isCheckNow) {
+        soundService.playCheck();
+      } else if (botMove.flags.includes('k') || botMove.flags.includes('q')) {
+        soundService.playCastle();
+      } else if (botMove.captured) {
+        soundService.playCapture();
+      } else {
+        soundService.playMove();
+      }
+
+      const botRecord: MoveRecord = {
+        san: botMove.san,
+        from: botMove.from as Square,
+        to: botMove.to as Square,
+        captured: botMove.captured as PieceType | undefined,
+        fenBefore,
+        fenAfter,
+        evalBefore: 0,
+        evalAfter: 0,
+        coachComment: `${botPlayer?.name || 'Bot'} plays ${botMove.san}.`,
+        isCheck: isCheckNow,
+      };
+
+      const finalMoves = [...currentMoves, botRecord];
+      setMoveHistory(finalMoves);
+      setCurrentMoveIndex(finalMoves.length - 1);
+      setChess(new Chess(fenAfter));
+      GameSessionStore.updateSessionMoves(gameId, finalMoves);
+
+      if (incrementSeconds > 0) {
+        if (botColor === 'w') {
+          setWhiteTime((t) => t + incrementSeconds);
+        } else {
+          setBlackTime((t) => t + incrementSeconds);
+        }
+      }
+    } catch {
+      //
+    }
+  }, [currentBotObj, botPlayer?.name, gameId, incrementSeconds, triggerGameOver]);
+
+  // Automated First Move for Bot playing as White
+  useEffect(() => {
+    if (whitePlayer.isBot && moveHistory.length === 0 && !gameResult) {
+      const activeBot = currentBotObj || CHESS_BOTS[0];
+      const botDelay = calculateBotThinkingDelayMs(activeBot, 1, false);
+      setIsBotThinking(true);
+      const timer = setTimeout(() => {
+        try {
+          handleBotMove(new Chess(), [], 'w');
+        } finally {
+          setIsBotThinking(false);
+        }
+      }, botDelay);
+      return () => clearTimeout(timer);
+    }
+  }, [whitePlayer.isBot, moveHistory.length, gameResult, currentBotObj, handleBotMove]);
+
   // 0ms Optimistic Board Move Handler
   const handleBoardMove = useCallback(
     (from: Square, to: Square, promotion?: PieceSymbol) => {
@@ -467,7 +567,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
           }
         }
 
-        // Bot response (Scaled to authentic Bot ELO rating)
+        // Bot response (Scaled to authentic Bot ELO rating with reasoning pause)
         const nextChess = new Chess(fenAfter);
         const nextTurn = nextChess.turn();
         const isBotTurn =
@@ -476,8 +576,13 @@ export default function GameRoomPage({ params }: GamePageProps) {
         if (isBotTurn && !nextChess.isGameOver()) {
           const activeBot = currentBotObj || CHESS_BOTS[0];
           const botDelay = calculateBotThinkingDelayMs(activeBot, nextMoves.length, nextChess.isCheck());
+          setIsBotThinking(true);
           setTimeout(() => {
-            handleBotMove(nextChess, nextMoves, nextTurn);
+            try {
+              handleBotMove(nextChess, nextMoves, nextTurn);
+            } finally {
+              setIsBotThinking(false);
+            }
           }, botDelay);
         }
       } catch {
@@ -497,85 +602,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
       gameId,
       currentBotObj,
       triggerGameOver,
+      handleBotMove,
     ]
   );
-
-  // Bot Turn execution with ELO-scaled move generator
-  const handleBotMove = (
-    currentChessInstance: Chess,
-    currentMoves: MoveRecord[],
-    botColor: 'w' | 'b' = 'b'
-  ) => {
-    if (currentChessInstance.isGameOver()) return;
-    try {
-      const fenBefore = currentChessInstance.fen();
-
-      const botMoveResult = generateBotMove(
-        currentChessInstance,
-        currentBotObj || CHESS_BOTS[0]
-      );
-
-      if (!botMoveResult) return;
-
-      const botMove = currentChessInstance.move({
-        from: botMoveResult.from as Square,
-        to: botMoveResult.to as Square,
-        promotion: (botMoveResult.promotion as PieceSymbol) || 'q',
-      });
-
-      if (!botMove) return;
-
-      const fenAfter = currentChessInstance.fen();
-      const isCheckNow = currentChessInstance.isCheck();
-
-      if (currentChessInstance.isCheckmate()) {
-        triggerGameOver(
-          botColor,
-          'checkmate',
-          `${botPlayer?.name || 'Bot'} wins by Checkmate!`
-        );
-      } else if (currentChessInstance.isDraw() || currentChessInstance.isStalemate()) {
-        triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
-      } else if (isCheckNow) {
-        soundService.playCheck();
-      } else if (botMove.flags.includes('k') || botMove.flags.includes('q')) {
-        soundService.playCastle();
-      } else if (botMove.captured) {
-        soundService.playCapture();
-      } else {
-        soundService.playMove();
-      }
-
-      const botRecord: MoveRecord = {
-        san: botMove.san,
-        from: botMove.from as Square,
-        to: botMove.to as Square,
-        captured: botMove.captured as PieceType | undefined,
-        fenBefore,
-        fenAfter,
-        evalBefore: 0,
-        evalAfter: 0,
-        coachComment: `${botPlayer?.name || 'Bot'} plays ${botMove.san}.`,
-        isCheck: isCheckNow,
-      };
-
-      const finalMoves = [...currentMoves, botRecord];
-      setMoveHistory(finalMoves);
-      setCurrentMoveIndex(finalMoves.length - 1);
-      setChess(new Chess(fenAfter));
-      GameSessionStore.updateSessionMoves(gameId, finalMoves);
-
-      if (incrementSeconds > 0) {
-        if (botColor === 'w') {
-          setWhiteTime((t) => t + incrementSeconds);
-        } else {
-          setBlackTime((t) => t + incrementSeconds);
-        }
-      }
-    } catch {
-      //
-    }
-  };
 
   const handleSelectHistoricalMove = (index: number) => {
     if (index < -1 || index >= moveHistory.length) return;
@@ -771,6 +800,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
               color={topColor}
               timeRemainingSeconds={topTime}
               isActiveTurn={chess.turn() === topColor}
+              isThinking={Boolean(topPlayer.isBot && isBotThinking && chess.turn() === topColor)}
               capturedPieces={topCaptures}
               materialAdvantage={topAdvantage}
             />
@@ -807,6 +837,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
               color={bottomColor}
               timeRemainingSeconds={bottomTime}
               isActiveTurn={chess.turn() === bottomColor}
+              isThinking={Boolean(bottomPlayer.isBot && isBotThinking && chess.turn() === bottomColor)}
               capturedPieces={bottomCaptures}
               materialAdvantage={bottomAdvantage}
             />

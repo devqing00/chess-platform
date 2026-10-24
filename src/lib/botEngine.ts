@@ -130,10 +130,12 @@ export function generateBotMove(
 
 /**
  * Calculates humanized, realistic thinking latency for bot moves:
- * - Opening book / early moves: quick 300ms - 500ms
- * - Beginner bots: casual 400ms - 750ms
- * - Intermediate bots: 650ms - 1150ms
- * - Master & GM bots (Danny, Hikaru, Stockfish): 850ms - 1450ms with natural variation
+ * - Imitates genuine human calculation, scanning the board, and pondering responses.
+ * - Opening moves: 900ms - 1500ms (natural, confident opening play without instant machine reflexes).
+ * - Recaptures & forced moves: 1000ms - 1600ms.
+ * - Beginner bots: 1200ms - 2200ms (thoughtful pauses).
+ * - Intermediate bots: 1600ms - 2800ms (calculating pawn structures and tactics).
+ * - Master & GM bots: 2200ms - 3800ms (deep positional reasoning and tactical validation).
  */
 export function calculateBotThinkingDelayMs(
   bot: BotPersonality,
@@ -142,23 +144,24 @@ export function calculateBotThinkingDelayMs(
 ): number {
   const rating = bot.rating;
 
-  // Book moves or forced responses are played slightly faster
+  // Opening moves: natural opening speed (not instant)
   if (moveNumber <= 4) {
-    return Math.floor(Math.random() * 200) + 300; // 300ms - 500ms
+    return Math.floor(Math.random() * 600) + 900; // 900ms - 1500ms
   }
 
+  // Recaptures or answers to checks: calculated but forcing
   if (isCheckOrCapture) {
-    return Math.floor(Math.random() * 300) + 450; // 450ms - 750ms
+    return Math.floor(Math.random() * 600) + 1000; // 1000ms - 1600ms
   }
 
   if (rating <= 500) {
-    // Beginner: quick, impulsive moves
-    return Math.floor(Math.random() * 350) + 400; // 400ms - 750ms
+    // Beginner: casual scanning and thought process
+    return Math.floor(Math.random() * 1000) + 1200; // 1200ms - 2200ms
   } else if (rating <= 1500) {
-    // Intermediate: natural deliberation
-    return Math.floor(Math.random() * 500) + 650; // 650ms - 1150ms
+    // Intermediate: deliberate tactical consideration
+    return Math.floor(Math.random() * 1200) + 1600; // 1600ms - 2800ms
   } else {
     // Master / GM / Stockfish: deep simulated calculation
-    return Math.floor(Math.random() * 600) + 850; // 850ms - 1450ms
+    return Math.floor(Math.random() * 1600) + 2200; // 2200ms - 3800ms
   }
 }

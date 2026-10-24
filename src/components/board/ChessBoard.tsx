@@ -82,7 +82,7 @@ interface BoardSquareProps {
   blindfold: boolean;
   isFastForward: boolean;
   moveDelta: { dx: number; dy: number } | null;
-  wasDraggedLast: boolean;
+  isAnimating: boolean;
   isPieceBeingDragged: boolean;
   isDragOver: boolean;
   bgSquareColor: string;
@@ -117,7 +117,7 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
   blindfold,
   isFastForward,
   moveDelta,
-  wasDraggedLast,
+  isAnimating,
   isPieceBeingDragged,
   isDragOver,
   bgSquareColor,
@@ -127,11 +127,10 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
   onMouseUpSquare,
 }) {
   const isLastMovePiece = Boolean(
-    isLastMoveTo &&
+    isAnimating &&
       moveDelta &&
       (moveDelta.dx !== 0 || moveDelta.dy !== 0) &&
-      !isFastForward &&
-      !wasDraggedLast
+      !isFastForward
   );
 
   // Prevent badges from being cut off at the outer edges of the chessboard
@@ -250,7 +249,7 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
       )}
 
       {/* Move Arrival Shutter Flash Overlay */}
-      {isLastMoveTo && (
+      {isAnimating && (
         <div className="absolute inset-0 pointer-events-none z-10 animate-tile-flash" />
       )}
 
@@ -352,14 +351,48 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
   // Suppresses click event right after a completed drag-and-drop
   const wasDraggingJustNow = useRef(false);
 
+  // Active square currently running arrival animation (clears strictly after 180ms)
+  const [animatingSquare, setAnimatingSquare] = useState<Square | null>(null);
+  const prevLastMoveRef = useRef<{ from: Square; to: Square } | null>(null);
+
   useEffect(() => {
-    if (wasDraggedRef.current) {
-      const timer = setTimeout(() => {
-        wasDraggedRef.current = false;
-      }, 100);
-      return () => clearTimeout(timer);
+    if (!lastMove || !lastMove.from || !lastMove.to) {
+      setAnimatingSquare(null);
+      prevLastMoveRef.current = null;
+      return;
     }
-  }, [lastMove]);
+
+    const isSameMove =
+      prevLastMoveRef.current &&
+      prevLastMoveRef.current.from === lastMove.from &&
+      prevLastMoveRef.current.to === lastMove.to;
+
+    if (isSameMove) {
+      return;
+    }
+
+    prevLastMoveRef.current = lastMove;
+
+    if (wasDraggedRef.current) {
+      // Local drag-and-drop was already positioned by user - no animation needed
+      wasDraggedRef.current = false;
+      setAnimatingSquare(null);
+      return;
+    }
+
+    if (isFastForward) {
+      setAnimatingSquare(null);
+      return;
+    }
+
+    // Trigger animation strictly once for 180ms, then clear completely
+    setAnimatingSquare(lastMove.to);
+    const timer = setTimeout(() => {
+      setAnimatingSquare(null);
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [lastMove, isFastForward]);
 
   // Right-click drag arrow drawing state
   const [arrowDragStart, setArrowDragStart] = useState<Square | null>(null);
@@ -805,7 +838,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 blindfold={blindfold}
                 isFastForward={isFastForward}
                 moveDelta={moveDelta}
-                wasDraggedLast={wasDraggedRef.current}
+                isAnimating={animatingSquare === sq}
                 isPieceBeingDragged={isPieceBeingDragged}
                 isDragOver={dragOverSquare === sq && activeDrag?.square !== sq}
                 bgSquareColor={bgSquareColor}

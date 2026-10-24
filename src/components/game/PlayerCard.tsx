@@ -10,6 +10,7 @@ interface PlayerCardProps {
   color: PieceColor;
   timeRemainingSeconds: number;
   isActiveTurn: boolean;
+  isThinking?: boolean;
   capturedPieces?: PieceType[];
   materialAdvantage?: number; // positive if this player has more material
 }
@@ -19,6 +20,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
   color,
   timeRemainingSeconds,
   isActiveTurn,
+  isThinking = false,
   capturedPieces = [],
   materialAdvantage = 0,
 }) {
@@ -60,6 +62,12 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
               {player.name}
             </span>
             <span className="text-[10px] text-zinc-400 font-mono font-bold">({player.rating})</span>
+            {isThinking && (
+              <span className="text-[9px] font-mono font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-1 rounded flex items-center gap-1 animate-pulse shrink-0">
+                <span className="w-1 h-1 rounded-full bg-amber-400 animate-ping" />
+                Thinking...
+              </span>
+            )}
             {player.country && (
               <span className="text-[10px] shrink-0" title={player.country}>
                 {player.country === 'US'

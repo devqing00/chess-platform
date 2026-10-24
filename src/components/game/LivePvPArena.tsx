@@ -501,33 +501,27 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           </div>
 
           {/* Opponent Digital Clock */}
-          <div
-            className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
-              isWaitingForOpponent
-                ? 'bg-[#181714] border-white/5 text-zinc-500'
-                : game?.turn !== playerColor && game?.status === 'active'
-                ? opponentTime < 30
-                  ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
-                  : 'bg-[#292621] border-amber-500/50 text-white shadow-sm'
-                : 'bg-[#181714] border-white/5 text-zinc-400'
-            }`}
-          >
-            {formatTime(opponentTime)}
+          <div className="flex items-center gap-2 shrink-0">
+            {game?.status === 'active' && firstMoveCountdown !== null && game.turn !== playerColor && (
+              <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 hidden sm:inline-block">
+                Move 1: {firstMoveCountdown}s
+              </span>
+            )}
+            <div
+              className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
+                isWaitingForOpponent
+                  ? 'bg-[#181714] border-white/5 text-zinc-500'
+                  : game?.turn !== playerColor && game?.status === 'active'
+                  ? opponentTime < 30
+                    ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
+                    : 'bg-[#292621] border-amber-500/50 text-white shadow-sm'
+                  : 'bg-[#181714] border-white/5 text-zinc-400'
+              }`}
+            >
+              {formatTime(opponentTime)}
+            </div>
           </div>
         </div>
-
-        {/* First-Move Auto-Abort Notice Banner */}
-        {game?.status === 'active' && firstMoveCountdown !== null && (
-          <div className="w-full px-3 py-1 mb-1 bg-amber-500/15 border border-amber-500/30 rounded-lg flex items-center justify-between text-xs text-amber-300 shrink-0 animate-pulse">
-            <div className="flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-[11px] font-bold">
-                Move 1 required in: <strong>{firstMoveCountdown}s</strong> (auto-aborts if missed)
-              </span>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-zinc-400">No rating loss</span>
-          </div>
-        )}
 
         {/* Viewport-scaling Chessboard */}
         <div className="w-full aspect-square relative rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
@@ -807,18 +801,25 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           </div>
 
           {/* Your Digital Clock */}
-          <div
-            className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
-              isWaitingForOpponent
-                ? 'bg-[#181714] border-white/5 text-zinc-500'
-                : isMyTurn
-                ? myTime < 30
-                  ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
-                  : 'bg-[#292621] border-[#81b64c] text-white shadow-sm'
-                : 'bg-[#181714] border-white/5 text-zinc-400'
-            }`}
-          >
-            {formatTime(myTime)}
+          <div className="flex items-center gap-2 shrink-0">
+            {game?.status === 'active' && firstMoveCountdown !== null && game.turn === playerColor && (
+              <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 hidden sm:inline-block">
+                Move 1: {firstMoveCountdown}s
+              </span>
+            )}
+            <div
+              className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
+                isWaitingForOpponent
+                  ? 'bg-[#181714] border-white/5 text-zinc-500'
+                  : isMyTurn
+                  ? myTime < 30
+                    ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
+                    : 'bg-[#292621] border-[#81b64c] text-white shadow-sm'
+                  : 'bg-[#181714] border-white/5 text-zinc-400'
+              }`}
+            >
+              {formatTime(myTime)}
+            </div>
           </div>
         </div>
       </div>
@@ -933,7 +934,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
               {game && game.moves.length < 2 ? (
                 <>
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Abort</span>
+                  <span>{firstMoveCountdown !== null ? `Abort (${firstMoveCountdown}s)` : 'Abort'}</span>
                 </>
               ) : (
                 <>

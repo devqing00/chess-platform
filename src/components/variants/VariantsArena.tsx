@@ -217,7 +217,12 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
       if (!vsBot || currentState.isGameOver || currentState.turn !== 'b') return;
 
       setIsBotThinking(true);
-      const thinkDelay = botDifficulty === 'casual' ? 250 : botDifficulty === 'club' ? 450 : 700;
+      const thinkDelay =
+        botDifficulty === 'casual'
+          ? Math.floor(Math.random() * 800) + 1200
+          : botDifficulty === 'club'
+          ? Math.floor(Math.random() * 1000) + 1500
+          : Math.floor(Math.random() * 1200) + 2000;
 
       setTimeout(() => {
         try {
