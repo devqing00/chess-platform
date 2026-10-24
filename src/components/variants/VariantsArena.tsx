@@ -415,30 +415,32 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 bg-[#161512] text-zinc-100 select-none">
+    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden flex flex-col min-h-0 bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
       {/* ----------------------------------------------------------------------- */}
-      {/* HEADER / NAVIGATION BAR (Viewport-locked 52px header)                    */}
+      {/* HEADER / NAVIGATION BAR (Zero-Conflict Responsive Bar)                  */}
       {/* ----------------------------------------------------------------------- */}
-      <header className="h-14 px-3 sm:px-6 border-b border-white/5 flex items-center justify-between shrink-0 bg-[#141311]">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-rose-400" />
-          </div>
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
-              Chess Variants Arena
-            </h1>
-            <span className={`hidden sm:inline-flex text-[10px] font-mono px-2 py-0.5 rounded-full border ${currentVariantMeta.badgeColor}`}>
-              {currentVariantMeta.name}
-            </span>
+      <header className="border-b border-white/5 shrink-0 bg-[#141311] flex flex-col md:flex-row md:items-center md:justify-between px-3 sm:px-6 py-2 md:py-0 md:h-14 gap-2">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 text-rose-400" />
+            </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
+                Variants Arena
+              </h1>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${currentVariantMeta.badgeColor}`}>
+                {currentVariantMeta.name}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* 4-Screen Segmented Switcher */}
-        <div className="flex items-center bg-[#1c1a17] p-1 rounded-xl border border-white/5">
+        <div className="flex items-center bg-[#1c1a17] p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-none w-full md:w-auto">
           <button
             onClick={() => setActiveScreen('arena')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
               activeScreen === 'arena'
                 ? 'bg-[#81b64c] text-black shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -448,27 +450,29 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
           </button>
           <button
             onClick={() => setActiveScreen('rules')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
               activeScreen === 'rules'
                 ? 'bg-[#81b64c] text-black shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Rules &amp; Strategy
+            <span className="hidden sm:inline">Rules &amp; Strategy</span>
+            <span className="sm:hidden">Rules</span>
           </button>
           <button
             onClick={() => setActiveScreen('bot_spar')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
               activeScreen === 'bot_spar'
                 ? 'bg-[#81b64c] text-black shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Bot Sparring
+            <span className="hidden sm:inline">Bot Sparring</span>
+            <span className="sm:hidden">Bot Spar</span>
           </button>
           <button
             onClick={() => setActiveScreen('history')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
               activeScreen === 'history'
                 ? 'bg-[#81b64c] text-black shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'

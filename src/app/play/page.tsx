@@ -386,109 +386,149 @@ export default function PlayLobbyPage() {
   };
 
   return (
-    <div className="w-full h-full max-h-full overflow-hidden p-2.5 sm:p-4 lg:p-6 flex flex-col justify-between select-none text-zinc-100 bg-[#161512]">
-      {/* 1. TOP AMBIENT STRIP (HUD & Player Status) */}
-      <header className="flex items-center justify-between gap-2 px-1 pb-2 shrink-0 border-b border-white/5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24] shrink-0">
-            <Swords className="w-4 h-4" />
+    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden p-2.5 sm:p-4 lg:p-6 flex flex-col justify-between select-none text-zinc-100 bg-[#161512] pb-24 md:pb-6">
+      {/* 1. TOP HEADER & SCREEN TABS (Unified, Zero-Conflict Responsive Bar) */}
+      <header className="shrink-0 pb-2 border-b border-white/5 flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          {/* Left: Branding & Status */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24] shrink-0">
+              <Swords className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
+                Play Arena
+              </h1>
+              <p className="text-[10px] sm:text-xs text-zinc-400 font-medium truncate">
+                {effectiveDisplayName} ({effectiveRating || 'Unranked'}) • Live &amp; Bots
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-              Play Arena
-            </h1>
-            <p className="text-[10px] sm:text-xs text-zinc-400 font-medium truncate">
-              {effectiveDisplayName} ({effectiveRating || 'Unranked'}) • Live Matchmaking &amp; Bot Hub
-            </p>
+
+          {/* Center on Desktop: Screen Tabs */}
+          <nav className="hidden md:flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5">
+            <button
+              onClick={() => setActiveScreen('arena')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeScreen === 'arena'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Swords className="w-3.5 h-3.5" />
+              <span>Play Arena</span>
+            </button>
+            <button
+              onClick={() => setActiveScreen('bots')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeScreen === 'bots'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Choose Bot</span>
+            </button>
+            <button
+              onClick={() => setActiveScreen('clocks')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeScreen === 'clocks'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Clocks</span>
+            </button>
+            <button
+              onClick={() => setActiveScreen('history')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeScreen === 'history'
+                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>History</span>
+            </button>
+          </nav>
+
+          {/* Right: Quick Action Triggers */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              variant={selectedMode === 'friend_challenge' ? 'primary' : 'secondary'}
+              size="xs"
+              rounded="xl"
+              onClick={handleSelectFriendChallenge}
+              title="Challenge a friend with private invite link"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Play a Friend</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="xs"
+              rounded="xl"
+              onClick={() => setActiveScreen('history')}
+              title="View recent matches"
+            >
+              <History className="w-3.5 h-3.5 text-[#81b64c]" />
+              <span className="hidden sm:inline">Recent ({recentGames.length})</span>
+            </Button>
           </div>
         </div>
 
-        {/* Right: Quick Action Triggers */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            variant={selectedMode === 'friend_challenge' ? 'primary' : 'secondary'}
-            size="xs"
-            rounded="xl"
-            onClick={handleSelectFriendChallenge}
-            title="Challenge a friend with private invite link"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Play a Friend</span>
-          </Button>
-          <Button
-            variant="secondary"
-            size="xs"
-            rounded="xl"
-            onClick={() => setActiveScreen('history')}
-            title="View recent matches"
-          >
-            <History className="w-3.5 h-3.5 text-[#81b64c]" />
-            <span className="hidden sm:inline">Recent ({recentGames.length})</span>
-          </Button>
-        </div>
-      </header>
-
-      {/* 2. SUB-SCREEN NAVIGATION PILLS ("Screens, Not Pages" Architecture) */}
-      <nav className="my-2.5 shrink-0 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
+        {/* Mobile-Only Dedicated Screen Tabs Row (Horizontal Touch Scroll, Zero Collision) */}
+        <nav className="flex md:hidden items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full">
           <button
             onClick={() => setActiveScreen('arena')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'arena'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Swords className="w-3.5 h-3.5" />
-            <span>Play Arena</span>
+            <Swords className="w-3 h-3" />
+            <span>Arena</span>
           </button>
-
           <button
             onClick={() => setActiveScreen('bots')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'bots'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Choose Bot</span>
+            <Bot className="w-3 h-3" />
+            <span>Bots</span>
           </button>
-
           <button
             onClick={() => setActiveScreen('clocks')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'clocks'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Clocks &amp; Timers</span>
+            <Clock className="w-3 h-3" />
+            <span>Clocks</span>
           </button>
-
           <button
             onClick={() => setActiveScreen('history')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'history'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <History className="w-3.5 h-3.5" />
-            <span>Match History</span>
+            <History className="w-3 h-3" />
+            <span>History</span>
           </button>
-        </div>
+        </nav>
+      </header>
 
-        {/* Active Tempo Display */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 border border-white/5 text-xs font-mono text-zinc-300">
-          <Clock className="w-3 h-3 text-[#81b64c]" />
-          <span>Clock: {selectedTimeControl.label} ({selectedTimeControl.sub})</span>
-        </div>
-      </nav>
-
-      {/* 3. CENTRAL STAGE (Render Active Screen without Window Scroll) */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden flex flex-col justify-center">
+      {/* 2. CENTRAL STAGE (Naturally scrollable on mobile, framed on desktop) */}
+      <div className="flex-1 min-h-0 w-full overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-2">
         {/* ========================================================================= */}
         {/* SCREEN 1: ARENA / MATCH LAUNCH */}
         {/* ========================================================================= */}

@@ -45,7 +45,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   } = useShell();
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-[#161512] text-zinc-100">
+    <div className="flex flex-col md:flex-row min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 overflow-x-hidden">
       {/* Mobile Top Header, Bottom Bar & Drawer (< md screens) */}
       <MobileNavigation
         onOpenMembershipModal={openMembership}
@@ -60,10 +60,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         onOpenChessComSync={openChessComSync}
       />
 
-      {/* Main Page Content Area - Viewport Locked (Screens, Not Pages) */}
-      <div className="flex-1 flex flex-col h-full max-h-full min-w-0 bg-[#161512] relative overflow-hidden">
+      {/* Main Page Content Area - Naturally Scrollable on Mobile, Viewport-Locked on Desktop */}
+      <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-[#161512] relative overflow-y-auto md:overflow-hidden">
         {children}
-      </div>
+      </main>
 
       {/* Global Modals */}
       <SettingsModal

@@ -275,7 +275,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
   }, [completedLessonIds]);
 
   return (
-    <div className="w-full h-full flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
+    <div className="w-full flex-1 flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
       {/* ========================================================================= */}
       {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
       {/* ========================================================================= */}
@@ -283,50 +283,54 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
         <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
           <button
             onClick={() => setActiveScreen('study')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'study'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>Interactive Board</span>
+            <span className="hidden sm:inline">Interactive Board</span>
+            <span className="sm:hidden">Board</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('curriculum')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'curriculum'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Full Curriculum ({totalLessonsCount})</span>
+            <span className="hidden sm:inline">Full Curriculum ({totalLessonsCount})</span>
+            <span className="sm:hidden">Curriculum</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('learning_path')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'learning_path'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Compass className="w-3.5 h-3.5" />
-            <span>Learning Road</span>
+            <span className="hidden sm:inline">Learning Road</span>
+            <span className="sm:hidden">Road</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('diplomas')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'diplomas'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Award className="w-3.5 h-3.5" />
-            <span>Diplomas &amp; Vault</span>
+            <span className="hidden sm:inline">Diplomas &amp; Vault</span>
+            <span className="sm:hidden">Diplomas</span>
           </button>
         </div>
 

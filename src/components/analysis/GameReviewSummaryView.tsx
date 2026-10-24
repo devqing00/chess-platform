@@ -664,7 +664,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-hidden justify-start">
+    <div className="flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-y-auto lg:overflow-hidden justify-start pb-20 lg:pb-0">
       {/* Top Header Bar - Ultra-compact 36px-40px */}
       <header className="h-9 sm:h-10 px-2 sm:px-3 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0 shadow-sm z-30">
         {/* Left: Back / Play button + Title */}
@@ -890,8 +890,8 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
         </div>
       </div>
 
-      {/* Main Review Hub Body: Zero-scroll container */}
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 lg:p-3 xl:p-4 gap-4 w-full max-w-5xl mx-auto">
+      {/* Main Review Hub Body: Responsive container */}
+      <div className="flex-1 min-h-0 overflow-visible lg:overflow-hidden flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 lg:p-3 xl:p-4 gap-4 w-full max-w-5xl mx-auto">
         {/* Desktop Split View (Left: Board + Graph, Right: Stats Panel) */}
         <div className="hidden lg:flex flex-row gap-5 w-full h-full justify-center items-start min-h-0">
           {/* Left Column: Board & Eval Flow */}
@@ -947,14 +947,14 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </div>
         </div>
 
-        {/* Mobile View: Switch between Stats tab and Board tab with zero outer scroll */}
-        <div className="lg:hidden flex-1 min-h-0 w-full overflow-hidden flex flex-col relative">
+        {/* Mobile View: Switch between Stats tab and Board tab with responsive scroll */}
+        <div className="lg:hidden flex-1 min-h-0 w-full overflow-visible flex flex-col relative">
           {mobileTab === 'stats' ? (
             <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar p-2.5 flex flex-col gap-2">
               {renderStatsPanel(true)}
             </div>
           ) : (
-            <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-between p-2 pb-16 overflow-hidden">
+            <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-start p-2 pb-20 overflow-visible gap-2">
               <div className="w-[min(100vw,calc(100dvh-175px))] aspect-square overflow-hidden border-0 sm:border border-[#35322b] bg-[#1a1816]">
                 <ChessBoard
                   chess={summaryChess}

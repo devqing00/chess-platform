@@ -627,7 +627,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
   }, [currentMoveIndex, moveHistory]);
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#161512] text-zinc-100 select-none justify-start min-w-0">
+    <div className="flex-1 flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] overflow-y-auto lg:overflow-hidden bg-[#161512] text-zinc-100 select-none justify-start min-w-0 pb-16 lg:pb-0">
       {/* 1. Ultra-Compact Gameplay Header (Strict 36px-40px on Mobile) */}
       <header className="h-9 sm:h-10 px-2 sm:px-4 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none z-30">
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
@@ -755,8 +755,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
         </div>
       </header>
 
-      {/* 2. Main Workspace: Top-Aligned Zero-Scroll Container */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 sm:p-2 lg:p-4 gap-1 sm:gap-2 lg:gap-6 w-full max-w-6xl mx-auto overflow-hidden min-h-0">
+      {/* 2. Main Workspace: Top-Aligned Responsive Container */}
+      <main className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 sm:p-2 lg:p-4 gap-1 sm:gap-2 lg:gap-6 w-full max-w-6xl mx-auto overflow-visible lg:overflow-hidden min-h-0">
         
         {/* Center Column: Opponent Bar + Board + User Bar + Mobile Controls */}
         <div className="w-full max-w-full lg:w-auto flex flex-col items-center justify-start shrink-0 px-0 sm:px-1 gap-1">

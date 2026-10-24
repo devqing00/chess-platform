@@ -246,74 +246,90 @@ function PuzzlesMasteryContent() {
   const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 overflow-hidden select-none min-w-0">
+    <div className="flex-1 flex flex-col min-h-full lg:h-full bg-[#161512] text-zinc-100 overflow-y-auto lg:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
       {recentGain && <XpGainToast gain={recentGain} />}
 
       {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
-      <header className="h-12 border-b border-white/5 px-3 sm:px-4 flex items-center justify-between shrink-0 bg-[#141311] z-20">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
-            <Puzzle className="w-4 h-4" />
+      <header className="border-b border-white/5 shrink-0 bg-[#141311] z-20 flex flex-col md:flex-row md:items-center md:justify-between px-3 sm:px-4 py-2 md:py-0 md:h-12 gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+              <Puzzle className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
+                <span>Tactics &amp; Strategy</span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
+                  SRS
+                </span>
+              </h1>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
-              <span>Tactics, Strategy &amp; Endgame Mastery</span>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
-                Leitner SRS
-              </span>
-            </h1>
+
+          {/* Mobile HUD metrics */}
+          <div className="flex md:hidden items-center gap-1.5 shrink-0">
+            {streak > 0 && (
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold">
+                <Flame className="w-3 h-3 fill-amber-400" />
+                <span>{streak}x</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-bold">
+              <Zap className="w-3 h-3 fill-emerald-400" />
+              <span>{xpProfile.totalXp} XP</span>
+            </div>
           </div>
         </div>
 
-        {/* 4 Segmented Sub-Screen Switcher Pills */}
-        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none">
+        {/* 4 Segmented Sub-Screen Switcher Pills - Dedicated scrollable row on mobile, inline on desktop */}
+        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full md:w-auto">
           <button
             onClick={() => handleScreenChange('tactics')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'tactics'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            <span>Tactics Arena</span>
+            <span>Tactics</span>
           </button>
           <button
             onClick={() => handleScreenChange('strategy')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'strategy'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Brain className="w-3.5 h-3.5" />
-            <span>Strategy Lab</span>
+            <span>Strategy</span>
           </button>
           <button
             onClick={() => handleScreenChange('endgame')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'endgame'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Crown className="w-3.5 h-3.5" />
-            <span>Endgame Drills</span>
+            <span>Endgame</span>
           </button>
           <button
             onClick={() => handleScreenChange('vault')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'vault'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>SRS Vault</span>
+            <span>Vault</span>
           </button>
         </div>
 
-        {/* Quick HUD Metrics */}
+        {/* Desktop Quick HUD Metrics */}
         <div className="hidden md:flex items-center gap-2">
           {streak > 0 && (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold">
@@ -329,14 +345,14 @@ function PuzzlesMasteryContent() {
       </header>
 
       {/* 2. MAIN SUB-SCREEN VIEWPORT */}
-      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-visible lg:overflow-hidden">
         {/* ========================================================================= */}
         {/* SUB-SCREENS 1, 2, 3: THE 3 MASTERY PILLARS (Tactics, Strategy, Endgame) */}
         {/* ========================================================================= */}
         {(activeScreen === 'tactics' || activeScreen === 'strategy' || activeScreen === 'endgame') && (
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-visible lg:overflow-hidden">
             {/* Left: Viewport-Locked ChessBoard */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0">
               <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),460px)] aspect-square relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#1c1a17]">
                 <ChessBoard
                   chess={chess}

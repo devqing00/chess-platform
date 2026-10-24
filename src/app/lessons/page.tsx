@@ -13,8 +13,8 @@ function LessonsContent() {
   const { effectiveRating, isSynced, syncedPlatform } = useAuth();
 
   return (
-    <div className="w-full h-full max-h-full overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
-      <div className="w-full max-w-6xl mx-auto h-full flex flex-col min-h-0 gap-2.5">
+    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
+      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
         {/* Top Header & Progression HUD Bar */}
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-2 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">

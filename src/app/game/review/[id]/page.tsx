@@ -467,7 +467,7 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
   }
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] bg-[#161512] overflow-hidden min-w-0 justify-start">
+    <div className="flex-1 flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] bg-[#161512] overflow-y-auto lg:overflow-hidden min-w-0 justify-start pb-16 lg:pb-0">
       {reviewStage === 'summary' ? (
         <GameReviewSummaryView
           report={report}

@@ -153,53 +153,57 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
       {/* ========================================================================= */}
       <nav className="shrink-0 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
+        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none flex-nowrap w-full sm:w-auto">
           <button
             onClick={() => setActiveScreen('study')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'study'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Compass className="w-3.5 h-3.5" />
-            <span>Interactive Board</span>
+            <span className="sm:hidden">Board</span>
+            <span className="hidden sm:inline">Interactive Board</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('catalog')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'catalog'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Opening Catalog ({filteredDossiers.length})</span>
+            <span className="sm:hidden">Catalog ({filteredDossiers.length})</span>
+            <span className="hidden sm:inline">Opening Catalog ({filteredDossiers.length})</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('counter')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'counter'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>Counter Strategy</span>
+            <span className="sm:hidden">Counter</span>
+            <span className="hidden sm:inline">Counter Strategy</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('traps')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'traps'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Traps &amp; Pitfalls</span>
+            <span className="sm:hidden">Traps</span>
+            <span className="hidden sm:inline">Traps &amp; Pitfalls</span>
           </button>
         </div>
 

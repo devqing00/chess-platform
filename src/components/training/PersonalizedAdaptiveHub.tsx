@@ -197,7 +197,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
   }, [plan.blunderDensitySquares, selectedHotspotSquare]);
 
   return (
-    <div className="w-full h-full flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
+    <div className="w-full flex-1 flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
       {/* ========================================================================= */}
       {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
       {/* ========================================================================= */}
@@ -205,50 +205,54 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
         <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
           <button
             onClick={() => setActiveScreen('blunders')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'blunders'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>Blunder Lab</span>
+            <span className="hidden sm:inline">Blunder Lab</span>
+            <span className="sm:hidden">Blunders</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('curriculum')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'curriculum'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            <span>Daily Curriculum</span>
+            <span className="hidden sm:inline">Daily Curriculum</span>
+            <span className="sm:hidden">Curriculum</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('dna')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'dna'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Brain className="w-3.5 h-3.5" />
-            <span>Chess DNA &amp; Hotspots</span>
+            <span className="hidden sm:inline">Chess DNA &amp; Hotspots</span>
+            <span className="sm:hidden">DNA</span>
           </button>
 
           <button
             onClick={() => setActiveScreen('pillars')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'pillars'
                 ? 'bg-[#81b64c] text-black shadow-xs font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Mastery Pillars</span>
+            <span className="hidden sm:inline">Mastery Pillars</span>
+            <span className="sm:hidden">Pillars</span>
           </button>
         </div>
 

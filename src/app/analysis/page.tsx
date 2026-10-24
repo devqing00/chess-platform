@@ -580,77 +580,92 @@ function AnalysisStudioContent() {
   }, [chess]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 overflow-hidden select-none min-w-0">
+    <div className="flex-1 flex flex-col min-h-full lg:h-full lg:max-h-full bg-[#161512] text-zinc-100 overflow-y-auto lg:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
       {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
-      <header className="h-12 border-b border-white/5 px-3 sm:px-4 flex items-center justify-between shrink-0 bg-[#141311] z-20">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
-            <Microscope className="w-4 h-4" />
+      <header className="border-b border-white/5 px-3 sm:px-4 py-2 sm:py-0 sm:h-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 shrink-0 bg-[#141311] z-20">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+              <Microscope className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
+                <span>Analysis Studio</span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-[#81b64c]">
+                  Stockfish 18
+                </span>
+              </h1>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
-              <span>Analysis Studio</span>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
-                Stockfish 18
-              </span>
-            </h1>
+
+          {/* Quick Engine Status Indicator on Mobile */}
+          <div className="flex items-center gap-1.5 sm:hidden">
+            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+              currentEvalScore >= 0 ? 'bg-[#81b64c]/15 text-[#81b64c]' : 'bg-red-400/15 text-red-400'
+            }`}>
+              {currentEvalFormatted}
+            </span>
           </div>
         </div>
 
-        {/* 4 Segmented Sub-Screen Switcher Pills */}
-        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none">
+        {/* 4 Segmented Sub-Screen Switcher Pills - Dedicated scrollable row on mobile */}
+        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none flex-nowrap w-full sm:w-auto shrink-0">
           <button
             onClick={() => setActiveScreen('sandbox')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'sandbox'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-[#81b64c] text-black font-black shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Multi-PV Engine
+            <span className="sm:hidden">Multi-PV</span>
+            <span className="hidden sm:inline">Multi-PV Engine</span>
           </button>
           <button
             onClick={() => setActiveScreen('theory')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'theory'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-[#81b64c] text-black font-black shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Opening Explorer
+            <span className="sm:hidden">Openings</span>
+            <span className="hidden sm:inline">Opening Explorer</span>
           </button>
           <button
             onClick={() => setActiveScreen('tablebase')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'tablebase'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-[#81b64c] text-black font-black shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            7-Piece Tablebase
+            <span className="sm:hidden">Tablebase</span>
+            <span className="hidden sm:inline">7-Piece Tablebase</span>
           </button>
           <button
             onClick={() => setActiveScreen('vault')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'vault'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-[#81b64c] text-black font-black shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Game Vault &amp; Import
+            <span className="sm:hidden">Vault</span>
+            <span className="hidden sm:inline">Game Vault &amp; Import</span>
           </button>
         </div>
       </header>
 
       {/* 2. MAIN SUB-SCREEN VIEWPORT */}
-      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-visible lg:overflow-hidden">
         {/* ========================================================================= */}
         {/* SUB-SCREEN 1: STOCKFISH 18 SANDBOX & MULTI-PV */}
         {/* ========================================================================= */}
         {activeScreen === 'sandbox' && (
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-visible lg:overflow-hidden">
             {/* Left: Interactive Chess Board + Stepper */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-start lg:justify-center min-h-0 overflow-visible lg:overflow-hidden shrink-0">
               <div className="flex items-center gap-2 max-w-full justify-center">
                 <EvalBar score={currentEvalScore} orientation={orientation} />
                 <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),480px)] aspect-square">
@@ -900,9 +915,9 @@ function AnalysisStudioContent() {
         {/* SUB-SCREEN 2: OPENING EXPLORER & THEORY */}
         {/* ========================================================================= */}
         {activeScreen === 'theory' && (
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-visible lg:overflow-hidden">
             {/* Left: Active Board */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-start lg:justify-center min-h-0 overflow-visible lg:overflow-hidden shrink-0">
               <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),480px)] aspect-square">
                 <ChessBoard
                   chess={chess}
@@ -1030,9 +1045,9 @@ function AnalysisStudioContent() {
         {/* SUB-SCREEN 3: 7-PIECE ENDGAME TABLEBASE */}
         {/* ========================================================================= */}
         {activeScreen === 'tablebase' && (
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-visible lg:overflow-hidden">
             {/* Left: Active Board */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-start lg:justify-center min-h-0 overflow-visible lg:overflow-hidden shrink-0">
               <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),480px)] aspect-square">
                 <ChessBoard
                   chess={chess}

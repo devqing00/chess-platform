@@ -356,11 +356,11 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const opponentDisconnected = game?.disconnectedPlayer && game.disconnectedPlayer !== playerColor;
 
   return (
-    <div className="w-full h-full max-h-full overflow-hidden flex flex-col xl:flex-row items-center justify-center p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 gap-4 sm:gap-6 select-none">
+    <div className="w-full min-h-full xl:h-full xl:max-h-full overflow-y-auto xl:overflow-hidden flex flex-col xl:flex-row items-center justify-start xl:justify-center p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 gap-4 sm:gap-6 select-none pb-24 xl:pb-6">
       {/* ========================================================================= */}
       {/* 1. CHESSBOARD & PLAYER HUD COLUMN                                         */}
       {/* ========================================================================= */}
-      <div className="flex flex-col items-center justify-center h-full max-h-full min-h-0 w-full xl:w-auto">
+      <div className="flex flex-col items-center justify-center min-h-0 w-full xl:w-auto shrink-0">
         {/* Opponent Card & Clock */}
         <div className="w-[min(100%,calc(100vh-230px),560px)] px-3 py-1.5 mb-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0">
           <div className="flex items-center gap-2 min-w-0">

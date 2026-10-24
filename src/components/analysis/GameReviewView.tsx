@@ -1211,7 +1211,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   }, [activeMove, showBestMove, showFollowUpMove, bestMoveVariation, followUpVariation, isRetryMode]);
 
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-hidden justify-start">
+    <div className="flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-y-auto lg:overflow-hidden justify-start pb-16 lg:pb-0">
       {/* Top Micro-Header Bar (36px-40px, flex-shrink: 0, never overlaps board) */}
       <header className="h-9 sm:h-10 px-2 sm:px-4 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0 shadow-sm z-30">
         {/* Left: Compact Back / Summary button */}
@@ -1492,8 +1492,8 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
         </div>
       </header>
 
-      {/* Main Review Workspace: Strict 100dvh Zero-Scroll Container (top: 0 anchored) */}
-      <div className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center overflow-hidden w-full max-w-7xl mx-auto min-h-0 lg:p-3 lg:gap-5">
+      {/* Main Review Workspace: Responsive Container */}
+      <div className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center overflow-visible lg:overflow-hidden w-full max-w-7xl mx-auto min-h-0 lg:p-3 lg:gap-5">
         {/* Left Board Column: Top Opponent Card, ChessBoard with EvalBar, Bottom User Card */}
         {(() => {
           const topPlayer = orientation === 'w' ? blackPlayer : whitePlayer;

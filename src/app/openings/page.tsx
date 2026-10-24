@@ -13,19 +13,19 @@ function OpeningsContent() {
   const { profile } = useXpSystem();
 
   return (
-    <div className="w-full h-full max-h-full overflow-hidden p-3 sm:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
-      <div className="w-full max-w-7xl mx-auto h-full flex flex-col min-h-0 gap-3">
+    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden p-3 sm:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
+      <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col min-h-0 gap-3">
         {/* Unified Top Header */}
-        <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2.5 border-b border-white/5 shrink-0">
+        <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 pb-2.5 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_2px_0_0_#b45309] shrink-0">
               <Compass className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-black uppercase tracking-wider text-white">
+              <h1 className="text-sm sm:text-lg font-black uppercase tracking-wider text-white">
                 Opening &amp; Counter-Opening Masterclass
               </h1>
-              <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">
+              <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">
                 Deep theory &bull; Recommended counter-systems &bull; Interactive continuation lines
               </p>
             </div>
@@ -75,7 +75,7 @@ function OpeningsContent() {
         </div>
 
         {/* Viewport-Locked Masterclass View */}
-        <div className="w-full flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="w-full flex-1 min-h-0 flex flex-col overflow-visible lg:overflow-hidden">
           <OpeningExplorer boardTheme={boardTheme} pieceTheme={pieceTheme} />
         </div>
       </div>

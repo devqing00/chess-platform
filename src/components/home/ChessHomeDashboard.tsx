@@ -100,7 +100,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
   }, [recentSessions]);
 
   return (
-    <div className="w-full h-full max-h-full overflow-hidden flex flex-col justify-between p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 select-none">
+    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden flex flex-col justify-between p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6 gap-4">
       {/* ----------------------------------------------------------------------- */}
       {/* 1. TOP HEADER & IDENTITY STRIP                                          */}
       {/* ----------------------------------------------------------------------- */}
@@ -287,9 +287,9 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
       {/* ----------------------------------------------------------------------- */}
       {/* 3. MINIMALISTIC LOWER SECTION (Recent Activity & Cognitive Focus)       */}
       {/* ----------------------------------------------------------------------- */}
-      <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 overflow-hidden">
+      <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 overflow-visible lg:overflow-hidden">
         {/* Left: Recent Matches & 1-Click Game Review */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-hidden">
+        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-visible lg:overflow-hidden">
           <div className="flex items-center justify-between pb-2 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-2">
               <History className="w-4 h-4 text-[#81b64c]" />
@@ -359,7 +359,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
         </div>
 
         {/* Right: Cognitive Focus & Quick Tools */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-hidden">
+        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-visible lg:overflow-hidden">
           <div className="flex items-center justify-between pb-2 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-amber-400" />

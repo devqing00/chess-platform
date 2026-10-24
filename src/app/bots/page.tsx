@@ -236,28 +236,31 @@ function ComputerBotsContent() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#161512] text-zinc-100 overflow-hidden select-none min-w-0">
+    <div className="flex-1 flex flex-col min-h-full lg:h-full bg-[#161512] text-zinc-100 overflow-y-auto lg:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
       {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
-      <header className="h-12 border-b border-white/5 px-3 sm:px-4 flex items-center justify-between shrink-0 bg-[#141311] z-20">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
-            <Bot className="w-4 h-4" />
+      <header className="border-b border-white/5 shrink-0 bg-[#141311] z-20 flex flex-col md:flex-row md:items-center md:justify-between px-3 sm:px-4 py-2 md:py-0 md:h-12 gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
+                <span>Computer Personalities</span>
+              </h1>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
-              <span>Computer Personalities Arena</span>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
-                {botStats.defeated}/{botStats.total} Defeated
-              </span>
-            </h1>
-          </div>
+
+          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 shrink-0">
+            {botStats.defeated}/{botStats.total} Defeated
+          </span>
         </div>
 
         {/* 4 Segmented Sub-Screen Switcher Pills */}
-        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full md:w-auto">
           <button
             onClick={() => setActiveScreen('ring')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
               activeScreen === 'ring'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -267,7 +270,7 @@ function ComputerBotsContent() {
           </button>
           <button
             onClick={() => setActiveScreen('roster')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
               activeScreen === 'roster'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -277,29 +280,29 @@ function ComputerBotsContent() {
           </button>
           <button
             onClick={() => setActiveScreen('fen_spar')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
               activeScreen === 'fen_spar'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Custom Sparring
+            Custom FEN
           </button>
           <button
             onClick={() => setActiveScreen('vault')}
-            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
               activeScreen === 'vault'
                 ? 'bg-[#81b64c] text-black font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Trophies &amp; History
+            Trophies
           </button>
         </div>
       </header>
 
       {/* 2. MAIN SUB-SCREEN VIEWPORT */}
-      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-visible lg:overflow-hidden">
         {/* ========================================================================= */}
         {/* SUB-SCREEN 1: SPARRING RING (CHALLENGER SPOTLIGHT) */}
         {/* ========================================================================= */}
