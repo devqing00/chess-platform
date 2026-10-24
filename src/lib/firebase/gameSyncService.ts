@@ -401,7 +401,7 @@ export class GameSyncService {
   }
 
   /**
-   * Request or accept a rematch.
+   * Request a rematch.
    */
   public static async requestRematch(gameId: string, side: 'w' | 'b'): Promise<void> {
     try {
@@ -412,6 +412,59 @@ export class GameSyncService {
       });
     } catch (e) {
       console.warn('Failed to request rematch:', e);
+    }
+  }
+
+  /**
+   * Accept an incoming rematch request and reset the board for a fresh game with swapped colors.
+   */
+  public static async acceptRematch(gameId: string, swapColors: boolean = true): Promise<void> {
+    try {
+      const gameDocRef = doc(db, 'live_games', gameId);
+      const snap = await getDoc(gameDocRef);
+      if (!snap.exists()) return;
+      const data = snap.data() as LiveSyncGame;
+
+      const newWhite = swapColors && data.blackPlayer ? data.blackPlayer : data.whitePlayer;
+      const newBlack = swapColors && data.blackPlayer ? data.whitePlayer : (data.blackPlayer || data.whitePlayer);
+
+      await updateDoc(gameDocRef, {
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        moves: [],
+        turn: 'w',
+        lastMove: null,
+        status: 'active',
+        whitePlayer: newWhite,
+        blackPlayer: newBlack,
+        whiteTime: data.timeControlSec || 600,
+        blackTime: data.timeControlSec || 600,
+        winner: null,
+        winReason: null,
+        rematchRequestedBy: null,
+        drawOfferFrom: null,
+        disconnectTimeoutAt: null,
+        disconnectedPlayer: null,
+        firstMoveDeadline: Date.now() + 30000,
+        startedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      console.warn('Failed to accept rematch:', e);
+    }
+  }
+
+  /**
+   * Decline an incoming rematch request.
+   */
+  public static async declineRematch(gameId: string): Promise<void> {
+    try {
+      const gameDocRef = doc(db, 'live_games', gameId);
+      await updateDoc(gameDocRef, {
+        rematchRequestedBy: null,
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      console.warn('Failed to decline rematch:', e);
     }
   }
 

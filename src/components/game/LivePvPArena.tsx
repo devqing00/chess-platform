@@ -41,6 +41,7 @@ import {
   Swords,
   Bot,
   Search,
+  ArrowUpDown,
 } from 'lucide-react';
 
 interface LivePvPArenaProps {
@@ -63,6 +64,10 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
 
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncTimestampRef = useRef<number>(Date.now());
+
+  // Board flipping & move scroll refs
+  const [userFlippedBoard, setUserFlippedBoard] = useState(false);
+  const movesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Result modal & Versus Intro states
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(true);
@@ -110,6 +115,13 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     !isWhite && !isBlack && game?.status === 'active' && !searchParamsColor && !isExplicitBlackJoin && !isHost;
   const isMyTurn = !isSpectator && game?.status === 'active' && game?.turn === playerColor;
 
+  // Visual orientation: playerColor by default, or inverted if flipped
+  const effectiveOrientation: 'w' | 'b' = userFlippedBoard
+    ? playerColor === 'w'
+      ? 'b'
+      : 'w'
+    : playerColor;
+
   const activeProfile: UserProfile = useMemo(() => {
     return getEffectiveUserProfile(user, profile);
   }, [profile, user]);
@@ -146,7 +158,9 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       if (liveGame.fen && liveGame.fen !== chess.fen()) {
         try {
           chess.load(liveGame.fen);
-          if (liveGame.lastMove) {
+          if (!liveGame.moves || liveGame.moves.length === 0) {
+            setLastMoveSquares(null);
+          } else if (liveGame.lastMove) {
             setLastMoveSquares({
               from: liveGame.lastMove.from,
               to: liveGame.lastMove.to,
@@ -308,6 +322,12 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           soundService.playGameEndLoss();
         }
       } else if (game.status === 'active' && prevGameStatusRef.current !== 'active') {
+        if (prevGameStatusRef.current === 'completed') {
+          // Rematch initiated! Reset board state and re-open versus intro
+          setIsGameOverModalOpen(false);
+          setLastMoveSquares(null);
+          versusIntroShownRef.current = false;
+        }
         if (!versusIntroShownRef.current && game.whitePlayer && game.blackPlayer) {
           versusIntroShownRef.current = true;
           setShowVersusIntro(true);
@@ -316,6 +336,11 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       prevGameStatusRef.current = game.status;
     }
   }, [game?.status, game?.winner, game?.whitePlayer, game?.blackPlayer, playerColor]);
+
+  // Auto-scroll move notation to latest move
+  useEffect(() => {
+    movesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chess.history().length]);
 
   const handleConfirmLeave = async () => {
     if (!game || game.status !== 'active') {
@@ -520,29 +545,81 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     router.push(`/game/${session.id}`);
   };
 
+  const topPlayerInfo = userFlippedBoard
+    ? {
+        name: profile?.displayName || user?.displayName || 'You',
+        rating: profile?.ratings.blitz || 1200,
+        avatar: profile?.avatar || '♟️',
+        colorLabel: playerColor === 'w' ? 'White ⚪' : 'Black ⚫',
+        time: myTime,
+        isTurn: isMyTurn,
+        isWarning: myTime < 30,
+        isSearching: false,
+        isDisconnected: false,
+      }
+    : {
+        name: isWaitingForOpponent
+          ? 'Searching for Opponent...'
+          : opponent?.name || (game?.status === 'pending_challenge' ? 'Waiting for Friend...' : 'Opponent'),
+        rating: isWaitingForOpponent ? activeProfile.ratings.blitz || 1200 : opponent?.rating || 1200,
+        avatar: opponent?.avatar || '♟️',
+        colorLabel: playerColor === 'w' ? 'Black ⚫' : 'White ⚪',
+        time: opponentTime,
+        isTurn: game?.turn !== playerColor && game?.status === 'active',
+        isWarning: opponentTime < 30,
+        isSearching: isWaitingForOpponent,
+        isDisconnected: Boolean(opponentDisconnected),
+      };
+
+  const bottomPlayerInfo = userFlippedBoard
+    ? {
+        name: isWaitingForOpponent
+          ? 'Searching for Opponent...'
+          : opponent?.name || (game?.status === 'pending_challenge' ? 'Waiting for Friend...' : 'Opponent'),
+        rating: isWaitingForOpponent ? activeProfile.ratings.blitz || 1200 : opponent?.rating || 1200,
+        avatar: opponent?.avatar || '♟️',
+        colorLabel: playerColor === 'w' ? 'Black ⚫' : 'White ⚪',
+        time: opponentTime,
+        isTurn: game?.turn !== playerColor && game?.status === 'active',
+        isWarning: opponentTime < 30,
+        isSearching: isWaitingForOpponent,
+        isDisconnected: Boolean(opponentDisconnected),
+      }
+    : {
+        name: profile?.displayName || user?.displayName || 'You',
+        rating: profile?.ratings.blitz || 1200,
+        avatar: profile?.avatar || '♟️',
+        colorLabel: playerColor === 'w' ? 'White ⚪' : 'Black ⚫',
+        time: myTime,
+        isTurn: isMyTurn,
+        isWarning: myTime < 30,
+        isSearching: false,
+        isDisconnected: false,
+      };
+
   return (
     <div className="w-full h-full max-w-6xl mx-auto flex flex-col lg:flex-row items-center lg:items-start justify-center p-2 sm:p-4 lg:p-6 gap-4 lg:gap-6 select-none overflow-y-auto lg:overflow-hidden pb-24 lg:pb-6">
       {/* ========================================================================= */}
       {/* 1. CHESSBOARD & PLAYER HUD COLUMN                                         */}
       {/* ========================================================================= */}
       <div className="flex flex-col items-center justify-start min-h-0 w-full max-w-[min(calc(100vw-2rem),calc(100dvh-180px),520px)] lg:w-[min(calc(100vw-24rem),calc(100dvh-180px),520px)] shrink-0">
-        {/* Opponent Card & Clock */}
+        {/* Top Player Card & Clock */}
         <div className="w-full px-3 py-1.5 mb-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0 shadow-md">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative w-8 h-8 rounded-lg bg-zinc-800/90 border border-white/10 flex items-center justify-center text-sm shrink-0 overflow-hidden">
-              {isWaitingForOpponent ? (
+              {topPlayerInfo.isSearching ? (
                 <div className="w-full h-full bg-amber-500/10 flex items-center justify-center text-amber-400">
                   <Search className="w-4 h-4 animate-pulse" />
                 </div>
-              ) : opponent?.avatar && opponent.avatar.startsWith('http') ? (
+              ) : topPlayerInfo.avatar && topPlayerInfo.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={opponent.avatar} alt="Opponent" className="w-full h-full rounded-lg object-cover" />
+                <img src={topPlayerInfo.avatar} alt={topPlayerInfo.name} className="w-full h-full rounded-lg object-cover" />
               ) : (
-                <span>{opponent?.avatar || '♟️'}</span>
+                <span>{topPlayerInfo.avatar || '♟️'}</span>
               )}
-              {isWaitingForOpponent ? (
+              {topPlayerInfo.isSearching ? (
                 <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              ) : opponentDisconnected ? (
+              ) : topPlayerInfo.isDisconnected ? (
                 <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
               ) : (
                 <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -551,48 +628,46 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white truncate">
-                  {isWaitingForOpponent
-                    ? 'Searching for Opponent...'
-                    : opponent?.name || (game?.status === 'pending_challenge' ? 'Waiting for Friend...' : 'Opponent')}
+                  {topPlayerInfo.name}
                 </span>
                 <span className="text-[10px] text-zinc-400 font-mono">
-                  ({isWaitingForOpponent ? activeProfile.ratings.blitz || 1200 : opponent?.rating || 1200})
+                  ({topPlayerInfo.rating})
                 </span>
               </div>
               <span className="text-[10px]">
-                {isWaitingForOpponent ? (
+                {topPlayerInfo.isSearching ? (
                   <span className="text-amber-400/90 font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
                     Waiting for player...
                   </span>
-                ) : opponentDisconnected ? (
+                ) : topPlayerInfo.isDisconnected ? (
                   <span className="text-rose-400 font-bold">Disconnected ({disconnectCountdown}s)</span>
                 ) : (
-                  <span className="text-emerald-400/80">Online</span>
+                  <span className="text-zinc-400">{topPlayerInfo.colorLabel}</span>
                 )}
               </span>
             </div>
           </div>
 
-          {/* Opponent Digital Clock */}
+          {/* Top Digital Clock */}
           <div className="flex items-center gap-2 shrink-0">
-            {game?.status === 'active' && firstMoveCountdown !== null && game.turn !== playerColor && (
+            {game?.status === 'active' && firstMoveCountdown !== null && topPlayerInfo.isTurn && (
               <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 hidden sm:inline-block">
                 Move 1: {firstMoveCountdown}s
               </span>
             )}
             <div
               className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
-                isWaitingForOpponent
+                topPlayerInfo.isSearching
                   ? 'bg-[#181714] border-white/5 text-zinc-500'
-                  : game?.turn !== playerColor && game?.status === 'active'
-                  ? opponentTime < 30
+                  : topPlayerInfo.isTurn
+                  ? topPlayerInfo.isWarning
                     ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
                     : 'bg-[#292621] border-amber-500/50 text-white shadow-sm'
                   : 'bg-[#181714] border-white/5 text-zinc-400'
               }`}
             >
-              {formatTime(opponentTime)}
+              {formatTime(topPlayerInfo.time)}
             </div>
           </div>
         </div>
@@ -601,7 +676,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         <div className="w-full aspect-square relative rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
           <ChessBoard
             chess={chess}
-            orientation={playerColor}
+            orientation={effectiveOrientation}
             onMove={handleMove}
             disabled={!isMyTurn}
             lastMove={lastMoveSquares}
@@ -636,19 +711,23 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 w-full max-w-xs mt-1">
-                <Button
-                  variant="primary"
-                  size="md"
-                  rounded="xl"
-                  fullWidth
-                  onClick={copyShareLink}
-                >
-                  {copiedLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                  <span>{copiedLink ? 'Challenge Link Copied!' : 'Copy Link for Friend'}</span>
-                </Button>
+              {/* Direct friend link sharing ONLY for the host */}
+              {isHost && (
+                <div className="flex flex-col gap-2 w-full max-w-xs mt-1">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    rounded="xl"
+                    fullWidth
+                    onClick={copyShareLink}
+                  >
+                    {copiedLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                    <span>{copiedLink ? 'Challenge Link Copied!' : 'Copy Link for Friend'}</span>
+                  </Button>
+                </div>
+              )}
 
-                <div className="flex items-center gap-2 w-full">
+              <div className="flex items-center gap-2 w-full max-w-xs">
                   <Button
                     variant="secondary"
                     size="sm"
@@ -671,7 +750,6 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                   </Button>
                 </div>
               </div>
-            </div>
           )}
 
           {/* ----------------------------------------------------------------- */}
@@ -825,51 +903,55 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           )}
         </div>
 
-        {/* You (Bottom Player Card & Clock) */}
+        {/* Bottom Player Card & Clock */}
         <div className="w-full px-3 py-1.5 mt-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0 shadow-md">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-sm shrink-0 overflow-hidden">
-              {profile?.avatar && profile.avatar.startsWith('http') ? (
+            <div className="relative w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-sm shrink-0 overflow-hidden">
+              {bottomPlayerInfo.isSearching ? (
+                <div className="w-full h-full bg-amber-500/10 flex items-center justify-center text-amber-400">
+                  <Search className="w-4 h-4 animate-pulse" />
+                </div>
+              ) : bottomPlayerInfo.avatar && bottomPlayerInfo.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.avatar} alt="You" className="w-full h-full rounded-lg object-cover" />
+                <img src={bottomPlayerInfo.avatar} alt={bottomPlayerInfo.name} className="w-full h-full rounded-lg object-cover" />
               ) : (
-                <span>{profile?.avatar || '♟️'}</span>
+                <span>{bottomPlayerInfo.avatar || '♟️'}</span>
               )}
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white truncate">
-                  {profile?.displayName || user?.displayName || 'You'}
+                  {bottomPlayerInfo.name}
                 </span>
                 <span className="text-[10px] text-zinc-400 font-mono">
-                  ({profile?.ratings.blitz || 1200})
+                  ({bottomPlayerInfo.rating})
                 </span>
               </div>
               <span className="text-[10px] text-zinc-400">
-                Playing as {playerColor === 'w' ? 'White ⚪' : 'Black ⚫'}
+                Playing as {bottomPlayerInfo.colorLabel}
               </span>
             </div>
           </div>
 
-          {/* Your Digital Clock */}
+          {/* Bottom Digital Clock */}
           <div className="flex items-center gap-2 shrink-0">
-            {game?.status === 'active' && firstMoveCountdown !== null && game.turn === playerColor && (
+            {game?.status === 'active' && firstMoveCountdown !== null && bottomPlayerInfo.isTurn && (
               <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 hidden sm:inline-block">
                 Move 1: {firstMoveCountdown}s
               </span>
             )}
             <div
               className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
-                isWaitingForOpponent
+                bottomPlayerInfo.isSearching
                   ? 'bg-[#181714] border-white/5 text-zinc-500'
-                  : isMyTurn
-                  ? myTime < 30
+                  : bottomPlayerInfo.isTurn
+                  ? bottomPlayerInfo.isWarning
                     ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
                     : 'bg-[#292621] border-[#81b64c] text-white shadow-sm'
                   : 'bg-[#181714] border-white/5 text-zinc-400'
               }`}
             >
-              {formatTime(myTime)}
+              {formatTime(bottomPlayerInfo.time)}
             </div>
           </div>
         </div>
@@ -899,14 +981,16 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  Matchmaking Queue
+                  {isHost ? 'Matchmaking Queue' : 'Connecting to Room'}
                 </span>
                 <span className="text-[11px] font-mono text-zinc-400">
                   {Math.floor(searchElapsedSec / 60)}:{(searchElapsedSec % 60).toString().padStart(2, '0')}
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400 leading-snug">
-                Waiting for an opponent. Invite a friend with your link or jump into a bot match immediately!
+                {isHost
+                  ? 'Waiting for an opponent to join. You can share your link or jump into a bot match.'
+                  : 'Connected to live room. Waiting for host and match to start...'}
               </p>
               <div className="flex gap-2 mt-1">
                 <Button
@@ -933,9 +1017,9 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             </div>
           )}
 
-          {/* Pending Draw Offer Alert */}
-          {game?.drawOfferFrom && game.drawOfferFrom !== playerColor && (
-            <div className="p-2.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex flex-col gap-1.5">
+          {/* Pending Draw Offer Alert (Received) */}
+          {game?.drawOfferFrom && game.drawOfferFrom !== playerColor && game?.status === 'active' && (
+            <div className="p-2.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex flex-col gap-1.5 animate-in fade-in">
               <span className="text-xs font-bold text-amber-300">
                 Opponent offered a draw. Accept?
               </span>
@@ -962,51 +1046,165 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             </div>
           )}
 
-          {/* In-Game Actions: Draw, Abort (before move 2) / Resign */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Pending Draw Offer (Sent by You) */}
+          {game?.drawOfferFrom === playerColor && game?.status === 'active' && (
+            <div className="p-2.5 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-center justify-between animate-in fade-in">
+              <span className="text-xs text-amber-300 font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                Draw offer sent...
+              </span>
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="lg"
+                onClick={() => GameSyncService.respondToDrawOffer(gameId, false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {/* Incoming Rematch Offer Alert */}
+          {game?.rematchRequestedBy && game.rematchRequestedBy !== playerColor && game?.status === 'completed' && (
+            <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex flex-col gap-2 animate-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                  Rematch Offered!
+                </span>
+                <span className="text-[10px] font-mono text-emerald-300 font-bold">Swap Colors</span>
+              </div>
+              <p className="text-[11px] text-zinc-300">Opponent wants to play again. Accept rematch?</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  size="xs"
+                  rounded="lg"
+                  onClick={() => GameSyncService.acceptRematch(gameId, true)}
+                  className="flex-1"
+                >
+                  Accept Rematch
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  rounded="lg"
+                  onClick={() => GameSyncService.declineRematch(gameId)}
+                  className="flex-1"
+                >
+                  Decline
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Rematch Offer (Sent by You) */}
+          {game?.rematchRequestedBy === playerColor && game?.status === 'completed' && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-center justify-between animate-in fade-in">
+              <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                Rematch offer sent...
+              </span>
+              <Button
+                variant="secondary"
+                size="xs"
+                rounded="lg"
+                onClick={() => GameSyncService.declineRematch(gameId)}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {/* Completed Match Action Hub (Rematch / Review) */}
+          {game?.status === 'completed' && !game?.rematchRequestedBy && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                rounded="xl"
+                onClick={() => GameSyncService.requestRematch(gameId, playerColor)}
+                className="flex items-center justify-center gap-1.5 font-bold"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Rematch</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
+                onClick={() => router.push(`/game/review/${gameId}`)}
+                className="flex items-center justify-center gap-1.5 font-bold"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Review</span>
+              </Button>
+            </div>
+          )}
+
+          {/* In-Game Actions: Draw, Abort (before move 2) / Resign, Flip Board */}
+          {game?.status === 'active' && (
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  rounded="xl"
+                  onClick={() => GameSyncService.offerDraw(gameId, playerColor)}
+                  disabled={game?.status !== 'active' || !!game.drawOfferFrom}
+                >
+                  <Handshake className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Draw</span>
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  rounded="xl"
+                  onClick={handleAbortOrResign}
+                  disabled={game?.status !== 'active'}
+                >
+                  {game && game.moves.length < 2 ? (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>{firstMoveCountdown !== null ? `Abort (${firstMoveCountdown}s)` : 'Abort'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Flag className="w-3.5 h-3.5" />
+                      <span>Resign</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
+                fullWidth
+                onClick={() => setUserFlippedBoard((prev) => !prev)}
+                className="text-xs text-zinc-300"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>{userFlippedBoard ? 'Reset Board View' : 'Flip Board View'}</span>
+              </Button>
+            </div>
+          )}
+
+          {/* Share Game Link ONLY for Host when waiting for opponent to join */}
+          {isHost && isWaitingForOpponent && game?.status === 'waiting' && (
             <Button
               variant="secondary"
               size="sm"
               rounded="xl"
-              onClick={() => GameSyncService.offerDraw(gameId, playerColor)}
-              disabled={game?.status !== 'active' || !!game.drawOfferFrom}
+              fullWidth
+              onClick={copyShareLink}
             >
-              <Handshake className="w-3.5 h-3.5 text-amber-400" />
-              <span>Draw</span>
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'Link Copied!' : 'Copy Game Link'}</span>
             </Button>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              rounded="xl"
-              onClick={handleAbortOrResign}
-              disabled={game?.status !== 'active'}
-            >
-              {game && game.moves.length < 2 ? (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>{firstMoveCountdown !== null ? `Abort (${firstMoveCountdown}s)` : 'Abort'}</span>
-                </>
-              ) : (
-                <>
-                  <Flag className="w-3.5 h-3.5" />
-                  <span>Resign</span>
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* Share Game Link */}
-          <Button
-            variant="secondary"
-            size="sm"
-            rounded="xl"
-            fullWidth
-            onClick={copyShareLink}
-          >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? 'Link Copied!' : 'Copy Game Link'}</span>
-          </Button>
+          )}
         </div>
 
         {/* Real-time Move Notation */}
@@ -1030,6 +1228,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                 </span>
               ))
             )}
+            <div ref={movesEndRef} />
           </div>
         </div>
       </div>
@@ -1132,7 +1331,13 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           }}
           userColor={playerColor}
           onReviewGame={() => router.push(`/game/review/${gameId}`)}
-          onRematch={() => router.push('/play')}
+          onRematch={() => {
+            if (game?.rematchRequestedBy && game.rematchRequestedBy !== playerColor) {
+              GameSyncService.acceptRematch(gameId, true);
+            } else {
+              GameSyncService.requestRematch(gameId, playerColor);
+            }
+          }}
           onNewGame={() => router.push('/play')}
         />
       )}
