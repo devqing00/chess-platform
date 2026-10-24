@@ -264,7 +264,7 @@ export class GameSyncService {
         to,
         san,
         fen: newFen,
-        timeTakenMs,
+        ...(timeTakenMs !== undefined ? { timeTakenMs } : {}),
         timestamp: Date.now(),
       };
 

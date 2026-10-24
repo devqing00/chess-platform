@@ -18,13 +18,17 @@ import {
   ArrowRight,
   ChevronRight,
   ChevronLeft,
+  ChevronsRight,
+  ChevronsLeft,
   AlertTriangle,
   Award,
   Play,
+  Pause,
   Layers,
   Bot,
   BookOpen,
   Zap,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -53,30 +57,95 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
   const [drillIndex, setDrillIndex] = useState(0);
   const [drillStatus, setDrillStatus] = useState<'idle' | 'practicing' | 'completed'>('idle');
   const [coachFeedback, setCoachFeedback] = useState<string>(
-    `Opening loaded: ${dossiers[0].name}. Inspect the counter-opening strategy or practice the continuation.`
+    `Opening loaded: ${dossiers[0].name}. Use the stepper below to explore move-by-move or practice the continuation.`
   );
 
-  // Chess instance synced to opening moves
+  // Compute move-by-move positions for the active opening
+  const historyPositions = useMemo(() => {
+    const c = new Chess();
+    const cleanMoves = selectedDossier.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
+    const positions = [
+      { ply: 0, fen: c.fen(), san: 'Start', label: 'Start', color: 'w' }
+    ];
+    cleanMoves.forEach((san, idx) => {
+      try {
+        const move = c.move(san);
+        if (move) {
+          positions.push({
+            ply: idx + 1,
+            fen: c.fen(),
+            san: move.san,
+            label: `${Math.floor(idx / 2) + 1}${idx % 2 === 0 ? '.' : '...'} ${move.san}`,
+            color: move.color,
+          });
+        }
+      } catch {}
+    });
+    return positions;
+  }, [selectedDossier]);
+
+  const [currentPly, setCurrentPly] = useState<number>(() => {
+    const cleanMoves = dossiers[0].moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
+    return cleanMoves.length;
+  });
+
+  const [isPlayingAutoplay, setIsPlayingAutoplay] = useState(false);
+
+  // Chess instance synced to current ply or interactive play
   const [chess, setChess] = useState<Chess>(() => {
     const c = new Chess();
-    const cleanMoves = dossiers[0].moves.replace(/\d+\./g, '').trim().split(/\s+/);
+    const cleanMoves = dossiers[0].moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
     cleanMoves.forEach((san) => {
       try { c.move(san); } catch {}
     });
     return c;
   });
 
+  // Jump to specific ply in opening
+  const jumpToPly = useCallback((ply: number) => {
+    const targetPly = Math.max(0, Math.min(ply, historyPositions.length - 1));
+    setCurrentPly(targetPly);
+    const targetPos = historyPositions[targetPly];
+    if (targetPos) {
+      setChess(new Chess(targetPos.fen));
+      soundService.playMove();
+      if (targetPly === 0) {
+        setCoachFeedback(`Starting position. Step through moves to see how ${selectedDossier.name} develops.`);
+      } else {
+        setCoachFeedback(`Move ${targetPos.label}: ${targetPos.color === 'w' ? 'White' : 'Black'} plays ${targetPos.san}.`);
+      }
+    }
+  }, [historyPositions, selectedDossier.name]);
+
+  // Autoplay ticker
+  useEffect(() => {
+    if (!isPlayingAutoplay) return;
+
+    if (currentPly >= historyPositions.length - 1) {
+      setIsPlayingAutoplay(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      jumpToPly(currentPly + 1);
+    }, 1100);
+
+    return () => clearTimeout(timer);
+  }, [isPlayingAutoplay, currentPly, historyPositions.length, jumpToPly]);
+
   const loadOpeningDossier = useCallback((dossier: FullOpeningMasteryDossier) => {
     setSelectedDossier(dossier);
     const c = new Chess();
-    const cleanMoves = dossier.moves.replace(/\d+\./g, '').trim().split(/\s+/);
+    const cleanMoves = dossier.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
     cleanMoves.forEach((san) => {
       try { c.move(san); } catch {}
     });
     setChess(c);
+    setCurrentPly(cleanMoves.length);
     setDrillIndex(0);
     setDrillStatus('idle');
-    setCoachFeedback(`Opening loaded: ${dossier.name}. Inspect the counter-opening strategy or practice lines.`);
+    setIsPlayingAutoplay(false);
+    setCoachFeedback(`Opening loaded: ${dossier.name}. Step through moves or practice refutation lines.`);
     soundService.playMove();
   }, []);
 
@@ -94,7 +163,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
     });
   }, [dossiers, searchQuery, categoryFilter]);
 
-  // Handle board move in interactive continuation drill
+  // Handle board move in interactive continuation drill or free analysis
   const handleMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
     try {
       const copy = new Chess(chess.fen());
@@ -114,20 +183,60 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
         const tree = selectedDossier.continuationTree;
         const currentTarget = tree[drillIndex];
 
-        if (currentTarget && move.san === currentTarget.moveSan) {
+        if (currentTarget && (move.san === currentTarget.moveSan || `${move.from}${move.to}` === currentTarget.moveSan)) {
           soundService.playPuzzleSuccess();
-          if (drillIndex < tree.length - 1) {
-            setDrillIndex((prev) => prev + 1);
-            setCoachFeedback(`Correct! ${currentTarget.coachNote} Play the next continuation move.`);
+          
+          if (currentTarget.responseSan) {
+            setCoachFeedback(`Correct! ${currentTarget.coachNote}. Opponent plays ${currentTarget.responseSan}...`);
+            // Opponent auto-reply after 600ms
+            setTimeout(() => {
+              try {
+                const oppCopy = new Chess(copy.fen());
+                const oppMove = oppCopy.move(currentTarget.responseSan);
+                if (oppMove) {
+                  setChess(oppCopy);
+                  soundService.playMove();
+                }
+                if (drillIndex < tree.length - 1) {
+                  setDrillIndex((prev) => prev + 1);
+                  const nextTarget = tree[drillIndex + 1];
+                  setCoachFeedback(`White played ${currentTarget.responseSan}. Now play your next move: ${nextTarget?.moveSan || 'your response'}.`);
+                } else {
+                  setDrillStatus('completed');
+                  setCoachFeedback(`Flawless! You completed the ${selectedDossier.name} counter-opening sequence.`);
+                  soundService.playGameEndWin();
+                  awardXp(30, `Mastered Opening: ${selectedDossier.name}`);
+                }
+              } catch {
+                if (drillIndex < tree.length - 1) {
+                  setDrillIndex((prev) => prev + 1);
+                } else {
+                  setDrillStatus('completed');
+                  soundService.playGameEndWin();
+                  awardXp(30, `Mastered Opening: ${selectedDossier.name}`);
+                }
+              }
+            }, 600);
           } else {
-            setDrillStatus('completed');
-            setCoachFeedback(`Flawless! You completed the ${selectedDossier.name} counter-opening sequence.`);
-            awardXp(30, `Mastered Opening: ${selectedDossier.name}`);
+            if (drillIndex < tree.length - 1) {
+              setDrillIndex((prev) => prev + 1);
+              setCoachFeedback(`Correct! ${currentTarget.coachNote} Play the next continuation move.`);
+            } else {
+              setDrillStatus('completed');
+              setCoachFeedback(`Flawless! You completed the ${selectedDossier.name} counter-opening sequence.`);
+              soundService.playGameEndWin();
+              awardXp(30, `Mastered Opening: ${selectedDossier.name}`);
+            }
           }
         } else {
           soundService.playPuzzleFail();
-          setCoachFeedback(`Move ${move.san} deviates from the top theoretical counter. Try again or check the strategy.`);
+          setCoachFeedback(`Move ${move.san} deviates from the top theoretical counter (${currentTarget?.moveSan || 'best move'}). Resetting...`);
+          setTimeout(() => {
+            setChess(new Chess(chess.fen()));
+          }, 700);
         }
+      } else {
+        setCoachFeedback(`Exploratory move: ${move.san}. Use the stepper or reset button to return to theoretical lines.`);
       }
     } catch {
       // Invalid move
@@ -135,15 +244,11 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
   };
 
   const handleResetBoard = () => {
-    const c = new Chess();
-    const cleanMoves = selectedDossier.moves.replace(/\d+\./g, '').trim().split(/\s+/);
-    cleanMoves.forEach((san) => {
-      try { c.move(san); } catch {}
-    });
-    setChess(c);
+    setIsPlayingAutoplay(false);
+    jumpToPly(historyPositions.length - 1);
     setDrillStatus('idle');
     setDrillIndex(0);
-    setCoachFeedback(`Board reset to ${selectedDossier.name} starting position.`);
+    setCoachFeedback(`Board reset to ${selectedDossier.name} main position.`);
     soundService.playMove();
   };
 
@@ -276,10 +381,10 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
           </div>
 
           {/* Dual Column Layout: Board Left (7 Cols), Coach Danny & Controls Right (5 Cols) */}
-          <div className="flex-1 w-full min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-center">
-            {/* Left Column (7 Cols): Scaled Interactive Board */}
-            <div className="lg:col-span-7 h-full flex flex-col items-center justify-center min-h-0 gap-2">
-              <div className="h-full max-h-[360px] sm:max-h-[400px] aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative bg-black">
+          <div className="flex-1 w-full min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            {/* Left Column (7 Cols): Scaled Interactive Board + Stepper Controls */}
+            <div className="lg:col-span-7 flex flex-col items-center justify-between min-h-0 gap-2.5">
+              <div className="w-full max-w-[420px] aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative bg-black shrink-0">
                 <ChessBoard
                   chess={chess}
                   orientation={orientation}
@@ -288,71 +393,242 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   onMove={handleMove}
                 />
               </div>
+
+              {/* Stepper Navigation Bar */}
+              <div className="w-full max-w-[420px] flex flex-col gap-2 bg-[#1c1a17] p-2.5 rounded-2xl border border-white/5 shrink-0">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => jumpToPly(0)}
+                      disabled={currentPly === 0 || drillStatus === 'practicing'}
+                      title="Jump to Start"
+                    >
+                      <ChevronsLeft className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => jumpToPly(currentPly - 1)}
+                      disabled={currentPly === 0 || drillStatus === 'practicing'}
+                      title="Previous Move"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => setIsPlayingAutoplay((prev) => !prev)}
+                      disabled={drillStatus === 'practicing'}
+                      title={isPlayingAutoplay ? 'Pause Autoplay' : 'Play Opening Sequence'}
+                    >
+                      {isPlayingAutoplay ? (
+                        <Pause className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5 text-[#81b64c]" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => jumpToPly(currentPly + 1)}
+                      disabled={currentPly >= historyPositions.length - 1 || drillStatus === 'practicing'}
+                      title="Next Move"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => jumpToPly(historyPositions.length - 1)}
+                      disabled={currentPly >= historyPositions.length - 1 || drillStatus === 'practicing'}
+                      title="Jump to Final Move"
+                    >
+                      <ChevronsRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+
+                  {/* Move indicator */}
+                  <span className="text-xs font-mono font-bold text-zinc-300">
+                    {drillStatus === 'practicing' ? (
+                      <span className="text-[#81b64c]">Drill Step {drillIndex + 1}/{selectedDossier.continuationTree.length}</span>
+                    ) : (
+                      <span>
+                        Ply {currentPly}/{historyPositions.length - 1} &bull;{' '}
+                        <strong className="text-white">{historyPositions[currentPly]?.label || 'Start'}</strong>
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Move sequence pills */}
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+                  {historyPositions.map((pos) => {
+                    const isActive = currentPly === pos.ply && drillStatus !== 'practicing';
+                    return (
+                      <button
+                        key={pos.ply}
+                        onClick={() => {
+                          if (drillStatus === 'practicing') setDrillStatus('idle');
+                          jumpToPly(pos.ply);
+                        }}
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all shrink-0 cursor-pointer ${
+                          isActive
+                            ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                            : 'bg-[#141311] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5'
+                        }`}
+                      >
+                        {pos.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Right Column (5 Cols): Coach Danny Strategy & Primary Actions */}
             <div className="lg:col-span-5 h-full p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
-              {/* Coach Danny Live Feedback */}
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                  <div className="w-7 h-7 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] block">
-                      Coach Danny &bull; Strategic Directive
+              {/* Practice Mode Active View */}
+              {drillStatus === 'practicing' && (
+                <div className="flex flex-col gap-3">
+                  <div className="p-3 rounded-xl bg-[#81b64c]/10 border border-[#81b64c]/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#81b64c]" />
+                      <span className="text-xs font-extrabold text-[#81b64c]">
+                        Continuation Drill &bull; Step {drillIndex + 1} of {selectedDossier.continuationTree.length}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded font-bold">
+                      +30 XP
                     </span>
-                    <span className="text-xs font-bold text-white">{selectedDossier.name}</span>
                   </div>
-                </div>
 
-                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 text-xs text-zinc-300 leading-relaxed font-sans">
-                  {coachFeedback}
-                </div>
-
-                {/* Best Counter Quick Preview */}
-                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between gap-2">
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-zinc-500">Refutation Weapon</span>
-                    <span className="text-xs font-bold text-white truncate">
-                      {selectedDossier.bestCounterOpening.counterName}
+                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex flex-col gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                      Your Mission
                     </span>
-                    <span className="text-[10px] font-mono text-amber-400">
-                      {selectedDossier.bestCounterOpening.counterMoves}
-                    </span>
+                    <p className="text-xs text-white font-bold leading-relaxed">
+                      {coachFeedback}
+                    </p>
+                    {selectedDossier.continuationTree[drillIndex]?.evaluation && (
+                      <span className="text-[11px] font-mono text-amber-400">
+                        Eval: {selectedDossier.continuationTree[drillIndex].evaluation}
+                      </span>
+                    )}
+                    {selectedDossier.continuationTree[drillIndex]?.pitfallWarning && (
+                      <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 flex items-start gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                        <span>{selectedDossier.continuationTree[drillIndex].pitfallWarning}</span>
+                      </div>
+                    )}
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="xs"
-                    rounded="lg"
-                    onClick={() => setActiveScreen('counter')}
-                    className="shrink-0"
-                  >
-                    <span>Full Plan</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </Button>
                 </div>
-              </div>
+              )}
+
+              {/* Completed Drill View */}
+              {drillStatus === 'completed' && (
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2.5 text-center items-center">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                  <h3 className="text-sm font-extrabold text-white">Opening Sequence Mastered!</h3>
+                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                    {coachFeedback}
+                  </p>
+                  <span className="text-xs font-mono font-bold text-[#81b64c] bg-[#81b64c]/10 px-3 py-1 rounded-full border border-[#81b64c]/20">
+                    +30 XP Added to Profile
+                  </span>
+                </div>
+              )}
+
+              {/* Study Mode Default View */}
+              {drillStatus === 'idle' && (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                    <div className="w-7 h-7 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] block">
+                        Coach Danny &bull; Strategic Directive
+                      </span>
+                      <span className="text-xs font-bold text-white">{selectedDossier.name}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 text-xs text-zinc-300 leading-relaxed font-sans">
+                    {coachFeedback}
+                  </div>
+
+                  {/* Best Counter Quick Preview */}
+                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between gap-2">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] uppercase font-bold text-zinc-500">Refutation Weapon</span>
+                      <span className="text-xs font-bold text-white truncate">
+                        {selectedDossier.bestCounterOpening.counterName}
+                      </span>
+                      <span className="text-[10px] font-mono text-amber-400">
+                        {selectedDossier.bestCounterOpening.counterMoves}
+                      </span>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      rounded="lg"
+                      onClick={() => setActiveScreen('counter')}
+                      className="shrink-0"
+                    >
+                      <span>Full Plan</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Action Anchors */}
               <div className="flex flex-col gap-2 pt-2 border-t border-white/5 shrink-0">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  rounded="xl"
-                  fullWidth
-                  onClick={() => {
-                    setDrillStatus('practicing');
-                    setDrillIndex(0);
-                    handleResetBoard();
-                    const branch = selectedDossier.continuationTree[0];
-                    setCoachFeedback(`Practice Active: Play the refutation move ${branch?.moveSan || 'on the board'}.`);
-                  }}
-                >
-                  <Play className="w-4 h-4 fill-black" />
-                  <span>Practice Counter Continuation (+30 XP)</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
+                {drillStatus === 'practicing' ? (
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    rounded="xl"
+                    fullWidth
+                    onClick={() => {
+                      setDrillStatus('idle');
+                      jumpToPly(historyPositions.length - 1);
+                      setCoachFeedback(`Exited drill mode. Stepping through ${selectedDossier.name}.`);
+                    }}
+                  >
+                    <span>Exit Drill Mode</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    rounded="xl"
+                    fullWidth
+                    onClick={() => {
+                      setDrillStatus('practicing');
+                      setDrillIndex(0);
+                      // Set board to the final opening move
+                      jumpToPly(historyPositions.length - 1);
+                      // Auto-flip if counter is for Black
+                      if (selectedDossier.bestCounterOpening.counterMoves.startsWith('3...') || selectedDossier.bestCounterOpening.counterMoves.startsWith('1...')) {
+                        setOrientation('b');
+                      }
+                      const branch = selectedDossier.continuationTree[0];
+                      setCoachFeedback(`Drill Active: Play Black's refutation move ${branch?.moveSan || 'on the board'}.`);
+                    }}
+                  >
+                    <Play className="w-4 h-4 fill-black" />
+                    <span>Practice Counter Continuation (+30 XP)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <Button

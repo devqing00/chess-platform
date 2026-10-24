@@ -13,6 +13,11 @@ import { Button } from '@/components/ui/button';
 import { GameSessionStore } from '@/lib/gameSessionStore';
 import { GamePlayer } from '@/types/chess';
 import {
+  getPersistentGuestUid,
+  getEffectiveUserProfile,
+  isBrowserChallengeHost,
+} from '@/lib/firebase/guestAuth';
+import {
   Clock,
   Flag,
   Handshake,
@@ -57,42 +62,49 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncTimestampRef = useRef<number>(Date.now());
 
-  // Dynamic guest fallback to ensure instant play even if unauthenticated
-  const [guestId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      let stored = localStorage.getItem('checkmate_guest_uid');
-      if (!stored) {
-        stored = `guest-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        localStorage.setItem('checkmate_guest_uid', stored);
-      }
-      return stored;
-    }
-    return `guest-${Date.now()}`;
-  });
+  // Leave confirmation modal state
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
+  const [pendingNavigationUrl, setPendingNavigationUrl] = useState<string | null>(null);
 
-  const effectiveUid = user?.uid || guestId;
-  const isHost = game?.hostUid ? game.hostUid === effectiveUid : game?.whitePlayer.uid === effectiveUid;
-  const isWhite = game?.whitePlayer.uid === effectiveUid;
-  const isBlack = game?.blackPlayer?.uid === effectiveUid;
-  const playerColor: 'w' | 'b' = isWhite ? 'w' : isBlack ? 'b' : (typeof window !== 'undefined' && window.location.search.includes('as=black') ? 'b' : 'w');
-  const isSpectator = !isWhite && !isBlack && game?.status === 'active';
+  // Authoritative identity matching
+  const effectiveUid = user?.uid || getPersistentGuestUid();
+  const isCreatorOfChallenge = isBrowserChallengeHost(gameId);
+  const isHost =
+    isCreatorOfChallenge ||
+    (Boolean(effectiveUid) && game?.hostUid === effectiveUid) ||
+    (Boolean(effectiveUid) && game?.whitePlayer?.uid === effectiveUid);
+
+  const searchParamsColor =
+    typeof window !== 'undefined'
+      ? (new URLSearchParams(window.location.search).get('color') as 'w' | 'b' | null)
+      : null;
+  const isExplicitBlackJoin =
+    typeof window !== 'undefined' && window.location.search.includes('as=black');
+
+  const isWhite = Boolean(game?.whitePlayer?.uid) && game?.whitePlayer?.uid === effectiveUid;
+  const isBlack = Boolean(game?.blackPlayer?.uid) && game?.blackPlayer?.uid === effectiveUid;
+
+  const playerColor: 'w' | 'b' =
+    searchParamsColor ||
+    (isWhite
+      ? 'w'
+      : isBlack
+      ? 'b'
+      : isExplicitBlackJoin
+      ? 'b'
+      : isHost
+      ? game?.hostColorChoice === 'b'
+        ? 'b'
+        : 'w'
+      : 'b');
+
+  const isSpectator =
+    !isWhite && !isBlack && game?.status === 'active' && !searchParamsColor && !isExplicitBlackJoin && !isHost;
   const isMyTurn = !isSpectator && game?.status === 'active' && game?.turn === playerColor;
 
   const activeProfile: UserProfile = useMemo(() => {
-    if (profile) return profile;
-    return {
-      uid: effectiveUid,
-      email: user?.email || null,
-      displayName: user?.displayName || (user ? 'Player' : 'Guest Player'),
-      avatar: '♟️',
-      tier: 'free',
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      isAnonymous: !user?.uid,
-      ratings: { rapid: 1200, blitz: 1200, bullet: 1200, daily: 1200, puzzles: 1500, puzzleRush: 0 },
-      stats: { gamesPlayed: 0, wins: 0, losses: 0, draws: 0, winStreak: 0 },
-    };
-  }, [profile, effectiveUid, user]);
+    return getEffectiveUserProfile(user, profile);
+  }, [profile, user]);
 
   // Elapsed search timer when waiting for an opponent to join
   const [searchElapsedSec, setSearchElapsedSec] = useState(0);
@@ -246,6 +258,50 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     };
   }, [gameId, playerColor, isSpectator, game?.status]);
 
+  // Intercept browser back-button & page exit during active gameplay
+  useEffect(() => {
+    if (!game || game.status !== 'active') return;
+
+    window.history.pushState({ inLiveGame: true }, '');
+
+    const handlePopState = () => {
+      window.history.pushState({ inLiveGame: true }, '');
+      setPendingNavigationUrl('/play');
+      setShowLeaveConfirmation(true);
+    };
+
+    const handleBeforeUnloadPrompt = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Match in progress! Leaving will count as a forfeit or abort.';
+      return e.returnValue;
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnloadPrompt);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnloadPrompt);
+    };
+  }, [game?.status]);
+
+  const handleConfirmLeave = async () => {
+    if (!game || game.status !== 'active') {
+      setShowLeaveConfirmation(false);
+      router.push(pendingNavigationUrl || '/play');
+      return;
+    }
+
+    if (game.moves.length < 2) {
+      await GameSyncService.abortGame(gameId, 'Game aborted by player departure.');
+    } else {
+      await GameSyncService.resignGame(gameId, playerColor, user?.displayName || 'Player');
+    }
+
+    setShowLeaveConfirmation(false);
+    router.push(pendingNavigationUrl || '/play');
+  };
+
   // 4. Handle Player Move
   const handleMove = useCallback(
     async (from: Square, to: Square, promotion?: string) => {
@@ -332,18 +388,10 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   };
 
   // 7. Handle Early Abort vs Resign
-  const handleAbortOrResign = async () => {
-    if (!game) return;
-    const movesCount = game.moves.length;
-
-    if (movesCount < 2) {
-      // Game Abort without rating penalty
-      const who = playerColor === 'w' ? 'White' : 'Black';
-      await GameSyncService.abortGame(gameId, `Match aborted by ${who} before move 2.`);
-    } else {
-      // Resignation
-      await GameSyncService.resignGame(gameId, playerColor, user?.displayName || 'Player');
-    }
+  const handleAbortOrResign = () => {
+    if (!game || game.status !== 'active') return;
+    setPendingNavigationUrl(null);
+    setShowLeaveConfirmation(true);
   };
 
   const copyShareLink = () => {
@@ -933,6 +981,55 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* LEAVE / EXIT / RESIGN CONFIRMATION MODAL                                  */}
+      {/* ========================================================================= */}
+      {showLeaveConfirmation && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[#1c1a17] border border-white/10 rounded-2xl max-w-sm w-full p-5 shadow-2xl flex flex-col gap-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-white">
+                {game && game.moves.length < 2 ? 'Abort Match?' : 'Resign Match?'}
+              </h3>
+              <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed">
+                {game && game.moves.length < 2
+                  ? 'The match is on Move 1. Leaving or aborting now ends the game with NO loss of rating points.'
+                  : 'The game is currently active. Leaving now counts as a formal resignation and will affect your rating.'}
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <Button
+                variant="secondary"
+                size="md"
+                rounded="xl"
+                fullWidth
+                onClick={() => {
+                  setShowLeaveConfirmation(false);
+                  setPendingNavigationUrl(null);
+                }}
+              >
+                <span>Stay in Game</span>
+              </Button>
+
+              <Button
+                variant={game && game.moves.length < 2 ? 'primary' : 'destructive'}
+                size="md"
+                rounded="xl"
+                fullWidth
+                onClick={handleConfirmLeave}
+              >
+                <span>{game && game.moves.length < 2 ? 'Abort Match' : 'Resign Match'}</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

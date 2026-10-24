@@ -413,11 +413,13 @@ function PuzzlesMasteryContent() {
                   </div>
                 </div>
 
-                {/* Title & Description */}
+                {/* Title & Tactical Objective */}
                 <div>
                   <h3 className="text-sm font-black text-white">{currentPuzzle.title}</h3>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    {currentPuzzle.solutionDescription || 'Calculate every response carefully before playing.'}
+                    {statusMessage === 'solved'
+                      ? currentPuzzle.solutionDescription
+                      : `Find the best move for ${puzzleTurn === 'w' ? 'White' : 'Black'}. Calculate all candidate responses.`}
                   </p>
                 </div>
 
@@ -430,8 +432,10 @@ function PuzzlesMasteryContent() {
                   <p className="text-[11px] text-zinc-300">
                     {statusMessage === 'solved'
                       ? currentPuzzle.teachingNotes || currentPuzzle.solutionDescription
-                      : hintLevel > 0
-                      ? currentPuzzle.coachHint || 'Identify undefended pieces, discovered attacks, and king pins.'
+                      : hintLevel === 1
+                      ? currentPuzzle.coachHint || 'Look for unprotected pieces and tactical motifs.'
+                      : hintLevel >= 2
+                      ? `Focus on moving the piece starting on square ${currentPuzzle.moves[0]?.slice(0, 2).toUpperCase() || 'the center'}.`
                       : 'Look for tactical weaknesses, overworked defenders, and king exposure.'}
                   </p>
                 </div>

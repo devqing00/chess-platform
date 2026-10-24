@@ -7,6 +7,7 @@ import { syncExternalAccountGames } from '@/lib/syncService';
 import { MatchmakingService } from '@/lib/firebase/matchmakingService';
 import { GameSyncService } from '@/lib/firebase/gameSyncService';
 import { UserProfile } from '@/lib/firebase/types';
+import { getEffectiveUserProfile, markChallengeAsHost } from '@/lib/firebase/guestAuth';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
 import { ChessVariant, GamePlayer, GameSession } from '@/types/chess';
@@ -35,6 +36,7 @@ import {
   ArrowRight,
   Link as LinkIcon,
   AlertCircle,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -118,6 +120,13 @@ export default function PlayLobbyPage() {
   const [queueTimeoutReached, setQueueTimeoutReached] = useState(false);
   const [isCreatingChallenge, setIsCreatingChallenge] = useState(false);
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  const [createdChallenge, setCreatedChallenge] = useState<{
+    gameId: string;
+    shareUrl: string;
+    timeControlLabel: string;
+    colorChoice: string;
+  } | null>(null);
+  const [copiedChallengeModalLink, setCopiedChallengeModalLink] = useState(false);
 
   const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
   const queueCleanupRef = useRef<(() => void) | null>(null);
@@ -213,32 +222,7 @@ export default function PlayLobbyPage() {
       });
     }, 1000);
 
-    const userProfile: UserProfile = profile || {
-      uid: user?.uid || `guest-${Date.now()}`,
-      email: user?.email || null,
-      displayName: effectiveDisplayName || 'Guest Player',
-      avatar: effectiveAvatar || '♟️',
-      tier: 'free',
-      country: effectiveCountry || 'US',
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      isAnonymous: !user?.uid,
-      ratings: {
-        blitz: effectiveRating || 1200,
-        rapid: effectiveRating || 1200,
-        bullet: effectiveRating || 1200,
-        daily: 1200,
-        puzzles: 1200,
-        puzzleRush: 0,
-      },
-      stats: {
-        gamesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        winStreak: 0,
-      },
-    };
+    const userProfile: UserProfile = getEffectiveUserProfile(user, profile, effectiveDisplayName);
 
     try {
       const { ticketId, unsubscribe } = await MatchmakingService.enterQueue(
@@ -246,10 +230,10 @@ export default function PlayLobbyPage() {
         selectedTimeControl.sec,
         selectedTimeControl.inc,
         selectedVariant,
-        (matchedGameId: string) => {
+        (matchedGameId: string, assignedColor?: 'w' | 'b') => {
           if (queueTimerRef.current) clearInterval(queueTimerRef.current);
           setIsQueueing(false);
-          router.push(`/play/live/${matchedGameId}`);
+          router.push(`/play/live/${matchedGameId}${assignedColor ? `?color=${assignedColor}` : ''}`);
         }
       );
 
@@ -280,32 +264,7 @@ export default function PlayLobbyPage() {
   const handleCreateFriendChallenge = async () => {
     try {
       setIsCreatingChallenge(true);
-      const hostProfile: UserProfile = profile || {
-        uid: user?.uid || `guest-${Date.now()}`,
-        email: user?.email || null,
-        displayName: effectiveDisplayName || 'Host Player',
-        avatar: effectiveAvatar || '♟️',
-        tier: 'free',
-        country: effectiveCountry || 'US',
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        isAnonymous: !user?.uid,
-        ratings: {
-          blitz: effectiveRating || 1200,
-          rapid: effectiveRating || 1200,
-          bullet: effectiveRating || 1200,
-          daily: 1200,
-          puzzles: 1200,
-          puzzleRush: 0,
-        },
-        stats: {
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          winStreak: 0,
-        },
-      };
+      const hostProfile: UserProfile = getEffectiveUserProfile(user, profile, effectiveDisplayName);
 
       const gameId = await GameSyncService.createFriendChallengeWithAutoId(
         hostProfile,
@@ -316,7 +275,19 @@ export default function PlayLobbyPage() {
         true
       );
 
-      router.push(`/play/live/${gameId}`);
+      // Register this browser as host so room knows you are creator with 100% certainty
+      markChallengeAsHost(gameId);
+
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const shareUrl = `${origin}/play/live/${gameId}?as=black`;
+
+      setCreatedChallenge({
+        gameId,
+        shareUrl,
+        timeControlLabel: `${selectedTimeControl.label} ${selectedTimeControl.sub}`,
+        colorChoice: playAsColor === 'w' ? 'White ⚪' : playAsColor === 'b' ? 'Black ⚫' : 'Random 🌓',
+      });
+      setIsCreatingChallenge(false);
     } catch (err) {
       console.error('Failed to create friend challenge:', err);
       setIsCreatingChallenge(false);
@@ -1343,6 +1314,105 @@ export default function PlayLobbyPage() {
           </span>
         </div>
       </footer>
+
+      {/* Friend Challenge Created Share Modal */}
+      {createdChallenge && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[#1c1a17] border border-white/10 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Challenge Link Ready!</h3>
+                  <p className="text-xs text-zinc-400">Share this link with your friend to play.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCreatedChallenge(null)}
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Match config preview */}
+            <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between text-xs font-mono text-zinc-300">
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span>{createdChallenge.timeControlLabel}</span>
+              </div>
+              <span>&bull;</span>
+              <span>Playing as: <strong className="text-white">{createdChallenge.colorChoice}</strong></span>
+            </div>
+
+            {/* Link Box */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                Direct Invite Link:
+              </label>
+              <div className="flex items-center gap-2 p-2 bg-[#141311] rounded-xl border border-white/10">
+                <input
+                  type="text"
+                  readOnly
+                  value={createdChallenge.shareUrl}
+                  className="bg-transparent text-xs text-zinc-300 font-mono flex-1 outline-none truncate select-all px-1"
+                />
+                <Button
+                  variant="primary"
+                  size="xs"
+                  rounded="lg"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdChallenge.shareUrl);
+                    setCopiedChallengeModalLink(true);
+                    setTimeout(() => setCopiedChallengeModalLink(false), 2500);
+                  }}
+                  className="shrink-0"
+                >
+                  {copiedChallengeModalLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedChallengeModalLink ? 'Copied!' : 'Copy'}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* WhatsApp Direct Share */}
+            <div className="flex items-center gap-2">
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Let's play chess! Click this link to join my live match: ${createdChallenge.shareUrl}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-2 px-3 rounded-xl bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition"
+              >
+                <span>Share via WhatsApp</span>
+              </a>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+              <Button
+                variant="secondary"
+                size="md"
+                rounded="xl"
+                onClick={() => setCreatedChallenge(null)}
+                className="flex-1"
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                rounded="xl"
+                onClick={() => router.push(`/play/live/${createdChallenge.gameId}`)}
+                className="flex-1"
+              >
+                <Play className="w-4 h-4 fill-black" />
+                <span>Enter Board Room</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

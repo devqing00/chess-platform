@@ -27,6 +27,7 @@ export interface MatchmakingTicket {
   variant: string;
   createdAt: number;
   matchedGameId?: string;
+  assignedColor?: 'w' | 'b';
 }
 
 export class MatchmakingService {
@@ -38,7 +39,7 @@ export class MatchmakingService {
     timeControlSec: number,
     incrementSec: number = 0,
     variant: string = 'standard',
-    onMatched: (gameId: string) => void
+    onMatched: (gameId: string, assignedColor?: 'w' | 'b') => void
   ): Promise<{ ticketId: string; unsubscribe: () => void }> {
     const queueRef = collection(db, 'matchmaking_queue');
     const ticketId = `ticket-${user.uid}-${Date.now()}`;
@@ -121,14 +122,14 @@ export class MatchmakingService {
         updatedAt: Date.now(),
       });
 
-      // Update opponent's ticket with the created game ID
+      // Update opponent's ticket with the created game ID and their assigned color
       await setDoc(
         doc(db, 'matchmaking_queue', matchedTicket.id),
-        { matchedGameId: gameId },
+        { matchedGameId: gameId, assignedColor: isUserWhite ? 'b' : 'w' },
         { merge: true }
       );
 
-      onMatched(gameId);
+      onMatched(gameId, isUserWhite ? 'w' : 'b');
       return {
         ticketId,
         unsubscribe: () => {},
@@ -156,7 +157,7 @@ export class MatchmakingService {
       if (snap.exists()) {
         const data = snap.data() as MatchmakingTicket;
         if (data.matchedGameId) {
-          onMatched(data.matchedGameId);
+          onMatched(data.matchedGameId, data.assignedColor || 'b');
           // Cleanup ticket
           deleteDoc(myTicketRef).catch(() => {});
         }
