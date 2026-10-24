@@ -46,15 +46,19 @@ export class GameSyncService {
       if (data.status === 'pending_challenge') {
         return data;
       }
-      // If black slot is open and user isn't white, join as black
-      if (!data.blackPlayer && data.whitePlayer.uid !== user.uid) {
+      // If black slot is open and user isn't white (or explicitly joining via challenge link as=black)
+      const isSameUser = data.whitePlayer.uid === user.uid;
+      const isExplicitBlackJoin = typeof window !== 'undefined' && window.location.search.includes('as=black');
+      if (!data.blackPlayer && (!isSameUser || isExplicitBlackJoin)) {
+        const blackUid = (isSameUser && isExplicitBlackJoin) ? `${user.uid}-guest` : user.uid;
+        const blackName = (isSameUser && isExplicitBlackJoin) ? `${user.displayName || 'Player'} (Guest)` : user.displayName;
         const updated: Partial<LiveSyncGame> = {
           blackPlayer: {
-            uid: user.uid,
-            name: user.displayName,
-            rating: user.ratings.blitz,
+            uid: blackUid,
+            name: blackName,
+            rating: user.ratings.blitz || 1200,
             online: true,
-            avatar: user.avatar,
+            avatar: user.avatar || '♟️',
           },
           status: 'active',
           startedAt: Date.now(),

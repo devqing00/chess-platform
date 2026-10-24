@@ -45,18 +45,23 @@ export class MatchmakingService {
     const userRating = user.ratings.blitz || 1200;
 
     // 1. Search existing tickets in queue within rating delta (+- 150 points)
+    // Query without orderBy to avoid requiring custom Firestore composite indexes
     const existingTicketsQuery = query(
       queueRef,
       where('timeControlSec', '==', timeControlSec),
       where('variant', '==', variant),
-      orderBy('createdAt', 'asc'),
-      limit(10)
+      limit(20)
     );
 
     const snapshot = await getDocs(existingTicketsQuery);
+    const sortedDocs = [...snapshot.docs].sort((a, b) => {
+      const aData = a.data() as MatchmakingTicket;
+      const bData = b.data() as MatchmakingTicket;
+      return (aData.createdAt || 0) - (bData.createdAt || 0);
+    });
     let matchedTicket: MatchmakingTicket | null = null;
 
-    for (const d of snapshot.docs) {
+    for (const d of sortedDocs) {
       const ticket = d.data() as MatchmakingTicket;
       // Skip self
       if (ticket.userId === user.uid) continue;
