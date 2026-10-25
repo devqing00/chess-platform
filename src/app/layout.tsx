@@ -28,6 +28,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || 'https://chess-platform-phi.vercel.app'
+  ),
   title: 'Check.mate - Play Chess Online - Free Games & Grandmaster Training',
   description: 'The premier Check.mate chess platform featuring Stockfish evaluation, AI Coach explanations, 20+ grandmaster bots, tactical puzzles, opening explorer, and game review.',
   manifest: '/manifest.webmanifest',
