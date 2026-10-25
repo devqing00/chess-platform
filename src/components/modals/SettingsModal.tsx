@@ -30,6 +30,7 @@ import {
   Cpu,
   CheckCircle2,
   Zap,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
@@ -50,6 +51,8 @@ interface SettingsModalProps {
   soundEnabled: boolean;
   onToggleSound: (enabled: boolean) => void;
   onOpenChessComSync?: () => void;
+  onOpenPwaInstall?: () => void;
+  isPwaInstalled?: boolean;
 }
 
 type TabType = 'accounts' | 'board' | 'audio' | 'mentors' | 'accessibility';
@@ -77,6 +80,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   soundEnabled,
   onToggleSound,
   onOpenChessComSync,
+  onOpenPwaInstall,
+  isPwaInstalled,
 }) => {
   const { syncedChessCom, clearSyncedChessCom } = useAuth();
   const { activeMentorId, setActiveMentorId, analysisEngine, setAnalysisEngine, moveInputMode, setMoveInputMode, premoveEnabled, setPremoveEnabled } = useShell();
@@ -948,6 +953,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 5: CONNECTED ACCOUNTS & DATA */}
           {activeTab === 'accounts' && (
             <div className="space-y-6">
+              {/* Progressive Web App (PWA) Card */}
+              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner">
+                      <Download className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black text-white flex items-center gap-2">
+                        Installable Web App (PWA)
+                        <span
+                          className={`text-[10px] ${
+                            isPwaInstalled
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                              : 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                          } border px-2.5 py-0.5 rounded-full font-black uppercase`}
+                        >
+                          {isPwaInstalled ? 'Installed' : 'Ready to Install'}
+                        </span>
+                      </span>
+                      <span className="text-xs text-zinc-400 font-medium">
+                        {isPwaInstalled
+                          ? 'Running in full-screen standalone mode with offline engine and sound caches active.'
+                          : 'Install on iOS, Android, Mac, or Windows for full-screen gameplay and 0ms latency.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={onOpenPwaInstall}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black text-xs border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isPwaInstalled ? 'App Status' : 'Install App'}</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Check.mate Profile Sync Card */}
               <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

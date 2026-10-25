@@ -380,4 +380,36 @@ code, kbd, samp, pre, .font-mono {
   backface-visibility: hidden;
 }
 
+/* =========================================================================
+   PWA & STANDALONE SAFE-AREA INSET OPTIMIZATIONS
+   Ensures zero notch / dynamic island / gesture bar clipping on mobile & tablet
+   ========================================================================= */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
 
+.pt-safe {
+  padding-top: var(--sat);
+}
+.pb-safe {
+  padding-bottom: var(--sab);
+}
+.pl-safe {
+  padding-left: var(--sal);
+}
+.pr-safe {
+  padding-right: var(--sar);
+}
+
+/* Standalone PWA native app feeling */
+@media all and (display-mode: standalone), (display-mode: window-controls-overlay) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+  }
+}

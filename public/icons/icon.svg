@@ -1,0 +1,23 @@
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#161512"/>
+  <circle cx="16" cy="15" r="12" fill="url(#pwa-glow)" opacity="0.25"/>
+  <path d="M6 25C6 24.4477 6.44772 24 7 24H25C25.5523 24 26 24.4477 26 25V26C26 26.5523 25.5523 27 25 27H7C6.44772 27 6 26.5523 6 26V25Z" fill="#5b8630"/>
+  <path d="M7 23L9 11L13 15L16 6L19 15L23 11L25 23H7Z" fill="url(#pwa-crown-grad)"/>
+  <path d="M7 23L9 11L13 15L16 23H7Z" fill="#6fa33e" fill-opacity="0.4"/>
+  <path d="M25 23L23 11L19 15L16 23H25Z" fill="#456c20" fill-opacity="0.45"/>
+  <polygon points="16,8 18,13 16,18 14,13" fill="#ffffff" fill-opacity="0.9"/>
+  <path d="M11 18.5L14.5 22L21 14" stroke="#171613" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="16" cy="5" r="1.5" fill="#facc15"/>
+  <circle cx="9" cy="10" r="1.1" fill="#e4e4e7"/>
+  <circle cx="23" cy="10" r="1.1" fill="#e4e4e7"/>
+  <defs>
+    <radialGradient id="pwa-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop stop-color="#22c55e" stop-opacity="1"/>
+      <stop offset="1" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pwa-crown-grad" x1="16" y1="6" x2="16" y2="23" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+</svg>

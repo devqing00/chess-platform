@@ -30,6 +30,7 @@ import {
   ChevronRight,
   Target,
   BookOpen,
+  Download,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
@@ -60,6 +61,8 @@ interface SidebarNavProps {
   onOpenMembershipModal?: () => void;
   onOpenSettingsModal?: () => void;
   onOpenChessComSync?: () => void;
+  onOpenPwaInstall?: () => void;
+  isPwaInstalled?: boolean;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -69,6 +72,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   onOpenMembershipModal,
   onOpenSettingsModal,
   onOpenChessComSync,
+  onOpenPwaInstall,
+  isPwaInstalled,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -502,6 +507,23 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               >
                 <Settings className="w-4 h-4" />
               </Button>
+
+              <Button
+                variant={isPwaInstalled ? 'subtle' : 'secondary'}
+                size="icon-sm"
+                rounded="xl"
+                onClick={() => {
+                  if (isOverlay) setIsOverlayOpen(false);
+                  onOpenPwaInstall?.();
+                }}
+                title={isPwaInstalled ? 'Check.mate App Installed (Standalone)' : 'Install Check.mate Web App'}
+                className="relative"
+              >
+                <Download className={`w-4 h-4 ${isPwaInstalled ? 'text-emerald-400' : 'text-zinc-400'}`} />
+                {isPwaInstalled && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#161512]" />
+                )}
+              </Button>
             </div>
           </>
         ) : (
@@ -529,6 +551,21 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 <span className="text-zinc-300">♟️</span>
               )}
             </div>
+
+            {/* Collapsed Mode Install / PWA */}
+            <Button
+              variant={isPwaInstalled ? 'subtle' : 'secondary'}
+              size="icon-sm"
+              rounded="xl"
+              onClick={onOpenPwaInstall || (() => {})}
+              title={isPwaInstalled ? 'Check.mate App Installed' : 'Install Check.mate Web App'}
+              className="relative"
+            >
+              <Download className={`w-4 h-4 ${isPwaInstalled ? 'text-emerald-400' : 'text-zinc-400'}`} />
+              {isPwaInstalled && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#161512]" />
+              )}
+            </Button>
 
             {/* Collapsed Mode Settings */}
             <Button

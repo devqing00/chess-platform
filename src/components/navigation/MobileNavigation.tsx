@@ -21,6 +21,7 @@ import {
   X,
   LogOut,
   ChevronRight,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
@@ -32,11 +33,15 @@ import { soundService } from '@/lib/audioService';
 interface MobileNavigationProps {
   onOpenMembershipModal?: () => void;
   onOpenSettingsModal?: () => void;
+  onOpenPwaInstall?: () => void;
+  isPwaInstalled?: boolean;
 }
 
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   onOpenMembershipModal,
   onOpenSettingsModal,
+  onOpenPwaInstall,
+  isPwaInstalled,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -377,6 +382,44 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                   );
                 })}
               </div>
+
+              {/* Install PWA App Row */}
+              <button
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setIsModalOpen(false);
+                  onOpenPwaInstall?.();
+                }}
+                className="tactile-btn p-3 rounded-2xl bg-[#211f1c] border border-[#35322b] hover:border-emerald-500/50 flex items-center justify-between cursor-pointer active:scale-98 transition shadow-[0_2px_0_0_#12110f]"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-8 h-8 rounded-xl ${
+                      isPwaInstalled
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-[#2a2722] text-zinc-300'
+                    } flex items-center justify-center`}
+                  >
+                    <Download className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-white">
+                        {isPwaInstalled ? 'Check.mate Web App' : 'Install Check.mate'}
+                      </span>
+                      <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded-full font-bold">
+                        {isPwaInstalled ? 'INSTALLED' : 'PWA'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-zinc-400">
+                      {isPwaInstalled
+                        ? 'Running in standalone native mode'
+                        : 'Add to home screen for 120 FPS full-screen play'}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-400" />
+              </button>
 
               {/* Quick Settings & Themes Row */}
               <button

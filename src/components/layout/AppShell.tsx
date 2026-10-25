@@ -9,6 +9,8 @@ import { MembershipModal } from '@/components/modals/MembershipModal';
 import { ChessComSyncModal } from '@/components/modals/ChessComSyncModal';
 
 import { MobileNavigation } from '@/components/navigation/MobileNavigation';
+import { usePwaInstall } from '@/lib/usePwaInstall';
+import { PwaInstallModal } from '@/components/pwa/PwaInstallModal';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -44,12 +46,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     closeChessComSync,
   } = useShell();
 
+  const pwaState = usePwaInstall();
+
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] max-h-[100dvh] w-full bg-[#161512] text-zinc-100 overflow-hidden">
       {/* Mobile Top Header, Bottom Bar & Drawer (< md screens) */}
       <MobileNavigation
         onOpenMembershipModal={openMembership}
         onOpenSettingsModal={openSettings}
+        onOpenPwaInstall={pwaState.openInstallModal}
+        isPwaInstalled={pwaState.isInstalled}
       />
 
       {/* Persistent Left Sidebar (md and desktop screens) - Immovably Fixed to Viewport */}
@@ -58,6 +64,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         onOpenMembershipModal={openMembership}
         onOpenSettingsModal={openSettings}
         onOpenChessComSync={openChessComSync}
+        onOpenPwaInstall={pwaState.openInstallModal}
+        isPwaInstalled={pwaState.isInstalled}
       />
 
       {/* Main Page Content Area - Naturally Scrollable with Viewport Locked to Shell */}
@@ -78,6 +86,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         soundEnabled={soundEnabled}
         onToggleSound={setSoundEnabled}
         onOpenChessComSync={openChessComSync}
+        onOpenPwaInstall={pwaState.openInstallModal}
+        isPwaInstalled={pwaState.isInstalled}
       />
 
       <MembershipModal
@@ -90,6 +100,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <ChessComSyncModal
         isOpen={isChessComSyncOpen}
         onClose={closeChessComSync}
+      />
+
+      <PwaInstallModal
+        isOpen={pwaState.isModalOpen}
+        onClose={pwaState.closeInstallModal}
+        pwaState={pwaState}
       />
     </div>
   );
