@@ -29,6 +29,7 @@ import {
   Flame,
   Cpu,
   CheckCircle2,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
@@ -61,6 +62,7 @@ interface TabSnapshot {
   activeMentorId: string;
   lowTimeRegister: LowTimeRegister;
   lowTimeThresholdSeconds: number;
+  premoveEnabled: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -77,7 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenChessComSync,
 }) => {
   const { syncedChessCom, clearSyncedChessCom } = useAuth();
-  const { activeMentorId, setActiveMentorId, analysisEngine, setAnalysisEngine, moveInputMode, setMoveInputMode } = useShell();
+  const { activeMentorId, setActiveMentorId, analysisEngine, setAnalysisEngine, moveInputMode, setMoveInputMode, premoveEnabled, setPremoveEnabled } = useShell();
 
   const [activeTab, setActiveTab] = useState<TabType>('accounts');
   const [audioSettings, setAudioSettings] = useState<AudioSettings>(() =>
@@ -114,6 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     activeMentorId,
     lowTimeRegister: audioSettings.lowTimeRegister,
     lowTimeThresholdSeconds: audioSettings.lowTimeThresholdSeconds,
+    premoveEnabled,
   });
 
   if (!isOpen) return null;
@@ -173,6 +176,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         const pName = pieceThemes.find((p) => p.id === pieceTheme)?.name || pieceTheme;
         diffs.push(`Piece Set changed to ${pName}`);
       }
+      if (premoveEnabled !== snap.premoveEnabled) {
+        diffs.push(`Premoves ${premoveEnabled ? 'Enabled' : 'Disabled'}`);
+      }
     } else if (tab === 'audio') {
       if (soundTheme !== snap.soundTheme) {
         const sName = soundThemes.find((s) => s.id === soundTheme)?.name || soundTheme;
@@ -206,6 +212,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       activeMentorId,
       lowTimeRegister: audioSettings.lowTimeRegister,
       lowTimeThresholdSeconds: audioSettings.lowTimeThresholdSeconds,
+      premoveEnabled,
     };
   };
 
@@ -238,6 +245,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (activeTab === 'board') {
         onChangeBoardTheme(snap.boardTheme);
         onChangePieceTheme(snap.pieceTheme);
+        setPremoveEnabled(snap.premoveEnabled);
       } else if (activeTab === 'audio') {
         onChangeSoundTheme(snap.soundTheme);
         onToggleSound(snap.soundEnabled);
@@ -277,6 +285,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onChangeSoundTheme('classic');
       onToggleSound(true);
       setActiveMentorId('coach-danny');
+      setPremoveEnabled(false);
       soundService.applyPreset('casual');
       setAudioSettings(soundService.getSettings());
       updateSnapshot();
@@ -492,6 +501,66 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Premoves (Fast Competitive Speedplay) */}
+              <div className="bg-[#24211d] p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${
+                        premoveEnabled
+                          ? 'bg-gradient-to-b from-rose-500/25 to-rose-600/10 border-rose-500/40 text-rose-400'
+                          : 'bg-[#181614] border-[#35322b] text-zinc-500'
+                      }`}
+                    >
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-black text-white">Enable Premoves</h3>
+                        <span
+                          className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full border ${
+                            premoveEnabled
+                              ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                              : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                          }`}
+                        >
+                          {premoveEnabled ? 'Active' : 'Disabled (Default)'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 font-medium mt-0.5 max-w-md leading-relaxed">
+                        Queue your move before your opponent finishes theirs. If legal when their turn ends, your premove executes in 0.0s without burning clock time.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tactile Toggle Switch */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={premoveEnabled}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setPremoveEnabled(!premoveEnabled);
+                    }}
+                    className={`tactile-btn shrink-0 relative inline-flex h-7 w-13 items-center rounded-full transition-colors cursor-pointer border-2 ${
+                      premoveEnabled
+                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 border-emerald-400/60 shadow-[0_2px_0_0_#065f46]'
+                        : 'bg-[#181614] border-[#38352e] shadow-[0_2px_0_0_#141311]'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
+                        premoveEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="text-[10px] text-zinc-500 flex items-center gap-1.5 pt-2 border-t border-white/5">
+                  <span>💡</span>
+                  <span>Right-click anywhere on the board or press Escape to cancel a queued premove.</span>
                 </div>
               </div>
             </div>

@@ -611,13 +611,14 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                 <ChessBoard
                   chess={chessInstance}
                   orientation={boardOrientation}
+                  playerColor={boardOrientation}
                   boardTheme={boardTheme}
                   pieceTheme={pieceTheme}
                   onMove={handleBoardMove}
                   lastMove={lastMoveSquares}
                   customSquareHighlights={boardHighlights}
                   onCustomSquareClick={handleDropSquareClick}
-                  disabled={gameState.isGameOver || isBotThinking}
+                  disabled={gameState.isGameOver}
                 />
               </div>
 

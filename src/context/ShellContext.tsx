@@ -21,6 +21,8 @@ interface ShellContextType {
   setEngineStrength: (strength: EngineStrengthTier) => void;
   moveInputMode: MoveInputMode;
   setMoveInputMode: (mode: MoveInputMode) => void;
+  premoveEnabled: boolean;
+  setPremoveEnabled: (enabled: boolean) => void;
   isSettingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
@@ -46,6 +48,7 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [analysisEngine, setAnalysisEngineState] = useState<AnalysisEngineMode>('torch_human');
   const [engineStrength, setEngineStrengthState] = useState<EngineStrengthTier>('fast');
   const [moveInputMode, setMoveInputModeState] = useState<MoveInputMode>('both');
+  const [premoveEnabled, setPremoveEnabledState] = useState<boolean>(false);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMembershipOpen, setIsMembershipOpen] = useState(false);
@@ -91,6 +94,11 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const savedMoveInput = localStorage.getItem('chess_pref_move_input_mode') as MoveInputMode | null;
       if (savedMoveInput === 'both' || savedMoveInput === 'drag' || savedMoveInput === 'click') {
         setMoveInputModeState(savedMoveInput);
+      }
+
+      const savedPremove = localStorage.getItem('chess_pref_premove_enabled');
+      if (savedPremove !== null) {
+        setPremoveEnabledState(savedPremove === 'true');
       }
     } catch {
       // LocalStorage access fallback
@@ -155,6 +163,13 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   };
 
+  const setPremoveEnabled = (enabled: boolean) => {
+    setPremoveEnabledState(enabled);
+    try {
+      localStorage.setItem('chess_pref_premove_enabled', String(enabled));
+    } catch {}
+  };
+
   return (
     <ShellContext.Provider
       value={{
@@ -174,6 +189,8 @@ export const ShellProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setEngineStrength,
         moveInputMode,
         setMoveInputMode,
+        premoveEnabled,
+        setPremoveEnabled,
         isSettingsOpen,
         openSettings: () => setIsSettingsOpen(true),
         closeSettings: () => setIsSettingsOpen(false),
@@ -198,4 +215,8 @@ export const useShell = () => {
     throw new Error('useShell must be used within a ShellProvider');
   }
   return context;
+};
+
+export const useSafeShell = () => {
+  return useContext(ShellContext);
 };

@@ -20,19 +20,29 @@ import {
   Premove,
   MoveInputMode,
 } from '@/types/chess';
+import { useSafeShell } from '@/context/ShellContext';
+import {
+  isGeometricMoveValid,
+  getPremoveCandidateSquares,
+  validatePremoveInPosition,
+} from '@/lib/premoveValidator';
 
 export interface ChessBoardProps {
   chess: Chess;
   orientation?: PieceColor;
+  playerColor?: PieceColor;
   boardTheme?: BoardTheme;
   pieceTheme?: PieceTheme;
   moveInputMode?: MoveInputMode;
+  premoveEnabled?: boolean;
   onMove?: (from: Square, to: Square, promotion?: PieceSymbol) => void;
   onPremove?: (from: Square, to: Square) => void;
   lastMove?: { from: Square; to: Square } | null;
   activeClassification?: { square: Square; classification: MoveClassification } | null;
   bestMoveArrow?: { from: Square; to: Square } | null;
   premoves?: Premove[];
+  activePremove?: Premove | null;
+  onPremoveChange?: (premove: Premove | null) => void;
   customArrows?: ArrowAnnotation[];
   customSquareHighlights?: { square: Square; color?: string; label?: string; border?: string }[];
   onCustomSquareClick?: (sq: Square) => boolean | void;
@@ -75,6 +85,8 @@ interface BoardSquareProps {
   classificationOnSquare: MoveClassification | null;
   customHighlight?: { square: Square; color?: string; label?: string; border?: string };
   moveHighlightOverlayColor?: string | null;
+  isPremoveSquare?: boolean;
+  isPremoveCandidate?: boolean;
   showRank: boolean;
   showFile: boolean;
   rank: string;
@@ -112,6 +124,8 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
   classificationOnSquare,
   customHighlight,
   moveHighlightOverlayColor,
+  isPremoveSquare = false,
+  isPremoveCandidate = false,
   showRank,
   showFile,
   rank,
@@ -163,6 +177,13 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
         <div
           className={`absolute inset-0 pointer-events-none z-10 transition-colors duration-150 ${cornerRoundedClass || ''}`}
           style={{ backgroundColor: moveHighlightOverlayColor }}
+        />
+      )}
+
+      {/* Premove Highlight Overlay (Ruby-Coral with Glowing Ring) */}
+      {isPremoveSquare && (
+        <div
+          className={`absolute inset-0 pointer-events-none z-10 ring-2 sm:ring-[3px] ring-inset ring-rose-500 bg-rose-500/35 transition-all duration-100 ${cornerRoundedClass || ''}`}
         />
       )}
 
@@ -296,6 +317,14 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
       {isLegalDestination && isCapture && (
         <div className="absolute inset-1 sm:inset-1.5 z-20 border-[5px] sm:border-[6px] border-black/25 dark:border-white/35 rounded-full pointer-events-none" />
       )}
+
+      {/* Premove Candidate Dots (Quiet moves vs Captures) */}
+      {isPremoveCandidate && !isCapture && (
+        <div className="absolute z-20 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-rose-500/50 pointer-events-none shadow-sm animate-in fade-in duration-75" />
+      )}
+      {isPremoveCandidate && isCapture && (
+        <div className="absolute inset-1 sm:inset-1.5 z-20 border-[4px] sm:border-[5px] border-rose-500/50 rounded-full pointer-events-none animate-in fade-in duration-75" />
+      )}
     </div>
   );
 });
@@ -303,15 +332,19 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
 export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBoard({
   chess,
   orientation = 'w',
+  playerColor,
   boardTheme = 'green',
   pieceTheme = 'neo',
   moveInputMode = 'both',
+  premoveEnabled: propPremoveEnabled,
   onMove,
   onPremove,
   lastMove = null,
   activeClassification = null,
   bestMoveArrow = null,
   premoves = [],
+  activePremove: propsActivePremove,
+  onPremoveChange,
   customArrows = [],
   customSquareHighlights = [],
   onCustomSquareClick,
@@ -322,8 +355,38 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
   isFastForward = false,
   defeatedColor = null,
 }) {
+  const safeShell = useSafeShell();
+  const effectivePremoveEnabled =
+    propPremoveEnabled !== undefined ? propPremoveEnabled : (safeShell?.premoveEnabled ?? false);
+  const effectivePlayerColor: PieceColor = playerColor || orientation || 'w';
+  const isMyTurn = chess.turn() === effectivePlayerColor;
+
+  // Internal premove state if not externally controlled
+  const [internalPremove, setInternalPremove] = useState<Premove | null>(null);
+  const premove = propsActivePremove !== undefined ? propsActivePremove : internalPremove;
+
+  const setPremoveState = useCallback(
+    (pm: Premove | null) => {
+      setInternalPremove(pm);
+      if (onPremoveChange) onPremoveChange(pm);
+    },
+    [onPremoveChange]
+  );
+
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
+
+  // Escape key cancels active premove or square selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (premove) setPremoveState(null);
+        if (selectedSquare) setSelectedSquare(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [premove, selectedSquare, setPremoveState]);
 
   // Active drag metadata for rendering the floating piece
   const [activeDrag, setActiveDrag] = useState<{
@@ -430,16 +493,16 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
     };
   }, [lastMove, filesLayout, ranksLayout]);
 
-  // Compute legal moves for selected square
+  // Compute legal moves for selected square during player's turn
   const activeOriginSquare = activeDrag ? activeDrag.square : selectedSquare;
   const legalMovesForActive = useMemo(() => {
-    if (!activeOriginSquare || disabled) return [];
+    if (!activeOriginSquare || disabled || !isMyTurn) return [];
     try {
       return chess.moves({ square: activeOriginSquare, verbose: true });
     } catch {
       return [];
     }
-  }, [chess, activeOriginSquare, disabled]);
+  }, [chess, activeOriginSquare, disabled, isMyTurn]);
 
   const legalSquaresMap = useMemo(() => {
     const map = new Map<Square, Move>();
@@ -448,6 +511,44 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
     });
     return map;
   }, [legalMovesForActive]);
+
+  // Compute premove candidate target squares when piece selected during opponent's turn
+  const premoveCandidateSquares = useMemo(() => {
+    if (isMyTurn || !effectivePremoveEnabled || !activeOriginSquare || disabled) {
+      return new Set<Square>();
+    }
+    const piece = chess.get(activeOriginSquare);
+    if (!piece || piece.color !== effectivePlayerColor) return new Set<Square>();
+    const candidates = getPremoveCandidateSquares(activeOriginSquare, piece.type, piece.color);
+    return new Set<Square>(candidates);
+  }, [isMyTurn, effectivePremoveEnabled, activeOriginSquare, chess, effectivePlayerColor, disabled]);
+
+  // Auto-execution watchdog: triggers immediately when opponent move arrives and it becomes player's turn
+  const lastProcessedFenRef = useRef<string>(chess.fen());
+
+  useEffect(() => {
+    const currentFen = chess.fen();
+    if (currentFen === lastProcessedFenRef.current) return;
+    lastProcessedFenRef.current = currentFen;
+
+    if (!premove) return;
+
+    if (chess.isGameOver()) {
+      setPremoveState(null);
+      return;
+    }
+
+    // When turn becomes our turn, validate and execute premove in 0.0s!
+    if (chess.turn() === effectivePlayerColor) {
+      const pmToExecute = premove;
+      setPremoveState(null);
+
+      const validation = validatePremoveInPosition(currentFen, pmToExecute);
+      if (validation.valid && validation.move && onMove) {
+        onMove(pmToExecute.from, pmToExecute.to, (pmToExecute.promotion as PieceSymbol) || 'q');
+      }
+    }
+  }, [chess, effectivePlayerColor, premove, onMove, setPremoveState]);
 
   // Find King in check
   const kingInCheckSquare = useMemo<Square | null>(() => {
@@ -515,7 +616,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
   // Execute Move Helper (Optimistic local dispatch)
   const executeMove = useCallback(
-    (from: Square, to: Square, wasDrag = false) => {
+    (from: Square, to: Square, wasDrag = false, promotion?: PieceSymbol) => {
       wasDraggedRef.current = wasDrag;
       const piece = chess.get(from);
       const isPawnPromotion =
@@ -523,13 +624,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
         piece.type === 'p' &&
         ((piece.color === 'w' && to[1] === '8') || (piece.color === 'b' && to[1] === '1'));
 
-      if (isPawnPromotion) {
+      if (isPawnPromotion && !promotion) {
         setPendingPromotion({ from, to });
         return;
       }
 
       if (onMove) {
-        onMove(from, to);
+        onMove(from, to, promotion);
       }
       setSelectedSquare(null);
     },
@@ -548,38 +649,113 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
       if (disabled) return;
 
-      if (selectedSquare) {
-        if (selectedSquare === sq) {
+      // 1. Regular turn move handling
+      if (isMyTurn) {
+        if (selectedSquare) {
+          if (selectedSquare === sq) {
+            setSelectedSquare(null);
+            return;
+          }
+
+          const legalMove = legalSquaresMap.get(sq);
+          if (legalMove) {
+            executeMove(selectedSquare, sq, false);
+            return;
+          }
+
+          const clickedPiece = chess.get(sq);
+          if (clickedPiece && clickedPiece.color === chess.turn()) {
+            setSelectedSquare(sq);
+            return;
+          }
+
           setSelectedSquare(null);
           return;
         }
 
-        const legalMove = legalSquaresMap.get(sq);
-        if (legalMove) {
-          executeMove(selectedSquare, sq, false);
-          return;
-        }
-
-        const clickedPiece = chess.get(sq);
-        if (clickedPiece && (clickedPiece.color === chess.turn() || onPremove)) {
+        const piece = chess.get(sq);
+        if (piece && piece.color === chess.turn()) {
           setSelectedSquare(sq);
-          return;
+        } else {
+          setSelectedSquare(null);
         }
-
-        setSelectedSquare(null);
         return;
       }
 
-      const piece = chess.get(sq);
-      if (piece) {
-        if (piece.color === chess.turn() || onPremove) {
-          setSelectedSquare(sq);
+      // 2. Premove handling during opponent's turn
+      if (effectivePremoveEnabled) {
+        if (selectedSquare) {
+          if (selectedSquare === sq) {
+            // Clicking selected piece again deselects it; if already premoved from here, cancels premove
+            if (premove?.from === sq) {
+              setPremoveState(null);
+            }
+            setSelectedSquare(null);
+            return;
+          }
+
+          const clickedPiece = chess.get(sq);
+          if (clickedPiece && clickedPiece.color === effectivePlayerColor) {
+            // Switch selection to another friendly piece
+            setSelectedSquare(sq);
+            return;
+          }
+
+          // Test geometric validity for premove
+          const selectedPiece = chess.get(selectedSquare);
+          if (
+            selectedPiece &&
+            selectedPiece.color === effectivePlayerColor &&
+            isGeometricMoveValid(selectedSquare, sq, selectedPiece.type, selectedPiece.color)
+          ) {
+            const isPawnPromotion =
+              selectedPiece.type === 'p' &&
+              ((selectedPiece.color === 'w' && sq[1] === '8') ||
+                (selectedPiece.color === 'b' && sq[1] === '1'));
+            const newPremove: Premove = {
+              from: selectedSquare,
+              to: sq,
+              promotion: isPawnPromotion ? 'q' : undefined,
+            };
+            setPremoveState(newPremove);
+            if (onPremove) onPremove(selectedSquare, sq);
+            soundService.playTactilePop();
+            setSelectedSquare(null);
+            return;
+          }
+
+          setSelectedSquare(null);
+          return;
         }
-      } else {
-        setSelectedSquare(null);
+
+        const piece = chess.get(sq);
+        if (piece && piece.color === effectivePlayerColor) {
+          if (premove?.from === sq) {
+            // Clicking piece that has active premove cancels it
+            setPremoveState(null);
+            setSelectedSquare(null);
+            return;
+          }
+          setSelectedSquare(sq);
+        } else {
+          setSelectedSquare(null);
+        }
       }
     },
-    [disabled, selectedSquare, legalSquaresMap, executeMove, chess, onPremove, onCustomSquareClick]
+    [
+      disabled,
+      isMyTurn,
+      effectivePremoveEnabled,
+      effectivePlayerColor,
+      selectedSquare,
+      legalSquaresMap,
+      executeMove,
+      chess,
+      premove,
+      setPremoveState,
+      onPremove,
+      onCustomSquareClick,
+    ]
   );
 
   // Pointer Down (Records initial position & square pixel size for perfect center drag alignment)
@@ -591,7 +767,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
       const piece = chess.get(sq);
       if (!piece) return;
 
-      if (piece.color !== chess.turn() && !onPremove) return;
+      if (isMyTurn) {
+        if (piece.color !== chess.turn()) return;
+      } else {
+        if (!effectivePremoveEnabled || piece.color !== effectivePlayerColor) return;
+      }
 
       const target = e.currentTarget as HTMLElement;
       const rect = target.getBoundingClientRect();
@@ -608,7 +788,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
         isDragging: false,
       };
     },
-    [disabled, moveInputMode, chess, onPremove]
+    [disabled, moveInputMode, chess, isMyTurn, effectivePremoveEnabled, effectivePlayerColor]
   );
 
   // Window-level pointer listeners for decoupled zero-latency drag-and-drop
@@ -710,12 +890,37 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
               const targetSquare = `${targetFile}${targetRank}` as Square;
 
               if (targetSquare !== originSquare) {
-                const legalMove = legalSquaresMap.get(targetSquare);
-                if (legalMove) {
-                  executeMove(originSquare, targetSquare, true);
-                  setSelectedSquare(null);
-                  setActiveDrag(null);
-                  return;
+                if (isMyTurn) {
+                  const legalMove = legalSquaresMap.get(targetSquare);
+                  if (legalMove) {
+                    executeMove(originSquare, targetSquare, true);
+                    setSelectedSquare(null);
+                    setActiveDrag(null);
+                    return;
+                  }
+                } else if (effectivePremoveEnabled) {
+                  const originPiece = chess.get(originSquare);
+                  if (
+                    originPiece &&
+                    originPiece.color === effectivePlayerColor &&
+                    isGeometricMoveValid(originSquare, targetSquare, originPiece.type, originPiece.color)
+                  ) {
+                    const isPawnPromotion =
+                      originPiece.type === 'p' &&
+                      ((originPiece.color === 'w' && targetSquare[1] === '8') ||
+                        (originPiece.color === 'b' && targetSquare[1] === '1'));
+                    const newPremove: Premove = {
+                      from: originSquare,
+                      to: targetSquare,
+                      promotion: isPawnPromotion ? 'q' : undefined,
+                    };
+                    setPremoveState(newPremove);
+                    if (onPremove) onPremove(originSquare, targetSquare);
+                    soundService.playTactilePop();
+                    setSelectedSquare(null);
+                    setActiveDrag(null);
+                    return;
+                  }
                 }
               }
             }
@@ -736,17 +941,33 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
       window.removeEventListener('pointerup', onGlobalPointerUp);
       window.removeEventListener('pointercancel', onGlobalPointerUp);
     };
-  }, [filesLayout, ranksLayout, legalSquaresMap, executeMove]);
+  }, [
+    filesLayout,
+    ranksLayout,
+    legalSquaresMap,
+    executeMove,
+    isMyTurn,
+    effectivePremoveEnabled,
+    effectivePlayerColor,
+    chess,
+    onPremove,
+    setPremoveState,
+  ]);
 
-  // Arrow drawing right-click events
+  // Arrow drawing & premove cancellation right-click events
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, sq: Square) => {
       if (e.button === 2) {
         e.preventDefault();
+        // If an active premove exists, right-click cancels it immediately!
+        if (premove) {
+          setPremoveState(null);
+          return;
+        }
         setArrowDragStart(sq);
       }
     },
-    []
+    [premove, setPremoveState]
   );
 
   const handleMouseUp = useCallback(
@@ -786,8 +1007,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
     if (bestMoveArrow) {
       list.push({ from: bestMoveArrow.from, to: bestMoveArrow.to, color: '#06b6d4' });
     }
+    if (premove) {
+      list.push({ from: premove.from, to: premove.to, color: '#f43f5e' });
+    }
     return list;
-  }, [customArrows, bestMoveArrow]);
+  }, [customArrows, bestMoveArrow, premove]);
 
   return (
     <div
@@ -810,7 +1034,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
             const isSelected = selectedSquare === sq;
             const isLegalDestination = legalSquaresMap.has(sq);
-            const isCapture = isLegalDestination && (piece !== null || chess.get(sq) !== null);
+            const isPremoveSquare = Boolean(premove && (premove.from === sq || premove.to === sq));
+            const isPremoveCandidate = premoveCandidateSquares.has(sq);
+            const isCapture =
+              Boolean(isLegalDestination && (piece || chess.get(sq))) ||
+              Boolean(isPremoveCandidate && piece && piece.color !== effectivePlayerColor);
 
             const isLastMoveFrom = lastMove?.from === sq;
             const isLastMoveTo = lastMove?.to === sq;
@@ -865,6 +1093,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 isSelected={isSelected}
                 isLegalDestination={isLegalDestination}
                 isCapture={isCapture}
+                isPremoveSquare={isPremoveSquare}
+                isPremoveCandidate={isPremoveCandidate}
                 isLastMoveFrom={isLastMoveFrom}
                 isLastMoveTo={isLastMoveTo}
                 isCheckSquare={isCheckSquare}

@@ -382,7 +382,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   // 4. Handle Player Move
   const handleMove = useCallback(
     async (from: Square, to: Square, promotion?: string) => {
-      if (!isMyTurn || !game) return;
+      if ((!isMyTurn && chess.turn() !== playerColor) || !game) return;
 
       try {
         const moveResult = chess.move({
@@ -685,8 +685,9 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           <ChessBoard
             chess={chess}
             orientation={effectiveOrientation}
+            playerColor={playerColor}
             onMove={handleMove}
-            disabled={!isMyTurn}
+            disabled={!game || game.status !== 'active'}
             lastMove={lastMoveSquares}
             defeatedColor={
               game?.status === 'completed'

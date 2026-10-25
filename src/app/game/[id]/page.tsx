@@ -832,6 +832,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
             <ChessBoard
               chess={chess}
               orientation={orientation}
+              playerColor={userColor}
               boardTheme={boardTheme}
               pieceTheme={pieceTheme}
               moveInputMode={moveInputMode}
