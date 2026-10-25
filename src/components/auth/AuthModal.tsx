@@ -93,12 +93,12 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe bg-black/80 backdrop-blur-md animate-in fade-in select-none">
       {/* Background board texture */}
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
 
       {/* Main Login Card */}
-      <div className="relative w-full max-w-[420px] bg-[#201e1a] border-2 border-[#38342c] rounded-3xl p-6 sm:p-7 shadow-[0_16px_40px_rgba(0,0,0,0.7)] flex flex-col gap-4 text-zinc-100 z-10 animate-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-[420px] bg-[#201e1a] border-2 border-[#38342c] rounded-3xl p-5 sm:p-7 shadow-[0_16px_40px_rgba(0,0,0,0.7)] flex flex-col gap-4 text-zinc-100 z-10 animate-in zoom-in-95 duration-150 max-h-[85dvh] sm:max-h-[88vh] my-auto overflow-y-auto">
         {/* Close Button */}
         <Button
           variant="secondary"

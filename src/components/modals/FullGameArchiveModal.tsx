@@ -145,8 +145,8 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl max-h-[90vh] bg-[#211f1c] border-2 border-[#35322b] rounded-3xl flex flex-col shadow-[0_8px_0_0_#141311] overflow-hidden text-zinc-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe bg-black/85 backdrop-blur-md animate-in fade-in duration-200 select-none">
+      <div className="w-full max-w-4xl max-h-[85dvh] sm:max-h-[88vh] my-auto bg-[#211f1c] border-2 border-[#35322b] rounded-3xl flex flex-col shadow-[0_8px_0_0_#141311] overflow-hidden text-zinc-100">
         {/* Modal Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262420] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">

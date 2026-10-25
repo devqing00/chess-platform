@@ -89,13 +89,13 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 select-none">
-      <div className="w-full max-w-4xl bg-[#211f1c] border-2 border-[#35322b] rounded-3xl shadow-[0_8px_0_0_#141311] overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe select-none">
+      <div className="w-full max-w-4xl bg-[#211f1c] border-2 border-[#35322b] rounded-3xl shadow-[0_8px_0_0_#141311] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] my-auto">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262420] border-b-2 border-[#35322b] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 bg-[#262420] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
-            <span className="text-sm sm:text-lg font-black text-white truncate">
+            <span className="text-sm sm:text-base font-black text-white truncate">
               Upgrade Your Check.mate Experience
             </span>
           </div>
@@ -104,13 +104,14 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
             size="icon-sm"
             rounded="full"
             onClick={onClose}
+            className="shrink-0"
           >
             <X className="w-4 h-4" />
           </Button>
         </div>
 
         {/* Tiers Grid */}
-        <div className="p-3.5 sm:p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-3.5 sm:p-6 overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {tiers.map((tier) => {
             const isCurrent = currentTier === tier.id;
             return (
@@ -168,7 +169,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         </div>
 
         {/* Guarantee Footer */}
-        <div className="px-4 sm:px-6 py-3 bg-[#181614] border-t-2 border-[#35322b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-zinc-400 font-medium">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#181614] border-t-2 border-[#35322b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-zinc-400 font-medium shrink-0">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Switch or cancel membership anytime. 100% money-back guarantee.</span>

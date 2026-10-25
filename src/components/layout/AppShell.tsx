@@ -11,6 +11,7 @@ import { ChessComSyncModal } from '@/components/modals/ChessComSyncModal';
 import { MobileNavigation } from '@/components/navigation/MobileNavigation';
 import { usePwaInstall } from '@/lib/usePwaInstall';
 import { PwaInstallModal } from '@/components/pwa/PwaInstallModal';
+import { AssetPreloader } from '@/components/providers/AssetPreloader';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -107,6 +108,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         onClose={pwaState.closeInstallModal}
         pwaState={pwaState}
       />
+
+      {/* Global Background Asset & Engine Preloader */}
+      <AssetPreloader />
     </div>
   );
 };

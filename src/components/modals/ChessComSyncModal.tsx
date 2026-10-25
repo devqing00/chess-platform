@@ -178,8 +178,8 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
     activePlatform === 'chesscom' ? syncedChessCom : syncedLichess;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 select-none">
-      <div className="relative w-full max-w-2xl bg-[#211f1c] border-2 border-[#35322b] rounded-3xl shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 select-none">
+      <div className="relative w-full max-w-2xl bg-[#211f1c] border-2 border-[#35322b] rounded-3xl shadow-[0_12px_32px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] my-auto">
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#35322b] flex items-center justify-between bg-[#262420] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -283,11 +283,11 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
         </div>
 
         {/* Connected Details / Recent Matches */}
-        <div className="p-4 sm:p-5 overflow-y-auto flex flex-col gap-3.5">
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 flex flex-col gap-3.5">
           {syncData || currentlyConnected ? (
             <>
               {/* Linked Card */}
-              <div className="p-3.5 bg-[#262420] rounded-2xl border border-[#383530] flex items-center justify-between gap-3">
+              <div className="p-3.5 bg-[#262420] rounded-2xl border border-[#383530] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[#1d1b17] border border-[#38342c] overflow-hidden flex items-center justify-center text-lg shrink-0">
                     {currentlyConnected?.avatar ? (
@@ -311,8 +311,8 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase">
+                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase">
                     Linked
                   </span>
                 </div>

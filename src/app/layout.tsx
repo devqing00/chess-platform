@@ -46,6 +46,18 @@ export const metadata: Metadata = {
       { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
+  openGraph: {
+    title: 'Check.mate - Play Chess Online',
+    description: 'Stockfish evaluation, AI Coach explanations, 20+ grandmaster bots, and game review.',
+    images: [{ url: '/brand/logo-colored.png', width: 1024, height: 1024, alt: 'Check.mate Logo' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Check.mate - Play Chess Online',
+    description: 'Stockfish evaluation, AI Coach explanations, 20+ grandmaster bots, and game review.',
+    images: ['/brand/logo-colored.png'],
+  },
 };
 
 export default function RootLayout({

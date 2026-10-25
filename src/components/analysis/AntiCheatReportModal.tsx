@@ -70,8 +70,8 @@ export const AntiCheatReportModal: React.FC<AntiCheatReportModalProps> = ({
   const zScore = report.metrics.zScore || 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
-      <div className="relative w-full max-w-2xl bg-[#1e1c18] border border-[#38342c] rounded-3xl p-6 sm:p-8 shadow-2xl text-white max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe bg-black/80 backdrop-blur-md animate-fade-in select-none">
+      <div className="relative w-full max-w-2xl bg-[#1e1c18] border border-[#38342c] rounded-3xl p-5 sm:p-8 shadow-2xl text-white max-h-[85dvh] sm:max-h-[88vh] my-auto overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}

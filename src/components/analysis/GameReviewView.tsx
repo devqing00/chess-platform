@@ -1678,37 +1678,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 </div>
               </div>
 
-              {/* Mobile Move Advantage Pip Timeline (~28px) */}
-              <div
-                ref={pipTimelineMobileRef}
-                className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1 bg-[#141311] border-b border-[#2d2a26] flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0 h-7"
-              >
-                {moves.map((m, idx) => {
-                  const isSelected = activeMoveIndex === idx;
-                  const cls = getCleanClassification(m.classification);
-                  const pipColor = PIP_COLORS[cls] || '#10b981';
-                  return (
-                    <button
-                      key={`mobile-pip-${idx}`}
-                      ref={(el) => {
-                        pipMobileRefs.current[idx] = el;
-                      }}
-                      onClick={() => navigateToMove(idx)}
-                      className={`relative shrink-0 rounded-full transition-all cursor-pointer flex items-center justify-center ${
-                        isSelected
-                          ? 'w-4 h-4 ring-2 ring-white scale-110 shadow-sm'
-                          : 'w-2.5 h-2.5 opacity-75'
-                      }`}
-                      style={{ backgroundColor: pipColor }}
-                      title={`${Math.floor(idx / 2) + 1}${idx % 2 === 0 ? '.' : '...'}${m.san} (${cls})`}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Mobile Review Navigation & Action Bar (~40px) */}
-              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1 bg-[#181614] flex items-center justify-between gap-1 shrink-0 h-10">
-                <div className="flex items-center gap-1">
+              {/* Mobile Review Navigation Row (Line 1: Prev, Play/Pause, Next & Move Info) */}
+              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-3 py-1.5 bg-[#181614] border-t border-[#2d2a26] flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => {
                       setIsPlaying(false);
@@ -1716,7 +1688,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       handlePrevMove();
                     }}
                     disabled={activeMoveIndex <= 0 || isFastForwarding}
-                    className="w-8 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer"
+                    className="w-9 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition"
                     title="Previous Move"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -1726,7 +1698,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       stopFastForward();
                       setIsPlaying((p) => !p);
                     }}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition active:scale-95 ${
+                    className={`w-9 h-8 rounded-lg flex items-center justify-center cursor-pointer transition active:scale-95 ${
                       isPlaying
                         ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 shadow-[0_2px_0_0_#385a16] text-white'
                         : 'bg-[#282622] border border-[#35322b] text-white hover:bg-[#34312b]'
@@ -1742,68 +1714,82 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       handleNextMove();
                     }}
                     disabled={activeMoveIndex >= moves.length - 1 || isFastForwarding}
-                    className="w-8 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer"
+                    className="w-9 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition"
                     title="Next Move"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleToggleBest}
-                    disabled={isBestDisabled && !showBestMove}
-                    className={`h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer active:scale-95 ${
-                      showBestMove
-                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 text-white shadow-[0_2px_0_0_#385a16]'
-                        : isBestDisabled
-                        ? 'bg-[#22201d] border border-[#2e2a24] text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none'
-                        : 'bg-[#282622] border border-[#35322b] text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <Star className="w-3 h-3 text-amber-400" />
-                    <span>Best</span>
-                  </button>
-
-                  <button
-                    onClick={handleToggleShow}
-                    disabled={isShowDisabled && !showFollowUpMove}
-                    className={`h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition cursor-pointer ${
-                      showFollowUpMove
-                        ? 'bg-[#0284c7] border-[#0369a1] text-white shadow'
-                        : isShowDisabled
-                        ? 'bg-[#22201d] border-[#2e2a24] text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none'
-                        : 'bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <Eye className="w-3 h-3 text-cyan-400" />
-                    <span>Show</span>
-                  </button>
-
-                  <button
-                    onClick={handleToggleRetry}
-                    className={`h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition cursor-pointer ${
-                      isRetryMode
-                        ? 'bg-amber-500 border-amber-600 text-white shadow'
-                        : 'bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Retry</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      soundService.playTactilePop();
-                      setIsNotationModalOpen(true);
-                    }}
-                    className="h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
-                    title="View Notation"
-                  >
-                    <BookOpen className="w-3 h-3 text-emerald-400" />
-                    <span className="hidden xs:inline">Moves</span>
-                  </button>
+                {/* Move Indicator and Progress */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-bold text-zinc-300">
+                    Move {Math.floor(activeMoveIndex / 2) + 1}
+                    <span className="text-zinc-500 font-normal"> / {Math.ceil(moves.length / 2)}</span>
+                  </span>
+                  {activeMove && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#25221d] border border-[#38342c] text-emerald-400">
+                      {activeMove.san}
+                    </span>
+                  )}
                 </div>
+              </div>
+
+              {/* Mobile Review Actions Row (Line 2: Best, Show, Retry, Moves Grid) */}
+              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1.5 bg-[#141311] border-t border-[#24221e] grid grid-cols-4 gap-1.5 shrink-0">
+                <button
+                  onClick={handleToggleBest}
+                  disabled={isBestDisabled && !showBestMove}
+                  className={`h-8 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition cursor-pointer active:scale-95 ${
+                    showBestMove
+                      ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 text-white shadow-[0_2px_0_0_#385a16]'
+                      : isBestDisabled
+                      ? 'bg-[#1e1c19] border border-[#2e2a24] text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none'
+                      : 'bg-[#282622] border border-[#35322b] text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  <Star className="w-3 h-3 text-amber-400" />
+                  <span>Best</span>
+                </button>
+
+                <button
+                  onClick={handleToggleShow}
+                  disabled={isShowDisabled && !showFollowUpMove}
+                  className={`h-8 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 border transition cursor-pointer active:scale-95 ${
+                    showFollowUpMove
+                      ? 'bg-[#0284c7] border-[#0369a1] text-white shadow'
+                      : isShowDisabled
+                      ? 'bg-[#1e1c19] border border-[#2e2a24] text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none'
+                      : 'bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  <Eye className="w-3 h-3 text-cyan-400" />
+                  <span>Show</span>
+                </button>
+
+                <button
+                  onClick={handleToggleRetry}
+                  className={`h-8 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 border transition cursor-pointer active:scale-95 ${
+                    isRetryMode
+                      ? 'bg-amber-500 border-amber-600 text-white shadow'
+                      : 'bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white'
+                  }`}
+                >
+                  <RotateCcw className="w-3 h-3 text-amber-400" />
+                  <span>Retry</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    soundService.playTactilePop();
+                    setIsNotationModalOpen(true);
+                  }}
+                  className="h-8 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 border bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
+                  title="View Moves Notation"
+                >
+                  <BookOpen className="w-3 h-3 text-emerald-400" />
+                  <span>Moves</span>
+                </button>
               </div>
             </div>
           );
@@ -2080,52 +2066,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               </div>
             </div>
 
-            {/* Middle: Move Advantage Heatmap / Pip Timeline */}
-            <div className="w-full flex flex-col gap-1 pt-1.5 border-t border-[#2a2723]">
-              <div className="flex items-center justify-between text-[9px] font-bold text-zinc-400 px-0.5">
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
-                  <span>Advantage Pip Timeline</span>
-                </span>
-                <span className="font-mono text-zinc-500 text-[9px]">
-                  Ply {activeMoveIndex + 1} / {moves.length}
-                </span>
-              </div>
 
-              <div
-                ref={pipTimelineDesktopRef}
-                className="w-full flex items-center gap-1 overflow-x-auto py-1.5 px-1 custom-scrollbar scroll-smooth bg-[#141311] rounded-lg border border-[#2b2824]"
-              >
-                {moves.map((m, idx) => {
-                  const isSelected = activeMoveIndex === idx;
-                  const cls = getCleanClassification(m.classification);
-                  const pipColor = PIP_COLORS[cls] || '#10b981';
-                  const moveNum = Math.floor(idx / 2) + 1;
-                  const isWhitePly = idx % 2 === 0;
-
-                  return (
-                    <button
-                      key={`desktop-pip-${idx}`}
-                      ref={(el) => {
-                        pipDesktopRefs.current[idx] = el;
-                      }}
-                      onClick={() => navigateToMove(idx)}
-                      className={`relative shrink-0 rounded-full transition-all cursor-pointer flex items-center justify-center ${
-                        isSelected
-                          ? 'w-4 h-4 ring-2 ring-white scale-110 z-10 shadow-[0_0_8px_rgba(255,255,255,0.7)]'
-                          : 'w-2.5 h-2.5 hover:scale-125 hover:z-10 opacity-75 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: pipColor }}
-                      title={`Move ${moveNum}${isWhitePly ? '.' : '...'}${m.san} (${cls.toUpperCase()})`}
-                    >
-                      {isSelected && (
-                        <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Bottom: 3-Move Position Context Ribbon */}
             <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-[#2a2723] text-xs font-mono">

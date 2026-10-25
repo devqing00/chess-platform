@@ -1,0 +1,53 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 1. The Crown -->
+  <path
+    d="M44 26 L42 16 L49 20 L56 12 L63 20 L70 16 L68 26 Z"
+    fill="#ffffff"
+    stroke="#ffffff"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <circle cx="42" cy="15" r="2.2" fill="#ffffff" />
+  <circle cx="56" cy="11" r="2.6" fill="#ffffff" />
+  <circle cx="70" cy="15" r="2.2" fill="#ffffff" />
+
+  <!-- 2. The Checkmark + Knight Head Flow -->
+  <path
+    d="M18 48 
+       L28 62 
+       C33 52 41 38 52 28 
+       C56 24 64 24 68 28
+       C70 30 71 33 72 36
+       L66 38
+       C65 38 64 39 65 41
+       L69 44
+       C66 48 61 49 57 48
+       C53 47 50 51 52 57
+       C54 62 60 64 68 64"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- 3. Knight Eye Accent -->
+  <path
+    d="M60 32 C61 31 63 31 64 33"
+    stroke="#ffffff"
+    stroke-width="2.5"
+    stroke-linecap="round"
+  />
+
+  <!-- 4. Inner White Chest Contour -->
+  <path
+    d="M36 66 C36 57 40 46 44 40"
+    stroke="#ffffff"
+    stroke-width="5"
+    stroke-linecap="round"
+  />
+
+  <!-- 5. Terminal Base Sphere -->
+  <circle cx="73" cy="64" r="4.5" fill="#ffffff" />
+</svg>

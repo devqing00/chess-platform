@@ -291,32 +291,29 @@ code, kbd, samp, pre, .font-mono {
   animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Realistic King Topple: authentic physics-based king tip-over on base pivot */
+/* Authentic Center-Axis King Topple: rotates cleanly in place without shifting off square */
 @keyframes checkmateKingTopple {
   0% {
-    transform: rotate(0deg) translateY(0) scale(1);
+    transform: rotate(0deg) scale(1);
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
   }
-  25% {
-    transform: rotate(22deg) translateY(-2px) scale(0.98);
+  30% {
+    transform: rotate(30deg) scale(0.97);
   }
-  50% {
-    transform: rotate(66deg) translateY(3px) scale(0.94);
+  60% {
+    transform: rotate(78deg) scale(0.94);
   }
-  70% {
-    transform: rotate(82deg) translateY(6px) scale(0.91);
-  }
-  85% {
-    transform: rotate(74deg) translateY(5px) scale(0.92);
+  80% {
+    transform: rotate(68deg) scale(0.94);
   }
   100% {
-    transform: rotate(78deg) translateY(6px) scale(0.92);
-    filter: drop-shadow(4px 6px 8px rgba(0, 0, 0, 0.5));
+    transform: rotate(72deg) scale(0.94);
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
   }
 }
 
 .animate-king-defeated {
-  transform-origin: 75% 85% !important;
+  transform-origin: center center !important;
   animation: checkmateKingTopple 0.85s cubic-bezier(0.28, 1, 0.38, 1) 1 forwards !important;
   z-index: 35 !important;
 }

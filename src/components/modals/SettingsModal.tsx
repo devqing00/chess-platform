@@ -510,20 +510,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Premoves (Fast Competitive Speedplay) */}
-              <div className="bg-[#24211d] p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${
-                        premoveEnabled
-                          ? 'bg-gradient-to-b from-rose-500/25 to-rose-600/10 border-rose-500/40 text-rose-400'
-                          : 'bg-[#181614] border-[#35322b] text-zinc-500'
-                      }`}
-                    >
-                      <Zap className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+              <div className="bg-[#24211d] p-4 sm:p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-3">
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0 transition-all ${
+                          premoveEnabled
+                            ? 'bg-gradient-to-b from-rose-500/25 to-rose-600/10 border-rose-500/40 text-rose-400'
+                            : 'bg-[#181614] border-[#35322b] text-zinc-500'
+                        }`}
+                      >
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <h3 className="text-sm font-black text-white">Enable Premoves</h3>
                         <span
                           className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full border ${
@@ -535,33 +535,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {premoveEnabled ? 'Active' : 'Disabled (Default)'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-400 font-medium mt-0.5 max-w-md leading-relaxed">
-                        Queue your move before your opponent finishes theirs. If legal when their turn ends, your premove executes in 0.0s without burning clock time.
-                      </p>
                     </div>
+
+                    {/* Tactile Toggle Switch */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={premoveEnabled}
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setPremoveEnabled(!premoveEnabled);
+                      }}
+                      className={`tactile-btn shrink-0 relative inline-flex h-7 w-13 items-center rounded-full transition-colors cursor-pointer border-2 ${
+                        premoveEnabled
+                          ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 border-emerald-400/60 shadow-[0_2px_0_0_#065f46]'
+                          : 'bg-[#181614] border-[#38352e] shadow-[0_2px_0_0_#141311]'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
+                          premoveEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
                   </div>
 
-                  {/* Tactile Toggle Switch */}
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={premoveEnabled}
-                    onClick={() => {
-                      soundService.playTactilePop();
-                      setPremoveEnabled(!premoveEnabled);
-                    }}
-                    className={`tactile-btn shrink-0 relative inline-flex h-7 w-13 items-center rounded-full transition-colors cursor-pointer border-2 ${
-                      premoveEnabled
-                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 border-emerald-400/60 shadow-[0_2px_0_0_#065f46]'
-                        : 'bg-[#181614] border-[#38352e] shadow-[0_2px_0_0_#141311]'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
-                        premoveEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
+                  <p className="text-[11px] sm:text-xs text-zinc-400 font-medium leading-relaxed">
+                    Queue your move before your opponent finishes theirs. If legal when their turn ends, your premove executes in 0.0s without burning clock time.
+                  </p>
                 </div>
                 <div className="text-[10px] text-zinc-500 flex items-center gap-1.5 pt-2 border-t border-white/5">
                   <span>💡</span>
@@ -601,16 +602,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Low-Time Warning Alert Engine */}
               <div className="bg-[#24211d] p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
                       <Bell className="w-4 h-4 text-amber-400" />
                     </div>
-                    <h3 className="text-sm font-black text-white">
+                    <h3 className="text-sm font-black text-white truncate">
                       Low-Time Audible Alert Engine
                     </h3>
                   </div>
-                  <span className="text-[10px] uppercase font-black text-amber-300 bg-amber-400/20 px-3 py-0.5 rounded-full border border-amber-400/40">
+                  <span className="text-[10px] uppercase font-black text-amber-300 bg-amber-400/20 px-3 py-0.5 rounded-full border border-amber-400/40 self-start sm:self-auto shrink-0">
                     Never Miss Time Scramble
                   </span>
                 </div>
@@ -907,31 +908,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
 
                 <div className="space-y-3 pt-3 border-t-2 border-[#282622]">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div>
                       <span className="font-black text-zinc-200 block">ARIA Grid Semantics</span>
                       <span className="text-[11px] text-zinc-500 font-medium">
                         Every square outputs full piece & coordinate speech labels for screen readers.
                       </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40 self-start sm:self-auto shrink-0">
                       Active
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t-2 border-[#262420]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t-2 border-[#262420]">
                     <div>
                       <span className="font-black text-zinc-200 block">Keyboard Navigation</span>
                       <span className="text-[11px] text-zinc-500 font-medium">
                         Use Arrow Keys to traverse squares; press Space or Enter to select and place pieces.
                       </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40 self-start sm:self-auto shrink-0">
                       Enabled
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t-2 border-[#262420]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t-2 border-[#262420]">
                     <div>
                       <span className="font-black text-zinc-200 block">High-Contrast Theme</span>
                       <span className="text-[11px] text-zinc-500 font-medium">
@@ -940,7 +941,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     <button
                       onClick={() => onChangeBoardTheme('high_contrast')}
-                      className="px-3.5 py-1.5 rounded-full bg-[#262420] hover:bg-[#322f29] border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none text-white text-xs font-black cursor-pointer transition-all"
+                      className="w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-full bg-[#262420] hover:bg-[#322f29] border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none text-white text-xs font-black cursor-pointer transition-all self-start sm:self-auto shrink-0 text-center"
                     >
                       Enable Theme
                     </button>
@@ -954,85 +955,111 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'accounts' && (
             <div className="space-y-6">
               {/* Progressive Web App (PWA) Card */}
-              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner">
+              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner shrink-0">
                       <Download className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-white flex items-center gap-2">
-                        Installable Web App (PWA)
-                        <span
-                          className={`text-[10px] ${
-                            isPwaInstalled
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                              : 'bg-blue-500/20 text-blue-400 border-blue-500/40'
-                          } border px-2.5 py-0.5 rounded-full font-black uppercase`}
-                        >
-                          {isPwaInstalled ? 'Installed' : 'Ready to Install'}
-                        </span>
-                      </span>
-                      <span className="text-xs text-zinc-400 font-medium">
-                        {isPwaInstalled
-                          ? 'Running in full-screen standalone mode with offline engine and sound caches active.'
-                          : 'Install on iOS, Android, Mac, or Windows for full-screen gameplay and 0ms latency.'}
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="text-sm font-black text-white">Installable Web App (PWA)</span>
+                      <span
+                        className={`text-[10px] ${
+                          isPwaInstalled
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                            : 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                        } border px-2.5 py-0.5 rounded-full font-black uppercase`}
+                      >
+                        {isPwaInstalled ? 'Installed' : 'Ready to Install'}
                       </span>
                     </div>
                   </div>
 
                   <button
                     onClick={onOpenPwaInstall}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black text-xs border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                    className="hidden sm:flex px-4 py-2 rounded-xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black text-xs border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-none transition-all cursor-pointer items-center justify-center gap-1.5 shrink-0"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>{isPwaInstalled ? 'App Status' : 'Install App'}</span>
                   </button>
                 </div>
+
+                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                  {isPwaInstalled
+                    ? 'Running in full-screen standalone mode with offline engine and sound caches active.'
+                    : 'Install on iOS, Android, Mac, or Windows for full-screen gameplay and 0ms latency.'}
+                </p>
+
+                <button
+                  onClick={onOpenPwaInstall}
+                  className="sm:hidden w-full py-2.5 rounded-xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black text-xs border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isPwaInstalled ? 'App Status' : 'Install App'}</span>
+                </button>
               </div>
 
               {/* Check.mate Profile Sync Card */}
-              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner">
+              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner shrink-0">
                       ♟️
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-white flex items-center gap-2">
-                        Chess.com Profile Sync
-                        {syncedChessCom && (
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
-                            Connected
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-xs text-zinc-400 font-medium">
-                        Sync your verified Chess.com ELO ratings, avatar, game archives, and match history.
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="text-sm font-black text-white">Chess.com Profile Sync</span>
+                      {syncedChessCom && (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
+                          Connected
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {onOpenChessComSync && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      rounded="full"
-                      onClick={() => {
-                        updateSnapshot();
-                        onClose();
-                        onOpenChessComSync();
-                      }}
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
-                    </Button>
+                    <div className="hidden sm:block shrink-0">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        rounded="full"
+                        onClick={() => {
+                          updateSnapshot();
+                          onClose();
+                          onOpenChessComSync();
+                        }}
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
+                      </Button>
+                    </div>
                   )}
                 </div>
 
+                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                  Sync your verified Chess.com ELO ratings, avatar, game archives, and match history.
+                </p>
+
+                {onOpenChessComSync && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    rounded="full"
+                    fullWidth
+                    className="sm:hidden"
+                    onClick={() => {
+                      updateSnapshot();
+                      onClose();
+                      onOpenChessComSync();
+                    }}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
+                  </Button>
+                )}
+
                 {syncedChessCom && (
-                  <div className="mt-1 p-3.5 bg-[#1a1815] rounded-2xl border-2 border-[#2b2824] flex items-center justify-between shadow-inner">
-                    <div className="flex items-center gap-3">
+                  <div className="mt-1 p-3.5 sm:p-4 bg-[#1a1815] rounded-2xl border-2 border-[#2b2824] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-11 h-11 rounded-xl bg-[#272522] border-2 border-[#383530] overflow-hidden flex items-center justify-center text-sm font-black shrink-0 shadow">
                         {syncedChessCom.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -1045,12 +1072,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <span>♟️</span>
                         )}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-white flex items-center gap-1.5">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black text-white flex items-center gap-1.5 truncate">
                           {syncedChessCom.username}
                           <span>{syncedChessCom.countryCode === 'ng' ? '🇳🇬' : '🌐'}</span>
                         </span>
-                        <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400 font-bold mt-0.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-mono text-zinc-400 font-bold mt-0.5">
                           <span>Rapid: <strong className="text-white">{syncedChessCom.ratings?.rapid || 429}</strong></span>
                           <span>Blitz: <strong className="text-white">{syncedChessCom.ratings?.blitz || 370}</strong></span>
                           <span>Bullet: <strong className="text-white">{syncedChessCom.ratings?.bullet || 300}</strong></span>
@@ -1069,10 +1096,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           isDanger: true,
                         })
                       }
-                      className="px-3 py-1.5 rounded-full text-zinc-400 hover:text-rose-400 bg-[#241f1f] border-2 border-rose-900/30 hover:border-rose-700/50 shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-black"
+                      className="w-full sm:w-auto px-4 py-2 rounded-full text-zinc-300 hover:text-rose-400 bg-[#241f1f] border-2 border-rose-900/40 hover:border-rose-700/60 shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs font-black shrink-0"
                       title="Disconnect Account"
                     >
-                      <Unlink className="w-3.5 h-3.5" />
+                      <Unlink className="w-3.5 h-3.5 text-rose-400" />
                       <span>Disconnect</span>
                     </button>
                   </div>
@@ -1080,24 +1107,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Game Review & Analysis Engine Card */}
-              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3.5">
-                <div className="flex items-center justify-between">
+              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 text-amber-400 flex items-center justify-center font-black text-lg shadow-inner">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 text-amber-400 flex items-center justify-center font-black text-lg shadow-inner shrink-0">
                       🔥
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-white flex items-center gap-2">
-                        Game Review Analysis Engine
-                        <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
-                          {analysisEngine === 'torch_human' ? 'Human Style (Recommended)' : 'Stockfish (Tactical)'}
-                        </span>
-                      </span>
-                      <span className="text-xs text-zinc-400 font-medium">
-                        Select which engine evaluates your games, classifications, and coach recommendations.
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="text-sm font-black text-white">Game Review Analysis Engine</span>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
+                        {analysisEngine === 'torch_human' ? 'Human Style (Recommended)' : 'Stockfish (Tactical)'}
                       </span>
                     </div>
                   </div>
+                  <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                    Select which engine evaluates your games, classifications, and coach recommendations.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
