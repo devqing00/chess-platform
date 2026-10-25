@@ -5,10 +5,23 @@
   --background: #161512;
   --foreground: #ffffff;
 
-  /* Tactile Modern Tokens (Duolingo Style) */
-  --tactile-green: #81b64c;
-  --tactile-green-hover: #92cb56;
-  --tactile-green-shadow: #4d7a24;
+  /* Working Green Palette (Vibrant, Layered & Tactile) */
+  --green-50: #f0fdf4;
+  --green-100: #dcfce7;
+  --green-200: #bbf7d0;
+  --green-300: #86efac; /* Mint highlight */
+  --green-400: #4ade80; /* Vibrant lime-emerald */
+  --green-500: #22c55e; /* Crisp modern emerald */
+  --green-600: #16a34a; /* Classic chess master green */
+  --green-700: #15803d; /* Deep forest */
+  --green-800: #166534; /* Deep shadow */
+  --green-900: #14532d; /* Deepest bevel extrusion */
+
+  /* Tactile Modern Tokens (Duolingo & Qing Portfolio Hybrid) */
+  --tactile-green: #22c55e;
+  --tactile-green-hover: #34d399;
+  --tactile-green-shadow: #14532d;
+  --tactile-green-glow: rgba(34, 197, 94, 0.4);
 
   --tactile-blue: #3b82f6;
   --tactile-blue-hover: #60a5fa;
@@ -30,6 +43,34 @@
   --tactile-neutral-border: #35322b;
   --tactile-neutral-shadow: #141311;
   --tactile-card-shadow: #100f0d;
+}
+
+/* =========================================================================
+   TACTILE CLICK MICRO-INTERACTION (From Qing Portfolio)
+   Clean, hardware-accelerated opacity response on press, silky release
+   ========================================================================= */
+button:active > *:not(svg):not(img):not(.no-blur),
+button:active span,
+button:active p,
+[role="button"]:active > *:not(svg):not(img):not(.no-blur),
+[role="button"]:active span,
+[role="button"]:active p,
+.tactile-btn:active span,
+.tactile-click:active span {
+  opacity: 0.88;
+  transition: opacity 60ms ease;
+}
+
+button:not(:active) > *:not(svg):not(img):not(.no-blur),
+button:not(:active) span,
+button:not(:active) p,
+[role="button"]:not(:active) > *:not(svg):not(img):not(.no-blur),
+[role="button"]:not(:active) span,
+[role="button"]:not(:active) p,
+.tactile-btn:not(:active) span,
+.tactile-click:not(:active) span {
+  opacity: 1;
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ============================================

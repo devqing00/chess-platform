@@ -32,7 +32,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         className={`relative ${dimensions.box} bg-gradient-to-b from-[#24221d] to-[#171613] border-2 border-[#38342c] shadow-[0_3px_0_0_#141311] flex items-center justify-center shrink-0 overflow-hidden group`}
       >
         {/* Subtle Ambient Light Cone */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#81b64c33,transparent_70%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#22c55e33,transparent_70%)] pointer-events-none" />
 
         <svg
           viewBox="0 0 32 32"
@@ -97,9 +97,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               y2="23"
               gradientUnits="userSpaceOnUse"
             >
-              <stop stopColor="#95d15a" />
-              <stop offset="0.6" stopColor="#81b64c" />
-              <stop offset="1" stopColor="#5b8630" />
+              <stop stopColor="#4ade80" />
+              <stop offset="0.6" stopColor="#22c55e" />
+              <stop offset="1" stopColor="#15803d" />
             </linearGradient>
           </defs>
         </svg>
@@ -110,11 +110,11 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         <div className="flex flex-col min-w-0">
           <div className="flex items-baseline gap-1 leading-none">
             <span className={`${dimensions.text} font-black tracking-tight text-white uppercase`}>
-              Check<span className="text-[#81b64c]">mate</span>
+              Check<span className="text-emerald-400">mate</span>
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-1 h-1 rounded-full bg-[#81b64c]" />
+            <span className="w-1 h-1 rounded-full bg-emerald-400" />
             <span className={`${dimensions.sub} font-mono uppercase tracking-[0.16em] text-zinc-400 font-semibold`}>
               Chess Platform
             </span>

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { soundService } from '@/lib/audioService';
 
 export type ButtonVariant =
   | 'primary'
@@ -36,32 +37,33 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       fullWidth = false,
       children,
       disabled,
+      onPointerDown,
       ...props
     },
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center gap-2 whitespace-nowrap font-extrabold border transition-all duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#81b64c] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none';
+      'tactile-btn inline-flex items-center justify-center gap-2 whitespace-nowrap font-extrabold border transition-all duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none';
 
     const variantStyles: Record<ButtonVariant, string> = {
       primary:
-        'bg-[#81b64c] hover:bg-[#92cb56] text-black font-black border-transparent shadow-[0_4px_0_0_#4d7a24] hover:shadow-[0_5px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24]',
+        'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] hover:from-[#9ee055] hover:via-[#88c445] hover:to-[#74ac35] text-zinc-950 font-black tracking-wide drop-shadow-[0_1px_0_rgba(255,255,255,0.25)] border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_6px_16px_rgba(0,0,0,0.35)] hover:shadow-[0_5px_0_0_#385a16,0_8px_20px_rgba(110,180,45,0.4)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16]',
       secondary:
-        'bg-[#211f1c] hover:bg-[#2c2924] text-zinc-200 border-[#38342c] hover:border-[#4d473d] shadow-[0_4px_0_0_#141311] hover:shadow-[0_5px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#141311]',
+        'bg-gradient-to-b from-[#2c2824] to-[#1c1a17] hover:from-[#38332d] hover:to-[#24211d] text-zinc-200 border-t border-white/15 border-x-[#3c372f] border-b-[#12110f] shadow-[0_4px_0_0_#0f0e0c,0_4px_12px_rgba(0,0,0,0.4)] hover:border-white/20 hover:shadow-[0_5px_0_0_#0f0e0c] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#0f0e0c]',
       warning:
-        'bg-[#f59e0b] hover:bg-[#fbbf24] text-black font-black border-transparent shadow-[0_4px_0_0_#92400e] hover:shadow-[0_5px_0_0_#92400e] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#92400e]',
+        'bg-gradient-to-b from-[#fbbf24] via-[#f59e0b] to-[#d97706] hover:from-[#fcd34d] hover:via-[#fbbf24] hover:to-[#ea580c] text-zinc-950 font-black border-t border-white/40 border-x-amber-500/20 border-b-amber-950/40 shadow-[0_4px_0_0_#78350f,0_6px_16px_rgba(245,158,11,0.35)] hover:shadow-[0_5px_0_0_#78350f,0_8px_20px_rgba(245,158,11,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#78350f]',
       destructive:
-        'bg-[#ef4444] hover:bg-[#f87171] text-white border-transparent shadow-[0_4px_0_0_#7f1d1d] hover:shadow-[0_5px_0_0_#7f1d1d] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#7f1d1d]',
+        'bg-gradient-to-b from-[#f87171] via-[#ef4444] to-[#dc2626] hover:from-[#fca5a5] hover:via-[#f87171] hover:to-[#b91c1c] text-white font-black border-t border-white/35 border-x-red-500/20 border-b-red-950/40 shadow-[0_4px_0_0_#7f1d1d,0_6px_16px_rgba(239,68,68,0.35)] hover:shadow-[0_5px_0_0_#7f1d1d,0_8px_20px_rgba(239,68,68,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#7f1d1d]',
       blue:
-        'bg-[#3b82f6] hover:bg-[#60a5fa] text-white border-transparent shadow-[0_4px_0_0_#1e3a8a] hover:shadow-[0_5px_0_0_#1e3a8a] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#1e3a8a]',
+        'bg-gradient-to-b from-[#60a5fa] via-[#3b82f6] to-[#2563eb] hover:from-[#93c5fd] hover:via-[#60a5fa] hover:to-[#1d4ed8] text-white font-black border-t border-white/35 border-x-blue-500/20 border-b-blue-950/40 shadow-[0_4px_0_0_#1e3a8a,0_6px_16px_rgba(59,130,246,0.35)] hover:shadow-[0_5px_0_0_#1e3a8a,0_8px_20px_rgba(59,130,246,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#1e3a8a]',
       purple:
-        'bg-[#a855f7] hover:bg-[#c084fc] text-white border-transparent shadow-[0_4px_0_0_#581c87] hover:shadow-[0_5px_0_0_#581c87] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#581c87]',
+        'bg-gradient-to-b from-[#c084fc] via-[#a855f7] to-[#9333ea] hover:from-[#d8b4fe] hover:via-[#c084fc] hover:to-[#7e22ce] text-white font-black border-t border-white/35 border-x-purple-500/20 border-b-purple-950/40 shadow-[0_4px_0_0_#4c1d95,0_6px_16px_rgba(168,85,247,0.35)] hover:shadow-[0_5px_0_0_#4c1d95,0_8px_20px_rgba(168,85,247,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#4c1d95]',
       ghost:
         'bg-transparent text-zinc-300 border-transparent hover:bg-white/10 hover:text-white active:translate-y-[1px]',
       outline:
-        'bg-transparent text-zinc-200 border-[#38342c] hover:border-[#81b64c] hover:text-[#81b64c] hover:bg-[#81b64c]/10 active:translate-y-[1px]',
+        'bg-white/[0.03] text-zinc-200 border-[#38342c] hover:border-emerald-500/60 hover:text-emerald-400 hover:bg-emerald-500/10 active:translate-y-[1px]',
       subtle:
-        'bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border-white/5 hover:border-white/10 active:translate-y-[1px]',
+        'bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/5 hover:border-white/10 active:translate-y-[1px]',
     };
 
     const sizeStyles: Record<ButtonSize, string> = {
@@ -87,10 +89,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     // If className already specifies a rounded- class, skip applying roundedStyles
     const hasCustomRounded = className && /rounded-(none|sm|md|lg|xl|2xl|3xl|full)/.test(className);
 
+    const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (!disabled) {
+        soundService.playTactilePop();
+      }
+      onPointerDown?.(e);
+    };
+
     return (
       <button
         ref={ref}
         disabled={disabled}
+        onPointerDown={handlePointerDown}
         className={cn(
           baseStyles,
           variantStyles[variant],

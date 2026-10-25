@@ -23,7 +23,7 @@ export function Badge({ className, variant = 'default', children, ...props }: Ba
 
   const variants: Record<BadgeVariant, string> = {
     default: 'bg-[#272521] border-[#38352f] text-zinc-300',
-    success: 'bg-[#81b64c]/15 border-[#81b64c]/40 text-[#81b64c]',
+    success: 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 font-bold',
     warning: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
     error: 'bg-rose-500/15 border-rose-500/40 text-rose-300',
     blue: 'bg-blue-500/15 border-blue-500/40 text-blue-300',

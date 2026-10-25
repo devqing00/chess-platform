@@ -5,6 +5,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { ShellProvider } from '@/context/ShellContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { TactileFeedbackProvider } from '@/components/ui/TactileFeedbackProvider';
 
 const fontSans = Plus_Jakarta_Sans({
   variable: '--font-sans',
@@ -36,10 +37,12 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#161512] text-zinc-100 font-sans">
         <AuthProvider>
           <ShellProvider>
-            <AppShell>
-              {children}
-            </AppShell>
-            <AuthModal />
+            <TactileFeedbackProvider>
+              <AppShell>
+                {children}
+              </AppShell>
+              <AuthModal />
+            </TactileFeedbackProvider>
           </ShellProvider>
         </AuthProvider>
       </body>

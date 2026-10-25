@@ -363,7 +363,7 @@ export default function PlayLobbyPage() {
         <div className="flex items-center justify-between gap-2">
           {/* Left: Branding & Status */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24] shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/35 flex items-center justify-center text-emerald-400 shadow-[0_2px_0_0_#14532d] shrink-0">
               <Swords className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -382,7 +382,7 @@ export default function PlayLobbyPage() {
               onClick={() => setActiveScreen('arena')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeScreen === 'arena'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -393,7 +393,7 @@ export default function PlayLobbyPage() {
               onClick={() => setActiveScreen('bots')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeScreen === 'bots'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -404,7 +404,7 @@ export default function PlayLobbyPage() {
               onClick={() => setActiveScreen('clocks')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeScreen === 'clocks'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -415,7 +415,7 @@ export default function PlayLobbyPage() {
               onClick={() => setActiveScreen('history')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeScreen === 'history'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -443,7 +443,7 @@ export default function PlayLobbyPage() {
               onClick={() => setActiveScreen('history')}
               title="View recent matches"
             >
-              <History className="w-3.5 h-3.5 text-[#81b64c]" />
+              <History className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Recent ({recentGames.length})</span>
             </Button>
           </div>
@@ -455,7 +455,7 @@ export default function PlayLobbyPage() {
             onClick={() => setActiveScreen('arena')}
             className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'arena'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -466,7 +466,7 @@ export default function PlayLobbyPage() {
             onClick={() => setActiveScreen('bots')}
             className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'bots'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -477,7 +477,7 @@ export default function PlayLobbyPage() {
             onClick={() => setActiveScreen('clocks')}
             className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'clocks'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -488,7 +488,7 @@ export default function PlayLobbyPage() {
             onClick={() => setActiveScreen('history')}
             className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
               activeScreen === 'history'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -518,7 +518,7 @@ export default function PlayLobbyPage() {
                       onClick={() => setSelectedMode('bot')}
                       className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         selectedMode === 'bot'
-                          ? 'bg-[#81b64c] text-black shadow-sm font-black'
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 shadow-[0_2px_0_0_#385a16] font-black'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -572,7 +572,7 @@ export default function PlayLobbyPage() {
                     </span>
                     <button
                       onClick={() => setActiveScreen('clocks')}
-                      className="text-[11px] font-semibold text-[#81b64c] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-semibold text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <span>Custom &amp; All 12+ Timers</span>
                       <ChevronRight className="w-3 h-3" />
@@ -589,7 +589,7 @@ export default function PlayLobbyPage() {
                           onClick={() => setSelectedTimeControl(tc)}
                           className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-white/10 border-[#81b64c] text-white shadow-sm'
+                              ? 'bg-emerald-500/10 border-emerald-500/60 text-white shadow-xs'
                               : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
                           }`}
                         >
@@ -623,7 +623,7 @@ export default function PlayLobbyPage() {
                       onClick={() => setPlayAsColor('random')}
                       className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                         playAsColor === 'random'
-                          ? 'bg-white/15 border-[#81b64c] text-[#81b64c] shadow-sm'
+                          ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-400 shadow-xs'
                           : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -696,7 +696,7 @@ export default function PlayLobbyPage() {
                               setSelectedMode('bot');
                             }}
                           >
-                            <Bot className="w-3 h-3 text-[#81b64c]" />
+                            <Bot className="w-3 h-3 text-emerald-400" />
                             <span>Play vs {chosenBot.name}</span>
                           </Button>
                         </div>
@@ -743,7 +743,7 @@ export default function PlayLobbyPage() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                       Selected Sparring Partner
                     </span>
-                    <span className="text-xs font-mono font-bold text-[#81b64c]">
+                    <span className="text-xs font-mono font-bold text-emerald-400">
                       {chosenBot.rating} Elo
                     </span>
                   </div>
@@ -863,7 +863,7 @@ export default function PlayLobbyPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-[#81b64c]" />
+                  <Bot className="w-4 h-4 text-emerald-400" />
                   <span>Grandmaster &amp; Personality Sparring Bots</span>
                 </h2>
                 <p className="text-xs text-zinc-400">
@@ -897,7 +897,7 @@ export default function PlayLobbyPage() {
                     onClick={() => setBotFilter(cat.id as typeof botFilter)}
                     className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border transition cursor-pointer shrink-0 ${
                       botFilter === cat.id
-                        ? 'bg-[#81b64c] text-black border-[#81b64c]'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black border-[#385a16] shadow-[0_2px_0_0_#385a16]'
                         : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -913,7 +913,7 @@ export default function PlayLobbyPage() {
                   placeholder="Search bot by name or Elo..."
                   value={botSearchQuery}
                   onChange={(e) => setBotSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+                  className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
@@ -932,7 +932,7 @@ export default function PlayLobbyPage() {
                     }}
                     className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-white/15 border-[#81b64c] shadow-sm'
+                        ? 'bg-emerald-500/10 border-emerald-500/70 shadow-xs'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/15'
                     }`}
                   >
@@ -952,7 +952,7 @@ export default function PlayLobbyPage() {
                             {bot.category.toUpperCase()}
                           </span>
                         </div>
-                        <span className="text-[11px] font-mono font-bold text-[#81b64c]">
+                        <span className="text-[11px] font-mono font-bold text-emerald-400">
                           {bot.rating} Elo
                         </span>
                       </div>
@@ -981,7 +981,7 @@ export default function PlayLobbyPage() {
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#81b64c]" />
+                  <Clock className="w-4 h-4 text-emerald-400" />
                   <span>Clock Tempos &amp; Custom Timers</span>
                 </h2>
                 <p className="text-xs text-zinc-400">
@@ -1023,7 +1023,7 @@ export default function PlayLobbyPage() {
                             }}
                             className={`p-2 rounded-xl border flex items-center justify-between text-xs font-mono font-bold transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-white/15 border-[#81b64c] text-[#81b64c] shadow-xs'
+                                ? 'bg-emerald-500/10 border-emerald-500/70 text-emerald-400 shadow-xs'
                                 : 'bg-[#141311] border-white/5 text-zinc-300 hover:border-white/10 hover:text-white'
                             }`}
                           >
@@ -1120,7 +1120,7 @@ export default function PlayLobbyPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <History className="w-4 h-4 text-[#81b64c]" />
+                  <History className="w-4 h-4 text-emerald-400" />
                   <span>Recent Matches ({filteredHistoryGames.length})</span>
                 </h2>
                 <p className="text-xs text-zinc-400">
@@ -1139,7 +1139,7 @@ export default function PlayLobbyPage() {
                   className="font-bold flex items-center gap-1.5"
                   title="Fetch fresh games from Chess.com & Lichess"
                 >
-                  <RotateCw className={`w-3.5 h-3.5 text-[#81b64c] ${isSyncingExternal ? 'animate-spin' : ''}`} />
+                  <RotateCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingExternal ? 'animate-spin' : ''}`} />
                   <span>{isSyncingExternal ? 'Syncing...' : 'Sync Live'}</span>
                 </Button>
 
@@ -1158,7 +1158,7 @@ export default function PlayLobbyPage() {
                     onClick={() => setHistoryProvider('checkmate')}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       historyProvider === 'checkmate'
-                        ? 'bg-[#81b64c] text-black font-black'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -1192,7 +1192,7 @@ export default function PlayLobbyPage() {
             {providerCounts.chesscom === 0 && providerCounts.lichess === 0 && (
               <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-3 text-xs shrink-0">
                 <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-[#81b64c]" />
+                  <Globe className="w-4 h-4 text-emerald-400" />
                   <span className="text-zinc-300">
                     Sync your Chess.com or Lichess account to automatically import and analyze past games.
                   </span>
@@ -1225,7 +1225,7 @@ export default function PlayLobbyPage() {
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                     : isLichess
                     ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                    : 'bg-[#81b64c]/15 text-[#81b64c] border-[#81b64c]/30';
+                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
 
                   return (
                     <div
@@ -1237,7 +1237,7 @@ export default function PlayLobbyPage() {
                         <span
                           className={`text-[10px] font-black px-2 py-1 rounded-md shrink-0 uppercase tracking-wider ${
                             isWin
-                              ? 'bg-[#81b64c]/20 text-[#81b64c]'
+                              ? 'bg-emerald-500/20 text-emerald-400'
                               : isLoss
                               ? 'bg-red-400/20 text-red-400'
                               : 'bg-zinc-400/20 text-zinc-400'
@@ -1269,7 +1269,7 @@ export default function PlayLobbyPage() {
                         onClick={() => router.push(`/game/review/${game.id}`)}
                         className="shrink-0 font-bold"
                       >
-                        <Sparkles className="w-3 h-3 text-[#81b64c]" />
+                        <Sparkles className="w-3 h-3 text-emerald-400" />
                         <span>Review</span>
                       </Button>
                     </div>
@@ -1300,7 +1300,7 @@ export default function PlayLobbyPage() {
       {/* 4. FOOTER STATUS BAR */}
       <footer className="pt-2 border-t border-white/5 flex items-center justify-between text-xs shrink-0">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-[11px] text-zinc-500 font-medium">Matchmaking Gateway Ready</span>
         </div>
 

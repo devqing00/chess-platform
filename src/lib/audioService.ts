@@ -559,6 +559,36 @@ class SoundService {
     metalOsc.stop(t + 0.45);
   }
 
+  private lastTactilePopTime = 0;
+
+  // Tactile micro-pop (satisfying haptic audio feedback from Qing portfolio)
+  public playTactilePop() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    if (now - this.lastTactilePopTime < 0.05) return;
+    this.lastTactilePopTime = now;
+
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const dest = this.getSfxDestination();
+
+      osc.type = 'sine';
+      // Subtle satisfying tactile micro pop: 520Hz down to 220Hz over 45ms
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.045);
+
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+      osc.connect(gain).connect(dest);
+      osc.start(now);
+      osc.stop(now + 0.045);
+    } catch {}
+  }
+
   // Puzzle success / combo streak
   public playPuzzleSuccess() {
     if (!this.soundEnabled) return;

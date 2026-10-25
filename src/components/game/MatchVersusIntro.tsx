@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { soundService } from '@/lib/audioService';
-import { Swords, Zap, Clock, Shield } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Clock, Zap } from 'lucide-react';
 
 export interface VersusPlayerInfo {
   name: string;
@@ -26,41 +25,37 @@ export const MatchVersusIntro: React.FC<MatchVersusIntroProps> = ({
   onComplete,
   whitePlayer,
   blackPlayer,
-  gameFormat = 'Standard Chess',
+  gameFormat = 'Live Arena',
 }) => {
-  const [stage, setStage] = useState<'entering' | 'impact' | 'ready' | 'exit'>('entering');
+  const [stage, setStage] = useState<'entering' | 'active' | 'exit'>('entering');
+  const dismissedRef = useRef(false);
 
   const handleDismiss = useCallback(() => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
     setStage('exit');
     setTimeout(() => {
       onComplete();
-    }, 280);
+    }, 200);
   }, [onComplete]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setStage('entering');
+      dismissedRef.current = false;
+      return;
+    }
 
-    // 1. Initial entrance sound
-    try {
-      soundService.playVersusImpact();
-    } catch {}
+    dismissedRef.current = false;
+    // Enter smoothly immediately
+    const enterTimer = requestAnimationFrame(() => {
+      setStage('active');
+    });
 
-    // 2. Stage progression: impact after 150ms
-    const impactTimer = setTimeout(() => {
-      setStage('impact');
-      try {
-        soundService.playGameStart();
-      } catch {}
-    }, 150);
-
-    const readyTimer = setTimeout(() => {
-      setStage('ready');
-    }, 600);
-
-    // 3. Auto-exit after 2.4s
+    // Auto-dismiss after 1.2s (smoothly fades out by 1.4s total)
     const exitTimer = setTimeout(() => {
       handleDismiss();
-    }, 2400);
+    }, 1200);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape') {
@@ -70,8 +65,7 @@ export const MatchVersusIntro: React.FC<MatchVersusIntroProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      clearTimeout(impactTimer);
-      clearTimeout(readyTimer);
+      cancelAnimationFrame(enterTimer);
       clearTimeout(exitTimer);
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -79,178 +73,196 @@ export const MatchVersusIntro: React.FC<MatchVersusIntroProps> = ({
 
   if (!isOpen) return null;
 
+  const isExiting = stage === 'exit';
+  const isEntered = stage === 'active';
+
   return (
     <div
       onClick={handleDismiss}
-      className={`fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-between p-4 sm:p-8 select-none cursor-pointer overflow-hidden transition-all duration-300 ${
-        stage === 'exit' ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100 scale-100'
+      className={`fixed inset-0 z-[120] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8 select-none cursor-pointer overflow-hidden transition-opacity duration-200 ${
+        isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Background Arena FX */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Split diagonal lighting */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.12),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(234,88,12,0.18),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.03)_0%,transparent_50%,rgba(0,0,0,0.5)_100%)]" />
-        {/* Subtle grid mesh */}
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
+      {/* Subtle Ambient Radial Lighting Behind VS */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
+        <div className="w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
       </div>
 
-      {/* Top Match Header Pill */}
-      <div className="relative z-10 flex flex-col items-center gap-1.5 animate-in slide-in-from-top-6 duration-500">
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 shadow-lg backdrop-blur-md">
-          <Clock className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-xs font-black font-mono tracking-wider uppercase text-white">
-            {gameFormat}
-          </span>
-          <span className="text-zinc-500">&bull;</span>
-          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            LIVE BATTLE
-          </span>
-        </div>
-      </div>
-
-      {/* Center Stage: Left Player (White) vs Right Player (Black) */}
-      <div className="relative z-10 w-full max-w-4xl flex-1 flex flex-col md:flex-row items-center justify-center gap-6 sm:gap-10 my-auto">
-        {/* Left Fighter: White Player */}
-        <div className="flex-1 w-full flex flex-col items-center md:items-end text-center md:text-right animate-in slide-in-from-left-12 duration-500">
-          <div className="flex flex-col items-center md:items-end gap-2.5">
-            {/* Color Tag */}
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white text-zinc-950 font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(255,255,255,0.4)]">
-              <span>♔ WHITE</span>
-            </div>
-
-            {/* Avatar Frame */}
-            <div className="relative">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-br from-white/20 to-white/5 border-2 border-white/40 p-1 shadow-[0_10px_35px_rgba(255,255,255,0.18)] overflow-hidden flex items-center justify-center">
-                {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={whitePlayer.avatar}
-                    alt={whitePlayer.name}
-                    className="w-full h-full object-cover rounded-2xl"
-                  />
-                ) : (
-                  <span className="text-5xl sm:text-6xl">{whitePlayer.avatar || '🧑‍💻'}</span>
-                )}
-              </div>
-              {whitePlayer.title && (
-                <span className="absolute -bottom-2 -left-2 text-[10px] font-black bg-amber-400 text-black px-2 py-0.5 rounded-md border border-amber-500 shadow">
-                  {whitePlayer.title}
-                </span>
-              )}
-            </div>
-
-            {/* Name & Rating */}
-            <div className="flex flex-col items-center md:items-end">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight truncate max-w-[240px]">
-                {whitePlayer.name}
-              </h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm font-mono font-bold text-amber-400">
-                  {whitePlayer.rating || 1200} ELO
-                </span>
-                {whitePlayer.country && (
-                  <span className="text-sm" title={whitePlayer.country}>
-                    {whitePlayer.country === 'US'
-                      ? '🇺🇸'
-                      : whitePlayer.country === 'NG'
-                      ? '🇳🇬'
-                      : whitePlayer.country === 'DE'
-                      ? '🇩🇪'
-                      : '🌍'}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Center: Explosive 3D VS Emblem */}
-        <div className="relative shrink-0 flex items-center justify-center my-2 md:my-0">
-          {/* Shockwave Rings */}
-          <div className="absolute w-24 h-24 rounded-full bg-amber-500/25 animate-ping pointer-events-none" />
-          <div className="absolute w-36 h-36 rounded-full bg-rose-500/15 animate-pulse pointer-events-none" />
-
-          {/* Golden / Fiery VS Emblem */}
-          <div
-            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-amber-400 via-rose-500 to-red-600 border-2 border-amber-300 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.6)] transform transition-transform duration-300 ${
-              stage === 'impact' ? 'scale-125 rotate-3' : 'scale-100 rotate-0'
-            }`}
-          >
-            <span className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-sans">
-              VS
+      <div className="relative z-10 w-full max-w-3xl flex flex-col items-center gap-6">
+        {/* Top Minimal Format Pill */}
+        <div
+          className={`transition-all duration-300 ${
+            isEntered && !isExiting
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 -translate-y-4'
+          }`}
+        >
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-900/80 border border-white/10 shadow-lg backdrop-blur-md">
+            <Clock className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px] font-bold font-mono tracking-wider uppercase text-zinc-200">
+              {gameFormat}
+            </span>
+            <span className="text-zinc-600">&bull;</span>
+            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              MATCH START
             </span>
           </div>
         </div>
 
-        {/* Right Fighter: Black Player */}
-        <div className="flex-1 w-full flex flex-col items-center md:items-start text-center md:text-left animate-in slide-in-from-right-12 duration-500">
-          <div className="flex flex-col items-center md:items-start gap-2.5">
-            {/* Color Tag */}
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-100 font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(0,0,0,0.8)]">
-              <span>♚ BLACK</span>
-            </div>
-
-            {/* Avatar Frame */}
-            <div className="relative">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-br from-zinc-800 to-zinc-950 border-2 border-amber-500/40 p-1 shadow-[0_10px_35px_rgba(234,88,12,0.25)] overflow-hidden flex items-center justify-center">
-                {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={blackPlayer.avatar}
-                    alt={blackPlayer.name}
-                    className="w-full h-full object-cover rounded-2xl"
-                  />
-                ) : (
-                  <span className="text-5xl sm:text-6xl">{blackPlayer.avatar || '♟️'}</span>
-                )}
-              </div>
-              {blackPlayer.title && (
-                <span className="absolute -bottom-2 -right-2 text-[10px] font-black bg-amber-400 text-black px-2 py-0.5 rounded-md border border-amber-500 shadow">
-                  {blackPlayer.title}
-                </span>
-              )}
-            </div>
-
-            {/* Name & Rating */}
-            <div className="flex flex-col items-center md:items-start">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight truncate max-w-[240px]">
-                {blackPlayer.name}
-              </h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-sm font-mono font-bold text-amber-400">
-                  {blackPlayer.rating || 1200} ELO
-                </span>
-                {blackPlayer.country && (
-                  <span className="text-sm" title={blackPlayer.country}>
-                    {blackPlayer.country === 'US'
-                      ? '🇺🇸'
-                      : blackPlayer.country === 'NG'
-                      ? '🇳🇬'
-                      : blackPlayer.country === 'DE'
-                      ? '🇩🇪'
-                      : '🌍'}
+        {/* Center Stage: Left Player (White) | VS | Right Player (Black) */}
+        <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 lg:gap-8">
+          {/* Left Fighter: White Player (Animates in from Left) */}
+          <div
+            className={`w-full sm:w-1/2 flex justify-center sm:justify-end transition-all duration-400 ease-out ${
+              isEntered && !isExiting
+                ? 'opacity-100 translate-x-0'
+                : 'opacity-0 -translate-x-12 sm:-translate-x-24'
+            }`}
+          >
+            <div className="w-full max-w-[280px] sm:max-w-[300px] flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-zinc-900/85 border border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+              {/* Avatar Frame with White Glow */}
+              <div className="relative shrink-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-zinc-800 border-2 border-white/60 p-0.5 shadow-[0_0_15px_rgba(255,255,255,0.25)] overflow-hidden flex items-center justify-center">
+                  {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={whitePlayer.avatar}
+                      alt={whitePlayer.name}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                  ) : (
+                    <span className="text-3xl sm:text-4xl">{whitePlayer.avatar || '🧑‍💻'}</span>
+                  )}
+                </div>
+                {whitePlayer.title && (
+                  <span className="absolute -bottom-1 -right-1 text-[9px] font-black bg-amber-400 text-black px-1.5 py-0.2 rounded border border-amber-500 shadow-sm">
+                    {whitePlayer.title}
                   </span>
                 )}
+              </div>
+
+              {/* Player Details */}
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="px-2 py-0.5 rounded-md bg-white text-zinc-950 font-black text-[10px] tracking-wider uppercase shadow-xs">
+                    ♔ WHITE
+                  </span>
+                  {whitePlayer.country && (
+                    <span className="text-xs" title={whitePlayer.country}>
+                      {whitePlayer.country === 'US'
+                        ? '🇺🇸'
+                        : whitePlayer.country === 'NG'
+                        ? '🇳🇬'
+                        : whitePlayer.country === 'DE'
+                        ? '🇩🇪'
+                        : whitePlayer.country === 'GB'
+                        ? '🇬🇧'
+                        : '🌍'}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate leading-tight">
+                  {whitePlayer.name}
+                </h3>
+                <span className="text-xs font-mono font-bold text-emerald-400 mt-0.5">
+                  {whitePlayer.rating || 1200} ELO
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Minimal Central VS Emblem */}
+          <div
+            className={`shrink-0 z-20 flex items-center justify-center transition-all duration-300 delay-75 ${
+              isEntered && !isExiting
+                ? 'opacity-100 scale-100'
+                : 'opacity-0 scale-50'
+            }`}
+          >
+            <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-amber-400 via-rose-500 to-amber-600 border border-amber-300/70 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+              <span className="text-base sm:text-lg font-black italic tracking-tighter text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)] font-sans">
+                VS
+              </span>
+            </div>
+          </div>
+
+          {/* Right Fighter: Black Player (Animates in from Right) */}
+          <div
+            className={`w-full sm:w-1/2 flex justify-center sm:justify-start transition-all duration-400 ease-out ${
+              isEntered && !isExiting
+                ? 'opacity-100 translate-x-0'
+                : 'opacity-0 translate-x-12 sm:translate-x-24'
+            }`}
+          >
+            <div className="w-full max-w-[280px] sm:max-w-[300px] flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-zinc-900/85 border border-zinc-700/60 shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+              {/* Avatar Frame with Dark Titanium / Warm Rim */}
+              <div className="relative shrink-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-zinc-950 border-2 border-zinc-600 p-0.5 shadow-[0_0_15px_rgba(0,0,0,0.6)] overflow-hidden flex items-center justify-center">
+                  {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={blackPlayer.avatar}
+                      alt={blackPlayer.name}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                  ) : (
+                    <span className="text-3xl sm:text-4xl">{blackPlayer.avatar || '♟️'}</span>
+                  )}
+                </div>
+                {blackPlayer.title && (
+                  <span className="absolute -bottom-1 -right-1 text-[9px] font-black bg-amber-400 text-black px-1.5 py-0.2 rounded border border-amber-500 shadow-sm">
+                    {blackPlayer.title}
+                  </span>
+                )}
+              </div>
+
+              {/* Player Details */}
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="px-2 py-0.5 rounded-md bg-zinc-800 border border-zinc-600 text-zinc-200 font-black text-[10px] tracking-wider uppercase shadow-xs">
+                    ♚ BLACK
+                  </span>
+                  {blackPlayer.country && (
+                    <span className="text-xs" title={blackPlayer.country}>
+                      {blackPlayer.country === 'US'
+                        ? '🇺🇸'
+                        : blackPlayer.country === 'NG'
+                        ? '🇳🇬'
+                        : blackPlayer.country === 'DE'
+                        ? '🇩🇪'
+                        : blackPlayer.country === 'GB'
+                        ? '🇬🇧'
+                        : '🌍'}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate leading-tight">
+                  {blackPlayer.name}
+                </h3>
+                <span className="text-xs font-mono font-bold text-emerald-400 mt-0.5">
+                  {blackPlayer.rating || 1200} ELO
+                </span>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom CTA & Skip Prompt */}
-      <div className="relative z-10 flex flex-col items-center gap-1 animate-in slide-in-from-bottom-6 duration-500">
-        <div className="flex items-center gap-2 text-sm font-black tracking-widest uppercase text-amber-400 animate-pulse">
-          <Zap className="w-4 h-4 fill-amber-400" />
-          <span>MATCH STARTING &bull; FIGHT!</span>
-          <Zap className="w-4 h-4 fill-amber-400" />
+        {/* Minimal Bottom Prompt */}
+        <div
+          className={`transition-all duration-300 delay-100 ${
+            isEntered && !isExiting
+              ? 'opacity-70 translate-y-0'
+              : 'opacity-0 translate-y-3'
+          }`}
+        >
+          <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1.5">
+            <Zap className="w-3 h-3 text-emerald-400" />
+            <span>Tap anywhere to skip</span>
+          </span>
         </div>
-        <span className="text-[11px] font-mono text-zinc-500">
-          Tap anywhere or press Space to skip intro
-        </span>
       </div>
     </div>
   );
 };
+

@@ -688,9 +688,9 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           {isWaitingForOpponent && game?.status !== 'pending_challenge' && (
             <div className="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-5 text-center gap-3.5 z-20 animate-in fade-in">
               <div className="relative flex items-center justify-center">
-                <div className="absolute w-16 h-16 rounded-full bg-[#81b64c]/20 animate-ping" />
-                <div className="w-14 h-14 rounded-2xl bg-[#81b64c]/20 border border-[#81b64c]/40 text-[#81b64c] flex items-center justify-center shadow-lg relative z-10">
-                  <Swords className="w-7 h-7 text-[#81b64c] animate-pulse" />
+                <div className="absolute w-16 h-16 rounded-full bg-emerald-500/20 animate-ping" />
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg relative z-10">
+                  <Swords className="w-7 h-7 text-emerald-400 animate-pulse" />
                 </div>
               </div>
 
@@ -757,7 +757,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           {/* ----------------------------------------------------------------- */}
           {game?.status === 'pending_challenge' && isHost && (
             <div className="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center gap-4 z-20 animate-in fade-in">
-              <div className="w-12 h-12 rounded-2xl bg-[#81b64c]/20 border border-[#81b64c]/40 text-[#81b64c] flex items-center justify-center animate-pulse">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center animate-pulse">
                 <Share2 className="w-6 h-6" />
               </div>
               <div className="flex flex-col gap-1 max-w-sm">
@@ -947,7 +947,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                   : bottomPlayerInfo.isTurn
                   ? bottomPlayerInfo.isWarning
                     ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
-                    : 'bg-[#292621] border-[#81b64c] text-white shadow-sm'
+                    : 'bg-[#292621] border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/30'
                   : 'bg-[#181714] border-white/5 text-zinc-400'
               }`}
             >
