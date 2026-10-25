@@ -102,9 +102,8 @@ export const MatchVersusIntro: React.FC<MatchVersusIntroProps> = ({
             <span className="text-[11px] font-bold font-mono tracking-wider uppercase text-zinc-200">
               {gameFormat}
             </span>
-            <span className="text-zinc-600">&bull;</span>
-            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-zinc-600">|</span>
+            <span className="text-[11px] font-bold text-emerald-400">
               MATCH START
             </span>
           </div>

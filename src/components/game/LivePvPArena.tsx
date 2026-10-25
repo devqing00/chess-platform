@@ -70,7 +70,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const movesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Result modal & Versus Intro states
-  const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(true);
+  const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [showVersusIntro, setShowVersusIntro] = useState(false);
   const versusIntroShownRef = useRef(false);
   const prevGameStatusRef = useRef<LiveSyncGame['status'] | null>(null);
@@ -313,14 +313,22 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
 
     if (prevGameStatusRef.current !== game.status) {
       if (game.status === 'completed') {
-        setIsGameOverModalOpen(true);
-        if (game.winner === 'draw') {
-          soundService.playGameEndDraw();
-        } else if (game.winner === playerColor) {
-          soundService.playGameEndWin();
-        } else {
-          soundService.playGameEndLoss();
+        // Keep modal closed briefly so the player sees the defeated king topple on the board!
+        setIsGameOverModalOpen(false);
+        if (game.winner !== 'draw') {
+          soundService.playCapture();
         }
+
+        const timer = setTimeout(() => {
+          setIsGameOverModalOpen(true);
+          if (game.winner === 'draw') {
+            soundService.playGameEndDraw();
+          } else if (game.winner === playerColor) {
+            soundService.playGameEndWin();
+          } else {
+            soundService.playGameEndLoss();
+          }
+        }, 1100);
       } else if (game.status === 'active' && prevGameStatusRef.current !== 'active') {
         if (prevGameStatusRef.current === 'completed') {
           // Rematch initiated! Reset board state and re-open versus intro
@@ -598,11 +606,11 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       };
 
   return (
-    <div className="w-full h-full max-w-6xl mx-auto flex flex-col lg:flex-row items-center lg:items-start justify-center p-2 sm:p-4 lg:p-6 gap-4 lg:gap-6 select-none overflow-y-auto lg:overflow-hidden pb-24 lg:pb-6">
+    <div className="w-full h-full max-w-6xl mx-auto flex flex-col xl:flex-row items-center xl:items-start justify-center p-2 sm:p-4 xl:p-6 gap-4 xl:gap-6 select-none overflow-y-auto xl:overflow-hidden pb-24 xl:pb-6">
       {/* ========================================================================= */}
       {/* 1. CHESSBOARD & PLAYER HUD COLUMN                                         */}
       {/* ========================================================================= */}
-      <div className="flex flex-col items-center justify-start min-h-0 w-full max-w-[min(calc(100vw-2rem),calc(100dvh-180px),520px)] lg:w-[min(calc(100vw-24rem),calc(100dvh-180px),520px)] shrink-0">
+      <div className="flex flex-col items-center justify-start min-h-0 w-full max-w-[min(calc(100vw-2rem),calc(100dvh-180px),520px)] xl:w-[min(calc(100vw-24rem),calc(100dvh-180px),520px)] shrink-0">
         {/* Top Player Card & Clock */}
         <div className="w-full px-3 py-1.5 mb-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0 shadow-md">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -680,6 +688,15 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             onMove={handleMove}
             disabled={!isMyTurn}
             lastMove={lastMoveSquares}
+            defeatedColor={
+              game?.status === 'completed'
+                ? game.winner === 'w'
+                  ? 'b'
+                  : game.winner === 'b'
+                  ? 'w'
+                  : null
+                : null
+            }
           />
 
           {/* ----------------------------------------------------------------- */}
@@ -696,8 +713,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
 
               <div className="flex flex-col gap-1 max-w-xs">
                 <h3 className="text-base sm:text-lg font-black text-white">Searching for Opponent</h3>
-                <div className="flex items-center justify-center gap-2 text-xs font-mono text-emerald-400 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="flex items-center justify-center gap-1.5 text-xs font-mono text-emerald-400 font-bold">
                   <span>Elapsed: {Math.floor(searchElapsedSec / 60)}:{(searchElapsedSec % 60).toString().padStart(2, '0')}</span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-zinc-400 leading-snug mt-0.5">
@@ -888,7 +904,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           {/* FLOATING INSPECT/REOPEN RESULT BUTTON WHEN MODAL IS CLOSED       */}
           {/* ----------------------------------------------------------------- */}
           {game?.status === 'completed' && !isGameOverModalOpen && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 pointer-events-auto">
               <Button
                 variant="primary"
                 size="sm"

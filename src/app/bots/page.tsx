@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
 import { useXpSystem } from '@/hooks/useXpSystem';
 import { Button } from '@/components/ui/button';
+import { soundService } from '@/lib/audioService';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 import {
   Bot,
@@ -236,12 +237,12 @@ function ComputerBotsContent() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-full lg:h-full bg-[#161512] text-zinc-100 overflow-y-auto lg:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
+    <div className="flex-1 flex flex-col min-h-full xl:h-full bg-[#161512] text-zinc-100 overflow-y-auto xl:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
       {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
-      <header className="border-b border-white/5 shrink-0 bg-[#141311] z-20 flex flex-col md:flex-row md:items-center md:justify-between px-3 sm:px-4 py-2 md:py-0 md:h-12 gap-2">
+      <header className="border-b border-white/5 shrink-0 bg-[#141311] z-20 flex flex-col lg:flex-row lg:items-center lg:justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-12 gap-2">
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black shrink-0">
               <Bot className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -256,48 +257,32 @@ function ComputerBotsContent() {
           </span>
         </div>
 
-        {/* 4 Segmented Sub-Screen Switcher Pills */}
-        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full md:w-auto">
-          <button
-            onClick={() => setActiveScreen('ring')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
-              activeScreen === 'ring'
-                ? 'bg-[#81b64c] text-black font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Sparring Ring
-          </button>
-          <button
-            onClick={() => setActiveScreen('roster')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
-              activeScreen === 'roster'
-                ? 'bg-[#81b64c] text-black font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            All Bots ({CHESS_BOTS.length})
-          </button>
-          <button
-            onClick={() => setActiveScreen('fen_spar')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
-              activeScreen === 'fen_spar'
-                ? 'bg-[#81b64c] text-black font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Custom FEN
-          </button>
-          <button
-            onClick={() => setActiveScreen('vault')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs ${
-              activeScreen === 'vault'
-                ? 'bg-[#81b64c] text-black font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Trophies
-          </button>
+        {/* 4 Segmented Sub-Screen Switcher Pills - Scrollable row on mobile & tablet, inline on desktop */}
+        <div className="flex items-center gap-1.5 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full lg:w-auto">
+          {[
+            { id: 'ring' as const, label: 'Sparring Ring' },
+            { id: 'roster' as const, label: `All Bots (${CHESS_BOTS.length})` },
+            { id: 'fen_spar' as const, label: 'Custom FEN' },
+            { id: 'vault' as const, label: 'Trophies' },
+          ].map((screen) => {
+            const isActive = activeScreen === screen.id;
+            return (
+              <button
+                key={screen.id}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setActiveScreen(screen.id);
+                }}
+                className={`tactile-btn flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs select-none ${
+                  isActive
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                }`}
+              >
+                {screen.label}
+              </button>
+            );
+          })}
         </div>
       </header>
 
@@ -307,9 +292,9 @@ function ComputerBotsContent() {
         {/* SUB-SCREEN 1: SPARRING RING (CHALLENGER SPOTLIGHT) */}
         {/* ========================================================================= */}
         {activeScreen === 'ring' && (
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 overflow-visible lg:overflow-hidden">
             {/* Left: Interactive Preview Board */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 overflow-visible lg:overflow-hidden">
               <div className="w-[min(calc(100vw-3.5rem),calc(100dvh-200px),460px)] aspect-square relative">
                 <ChessBoard
                   chess={previewBoard}
@@ -354,7 +339,7 @@ function ComputerBotsContent() {
                       <span>{activeBot.avatar}</span>
                     )}
                     {(botStarsMap[activeBot.id] || 0) > 0 && (
-                      <span className="absolute top-0 right-0 w-4 h-4 bg-[#81b64c] rounded-full flex items-center justify-center text-white text-[9px] font-black">
+                      <span className="absolute top-0 right-0 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[9px] font-black">
                         ✓
                       </span>
                     )}
@@ -363,7 +348,7 @@ function ComputerBotsContent() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-black text-white truncate">{activeBot.name}</h3>
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-[#81b64c]/20 text-[#81b64c]">
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                         {activeBot.rating} Elo
                       </span>
                     </div>
@@ -399,10 +384,13 @@ function ComputerBotsContent() {
                   </span>
                   <div className="grid grid-cols-3 gap-1.5">
                     <button
-                      onClick={() => setPlayAsColor('w')}
-                      className={`py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setPlayAsColor('w');
+                      }}
+                      className={`tactile-btn py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                         playAsColor === 'w'
-                          ? 'bg-white/15 border-white text-white'
+                          ? 'bg-white/15 border-white text-white shadow-xs'
                           : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -410,10 +398,13 @@ function ComputerBotsContent() {
                       <span>White</span>
                     </button>
                     <button
-                      onClick={() => setPlayAsColor('random')}
-                      className={`py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setPlayAsColor('random');
+                      }}
+                      className={`tactile-btn py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                         playAsColor === 'random'
-                          ? 'bg-[#81b64c]/20 border-[#81b64c] text-[#81b64c]'
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-xs'
                           : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -421,10 +412,13 @@ function ComputerBotsContent() {
                       <span>Random</span>
                     </button>
                     <button
-                      onClick={() => setPlayAsColor('b')}
-                      className={`py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setPlayAsColor('b');
+                      }}
+                      className={`tactile-btn py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                         playAsColor === 'b'
-                          ? 'bg-white/15 border-zinc-400 text-white'
+                          ? 'bg-white/15 border-zinc-400 text-white shadow-xs'
                           : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -443,10 +437,13 @@ function ComputerBotsContent() {
                     {BOT_TIME_CONTROLS.map((tc) => (
                       <button
                         key={tc.sec}
-                        onClick={() => setSelectedTimeControl(tc.sec)}
-                        className={`p-2 rounded-xl border flex items-center justify-between text-xs font-bold transition cursor-pointer ${
+                        onClick={() => {
+                          soundService.playTactilePop();
+                          setSelectedTimeControl(tc.sec);
+                        }}
+                        className={`tactile-btn p-2 rounded-xl border flex items-center justify-between text-xs font-bold transition cursor-pointer ${
                           selectedTimeControl === tc.sec
-                            ? 'bg-[#81b64c]/20 border-[#81b64c] text-white'
+                            ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-xs'
                             : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                         }`}
                       >
@@ -483,7 +480,7 @@ function ComputerBotsContent() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-[#81b64c]" />
+                  <Bot className="w-4 h-4 text-emerald-400" />
                   <span>Challenger Bot Directory ({filteredBots.length})</span>
                 </h2>
                 <p className="text-xs text-zinc-400">
@@ -499,13 +496,13 @@ function ComputerBotsContent() {
                   placeholder="Search bot or rating..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 outline-none focus:border-[#81b64c]"
+                  className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
 
             {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0 pb-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 pb-1">
               {[
                 { id: 'all', label: 'All Bots' },
                 { id: 'beginner', label: 'Beginner (250-700)' },
@@ -516,10 +513,13 @@ function ComputerBotsContent() {
               ].map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => setRosterCategory(cat.id as typeof rosterCategory)}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition cursor-pointer whitespace-nowrap ${
+                  onClick={() => {
+                    soundService.playTactilePop();
+                    setRosterCategory(cat.id as typeof rosterCategory);
+                  }}
+                  className={`tactile-btn text-xs font-bold px-3 py-1.5 rounded-xl border transition cursor-pointer whitespace-nowrap ${
                     rosterCategory === cat.id
-                      ? 'bg-[#81b64c] text-black border-[#81b64c] font-black'
+                      ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
                       : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -539,12 +539,13 @@ function ComputerBotsContent() {
                   <div
                     key={bot.id}
                     onClick={() => {
+                      soundService.playTactilePop();
                       setSelectedBotId(bot.id);
                       setActiveScreen('ring');
                     }}
-                    className={`p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                    className={`tactile-btn p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#81b64c]/15 border-[#81b64c]'
+                        ? 'bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_12px_rgba(34,197,94,0.15)]'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/15'
                     }`}
                   >
@@ -556,7 +557,7 @@ function ComputerBotsContent() {
                         <span>{bot.avatar}</span>
                       )}
                       {isDefeated && (
-                        <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#81b64c] rounded-full flex items-center justify-center text-white text-[8px] font-black">
+                        <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_1px_0_0_#385a16] rounded-full flex items-center justify-center text-white text-[8px] font-black">
                           ✓
                         </span>
                       )}
@@ -565,7 +566,7 @@ function ComputerBotsContent() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white truncate">{bot.name}</span>
-                        <span className="text-[10px] font-mono text-[#81b64c] font-bold">
+                        <span className="text-[10px] font-mono text-emerald-400 font-bold">
                           {bot.rating}
                         </span>
                       </div>
@@ -627,7 +628,7 @@ function ComputerBotsContent() {
             {/* FEN Input Box */}
             <div className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-2 shrink-0">
               <span className="text-xs font-bold text-white flex items-center gap-2">
-                <Sliders className="w-3.5 h-3.5 text-[#81b64c]" />
+                <Sliders className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Active FEN Position</span>
               </span>
               <input
@@ -635,7 +636,7 @@ function ComputerBotsContent() {
                 value={activeCustomFen || ''}
                 onChange={(e) => setActiveCustomFen(e.target.value.trim() || null)}
                 placeholder="Paste FEN string (e.g. 1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1)"
-                className="w-full bg-[#141311] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 font-mono outline-none focus:border-[#81b64c]"
+                className="w-full bg-[#141311] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 font-mono outline-none focus:border-emerald-500"
               />
             </div>
 
@@ -649,10 +650,13 @@ function ComputerBotsContent() {
                 return (
                   <div
                     key={i}
-                    onClick={() => setActiveCustomFen(pos.fen)}
-                    className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setActiveCustomFen(pos.fen);
+                    }}
+                    className={`tactile-btn p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#81b64c]/15 border-[#81b64c]'
+                        ? 'bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_12px_rgba(34,197,94,0.15)]'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/10'
                     }`}
                   >
@@ -727,7 +731,7 @@ function ComputerBotsContent() {
                   {botStats.defeated} <span className="text-xs text-zinc-500">/ {botStats.total}</span>
                 </span>
                 <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-1">
-                  <div className="bg-[#81b64c] h-full rounded-full transition-all" style={{ width: `${botStats.pct}%` }} />
+                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all" style={{ width: `${botStats.pct}%` }} />
                 </div>
               </div>
 
@@ -769,7 +773,7 @@ function ComputerBotsContent() {
                         <span
                           className={`text-[10px] font-black px-2 py-1 rounded-md shrink-0 uppercase tracking-wider ${
                             isWin
-                              ? 'bg-[#81b64c]/20 text-[#81b64c]'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : isLoss
                               ? 'bg-red-400/20 text-red-400'
                               : 'bg-zinc-400/20 text-zinc-400'
@@ -796,7 +800,7 @@ function ComputerBotsContent() {
                         onClick={() => router.push(`/game/review/${game.id}`)}
                         className="shrink-0 font-bold"
                       >
-                        <Sparkles className="w-3 h-3 text-[#81b64c]" />
+                        <Sparkles className="w-3 h-3 text-emerald-400" />
                         <span>Review</span>
                       </Button>
                     </div>
@@ -835,7 +839,7 @@ export default function BotsPage() {
     <Suspense
       fallback={
         <div className="flex-1 flex items-center justify-center h-full bg-[#161512] text-zinc-400 text-xs">
-          <Loader2 className="w-5 h-5 animate-spin text-[#81b64c]" />
+          <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
         </div>
       }
     >

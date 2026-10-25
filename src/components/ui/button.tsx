@@ -15,7 +15,7 @@ export type ButtonVariant =
   | 'outline'
   | 'subtle';
 
-export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'icon' | 'icon-sm';
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'icon' | 'icon-sm' | 'icon-xs';
 
 export type ButtonRounded = 'full' | '2xl' | 'xl' | 'lg' | 'md' | 'sm' | 'none';
 
@@ -49,9 +49,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       primary:
         'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] hover:from-[#9ee055] hover:via-[#88c445] hover:to-[#74ac35] text-zinc-950 font-black tracking-wide drop-shadow-[0_1px_0_rgba(255,255,255,0.25)] border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_6px_16px_rgba(0,0,0,0.35)] hover:shadow-[0_5px_0_0_#385a16,0_8px_20px_rgba(110,180,45,0.4)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16]',
       secondary:
-        'bg-gradient-to-b from-[#2c2824] to-[#1c1a17] hover:from-[#38332d] hover:to-[#24211d] text-zinc-200 border-t border-white/15 border-x-[#3c372f] border-b-[#12110f] shadow-[0_4px_0_0_#0f0e0c,0_4px_12px_rgba(0,0,0,0.4)] hover:border-white/20 hover:shadow-[0_5px_0_0_#0f0e0c] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#0f0e0c]',
+        'bg-gradient-to-b from-[#34302a] via-[#272420] to-[#1c1a17] hover:from-[#3e3932] hover:via-[#2f2b26] hover:to-[#22201d] text-zinc-200 font-extrabold border-t border-white/35 border-x-[#3c372f] border-b-[#100f0d] shadow-[0_4px_0_0_#0f0e0c,0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_5px_0_0_#0f0e0c,0_6px_16px_rgba(0,0,0,0.5)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#0f0e0c]',
       warning:
-        'bg-gradient-to-b from-[#fbbf24] via-[#f59e0b] to-[#d97706] hover:from-[#fcd34d] hover:via-[#fbbf24] hover:to-[#ea580c] text-zinc-950 font-black border-t border-white/40 border-x-amber-500/20 border-b-amber-950/40 shadow-[0_4px_0_0_#78350f,0_6px_16px_rgba(245,158,11,0.35)] hover:shadow-[0_5px_0_0_#78350f,0_8px_20px_rgba(245,158,11,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#78350f]',
+        'bg-gradient-to-b from-[#fbbf24] via-[#f59e0b] to-[#d97706] hover:from-[#fcd34d] hover:via-[#fbbf24] hover:to-[#ea580c] text-zinc-950 font-black border-t border-white/35 border-x-amber-500/20 border-b-amber-950/40 shadow-[0_4px_0_0_#78350f,0_6px_16px_rgba(245,158,11,0.35)] hover:shadow-[0_5px_0_0_#78350f,0_8px_20px_rgba(245,158,11,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#78350f]',
       destructive:
         'bg-gradient-to-b from-[#f87171] via-[#ef4444] to-[#dc2626] hover:from-[#fca5a5] hover:via-[#f87171] hover:to-[#b91c1c] text-white font-black border-t border-white/35 border-x-red-500/20 border-b-red-950/40 shadow-[0_4px_0_0_#7f1d1d,0_6px_16px_rgba(239,68,68,0.35)] hover:shadow-[0_5px_0_0_#7f1d1d,0_8px_20px_rgba(239,68,68,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#7f1d1d]',
       blue:
@@ -74,6 +74,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       xl: 'h-14 px-8 py-3.5 text-base font-black',
       icon: 'h-10 w-10 p-0',
       'icon-sm': 'h-8 w-8 p-0 text-xs',
+      'icon-xs': 'h-7 w-7 p-0 text-[11px]',
     };
 
     const roundedStyles: Record<ButtonRounded, string> = {

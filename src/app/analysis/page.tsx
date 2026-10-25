@@ -460,7 +460,7 @@ function AnalysisStudioContent() {
       list.push({
         from: pvLines[0].bestMoveUci.slice(0, 2) as Square,
         to: pvLines[0].bestMoveUci.slice(2, 4) as Square,
-        color: '#81b64c',
+        color: '#10b981',
       });
     }
     return list;
@@ -580,41 +580,44 @@ function AnalysisStudioContent() {
   }, [chess]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-full lg:h-full lg:max-h-full bg-[#161512] text-zinc-100 overflow-y-auto lg:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
+    <div className="flex-1 flex flex-col min-h-full xl:h-full xl:max-h-full bg-[#161512] text-zinc-100 overflow-y-auto xl:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
       {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
-      <header className="border-b border-white/5 px-3 sm:px-4 py-2 sm:py-0 sm:h-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 shrink-0 bg-[#141311] z-20">
+      <header className="border-b border-white/5 px-3 sm:px-4 py-2 lg:py-0 lg:h-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-4 shrink-0 bg-[#141311] z-20">
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-black shrink-0">
               <Microscope className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
                 <span>Analysis Studio</span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-[#81b64c]">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-emerald-400">
                   Stockfish 18
                 </span>
               </h1>
             </div>
           </div>
 
-          {/* Quick Engine Status Indicator on Mobile */}
-          <div className="flex items-center gap-1.5 sm:hidden">
+          {/* Quick Engine Status Indicator on Mobile & Tablet */}
+          <div className="flex items-center gap-1.5 lg:hidden">
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-              currentEvalScore >= 0 ? 'bg-[#81b64c]/15 text-[#81b64c]' : 'bg-red-400/15 text-red-400'
+              currentEvalScore >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-400/15 text-red-400'
             }`}>
               {currentEvalFormatted}
             </span>
           </div>
         </div>
 
-        {/* 4 Segmented Sub-Screen Switcher Pills - Dedicated scrollable row on mobile */}
-        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none flex-nowrap w-full sm:w-auto shrink-0">
+        {/* 4 Segmented Sub-Screen Switcher Pills - Dedicated scrollable row on mobile & tablet */}
+        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none flex-nowrap w-full lg:w-auto shrink-0">
           <button
-            onClick={() => setActiveScreen('sandbox')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('sandbox');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'sandbox'
-                ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -622,10 +625,13 @@ function AnalysisStudioContent() {
             <span className="hidden sm:inline">Multi-PV Engine</span>
           </button>
           <button
-            onClick={() => setActiveScreen('theory')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('theory');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'theory'
-                ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -633,10 +639,13 @@ function AnalysisStudioContent() {
             <span className="hidden sm:inline">Opening Explorer</span>
           </button>
           <button
-            onClick={() => setActiveScreen('tablebase')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('tablebase');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'tablebase'
-                ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -644,10 +653,13 @@ function AnalysisStudioContent() {
             <span className="hidden sm:inline">7-Piece Tablebase</span>
           </button>
           <button
-            onClick={() => setActiveScreen('vault')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('vault');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
               activeScreen === 'vault'
-                ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -759,7 +771,7 @@ function AnalysisStudioContent() {
                     variant="ghost"
                     size="xs"
                     onClick={() => setShowBestMoveArrow(!showBestMoveArrow)}
-                    className={showBestMoveArrow ? 'text-[#81b64c]' : 'text-zinc-500'}
+                    className={showBestMoveArrow ? 'text-emerald-400' : 'text-zinc-500'}
                     title={showBestMoveArrow ? 'Hide Engine Best Move Arrow' : 'Show Engine Best Move Arrow'}
                   >
                     {showBestMoveArrow ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -789,7 +801,7 @@ function AnalysisStudioContent() {
                     <RotateCcw className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="xs" onClick={handleCopyFen} title="Copy FEN to Clipboard">
-                    {copiedFen ? <Check className="w-4 h-4 text-[#81b64c]" /> : <Copy className="w-4 h-4" />}
+                    {copiedFen ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   </Button>
                 </div>
               </div>
@@ -800,7 +812,7 @@ function AnalysisStudioContent() {
               {/* Engine Assessment Header */}
               <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
                 <div className="flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-[#81b64c]" />
+                  <Cpu className="w-4 h-4 text-emerald-400" />
                   <span className="text-xs font-bold text-white uppercase tracking-wider">
                     Stockfish 18 WASM
                   </span>
@@ -810,10 +822,13 @@ function AnalysisStudioContent() {
                     Depth {engineDepth || targetDepth} &bull; {nodesCount ? `${(nodesCount / 1000).toFixed(0)}k` : 'instant'}
                   </span>
                   <button
-                    onClick={() => setIsEngineActive(!isEngineActive)}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setIsEngineActive(!isEngineActive);
+                    }}
                     className="p-1 rounded text-zinc-400 hover:text-white cursor-pointer"
                   >
-                    {isEngineActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-[#81b64c]" />}
+                    {isEngineActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-400" />}
                   </button>
                 </div>
               </div>
@@ -822,7 +837,7 @@ function AnalysisStudioContent() {
               <div className="p-2.5 rounded-xl bg-[#201e1a] border border-white/5 flex items-center justify-between shrink-0">
                 <div>
                   <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Evaluation</span>
-                  <span className={`text-xl font-mono font-black ${currentEvalScore >= 0 ? 'text-[#81b64c]' : 'text-red-400'}`}>
+                  <span className={`text-xl font-mono font-black ${currentEvalScore >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {currentEvalFormatted}
                   </span>
                 </div>
@@ -831,10 +846,13 @@ function AnalysisStudioContent() {
                   {[12, 16, 20].map((d) => (
                     <button
                       key={d}
-                      onClick={() => setTargetDepth(d)}
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setTargetDepth(d);
+                      }}
                       className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
                         targetDepth === d
-                          ? 'bg-[#81b64c] text-black font-black'
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_1px_0_0_#385a16]'
                           : 'bg-white/5 text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -860,7 +878,7 @@ function AnalysisStudioContent() {
                           handleMove(from, to, promotion);
                         }
                       }}
-                      className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-[#81b64c]/40 transition-all cursor-pointer flex flex-col gap-1"
+                      className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col gap-1"
                       title="Click line to play move on the board"
                     >
                       <div className="flex items-center justify-between">
@@ -870,12 +888,12 @@ function AnalysisStudioContent() {
                           </span>
                           <span className="text-xs font-black text-white font-mono flex items-center gap-1">
                             {line.bestMoveSan}
-                            <PlayCircle className="w-3 h-3 text-[#81b64c]" />
+                            <PlayCircle className="w-3 h-3 text-emerald-400" />
                           </span>
                         </div>
                         <span
                           className={`text-xs font-mono font-bold px-1.5 py-0.2 rounded ${
-                            line.scoreCp >= 0 ? 'bg-[#81b64c]/15 text-[#81b64c]' : 'bg-red-400/15 text-red-400'
+                            line.scoreCp >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-400/15 text-red-400'
                           }`}
                         >
                           {line.scoreFormatted}
@@ -934,7 +952,7 @@ function AnalysisStudioContent() {
             {/* Right: Opening Classification & Theory Tree */}
             <div className="w-full lg:w-96 flex flex-col gap-2.5 min-h-0 bg-[#181614] p-3 rounded-2xl border border-white/5">
               <div className="flex items-center gap-2 border-b border-white/5 pb-2 shrink-0">
-                <BookOpen className="w-4 h-4 text-[#81b64c]" />
+                <BookOpen className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-bold text-white uppercase tracking-wider">Opening Explorer</span>
               </div>
 
@@ -942,7 +960,7 @@ function AnalysisStudioContent() {
               {currentOpening ? (
                 <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 flex flex-col gap-2 shrink-0">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-[#81b64c]/20 text-[#81b64c] font-mono text-xs font-black">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs font-black">
                       {currentOpening.eco}
                     </span>
                     <span className="text-xs font-extrabold text-white truncate">{currentOpening.name}</span>
@@ -1008,11 +1026,11 @@ function AnalysisStudioContent() {
                       setHistoryIndex(fens.length - 1);
                       soundService.playGameStart();
                     }}
-                    className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-[#81b64c]/40 transition-all cursor-pointer flex items-center justify-between"
+                    className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-emerald-500/40 transition-all cursor-pointer flex items-center justify-between"
                   >
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#81b64c]/10 text-[#81b64c]">
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400">
                           {op.eco}
                         </span>
                         <span className="text-xs font-bold text-white">{op.name}</span>
@@ -1064,7 +1082,7 @@ function AnalysisStudioContent() {
             {/* Right: Tablebase Ground Truth Assessment */}
             <div className="w-full lg:w-96 flex flex-col gap-2.5 min-h-0 bg-[#181614] p-3 rounded-2xl border border-white/5">
               <div className="flex items-center gap-2 border-b border-white/5 pb-2 shrink-0">
-                <Database className="w-4 h-4 text-[#81b64c]" />
+                <Database className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-bold text-white uppercase tracking-wider">
                   Syzygy 7-Piece Endgame Tablebase
                 </span>
@@ -1074,7 +1092,7 @@ function AnalysisStudioContent() {
               <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 flex flex-col gap-2 shrink-0">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-300">Pieces on Board</span>
-                  <span className={`text-xs font-mono font-black px-2 py-0.5 rounded-full ${pieceCount <= 7 ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'bg-white/10 text-zinc-400'}`}>
+                  <span className={`text-xs font-mono font-black px-2 py-0.5 rounded-full ${pieceCount <= 7 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-zinc-400'}`}>
                     {pieceCount} Pieces {pieceCount <= 7 ? '(Within Tablebase Scope)' : '(Above 7 Pieces)'}
                   </span>
                 </div>
@@ -1083,7 +1101,7 @@ function AnalysisStudioContent() {
                   <div className="flex flex-col gap-1.5 pt-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-zinc-400">Theoretical Outcome</span>
-                      <span className="text-xs font-black uppercase text-[#81b64c]">
+                      <span className="text-xs font-black uppercase text-emerald-400">
                         {tablebaseInfo.category || 'Win'}
                       </span>
                     </div>
@@ -1096,7 +1114,7 @@ function AnalysisStudioContent() {
                       {tablebaseInfo.humanDescription}
                     </p>
                     {tablebaseInfo.bestMoveSan && (
-                      <div className="text-xs font-mono font-bold text-[#81b64c] flex items-center gap-1.5">
+                      <div className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
                         <Check className="w-3.5 h-3.5" />
                         <span>Optimal Move: {tablebaseInfo.bestMoveSan}</span>
                       </div>
@@ -1131,7 +1149,7 @@ function AnalysisStudioContent() {
                       setLastMove(null);
                       soundService.playGameStart();
                     }}
-                    className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-[#81b64c]/40 transition-all cursor-pointer flex items-center justify-between"
+                    className="p-2 rounded-xl bg-[#211f1c] border border-white/5 hover:border-emerald-500/40 transition-all cursor-pointer flex items-center justify-between"
                   >
                     <span className="text-xs font-bold text-white">{eg.name}</span>
                     <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
@@ -1164,7 +1182,7 @@ function AnalysisStudioContent() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-[#81b64c]" />
+                  <FolderOpen className="w-4 h-4 text-emerald-400" />
                   <span>Game Review Vault &amp; PGN Import</span>
                 </h2>
                 <p className="text-xs text-zinc-400">
@@ -1183,13 +1201,16 @@ function AnalysisStudioContent() {
                   className="font-bold flex items-center gap-1.5"
                   title="Fetch fresh games from Chess.com & Lichess"
                 >
-                  <RotateCw className={`w-3.5 h-3.5 text-[#81b64c] ${isSyncingVault ? 'animate-spin' : ''}`} />
+                  <RotateCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingVault ? 'animate-spin' : ''}`} />
                   <span>{isSyncingVault ? 'Syncing...' : 'Sync Live'}</span>
                 </Button>
 
                 <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-xl border border-white/5 text-xs font-bold shrink-0">
                   <button
-                    onClick={() => setVaultProvider('all')}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setVaultProvider('all');
+                    }}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       vaultProvider === 'all' ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-zinc-200'
                     }`}
@@ -1197,15 +1218,23 @@ function AnalysisStudioContent() {
                     All ({recentGamesList.length})
                   </button>
                   <button
-                    onClick={() => setVaultProvider('checkmate')}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setVaultProvider('checkmate');
+                    }}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                      vaultProvider === 'checkmate' ? 'bg-[#81b64c] text-black font-black' : 'text-zinc-400 hover:text-zinc-200'
+                      vaultProvider === 'checkmate'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                        : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     Check.mate
                   </button>
                   <button
-                    onClick={() => setVaultProvider('chesscom')}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setVaultProvider('chesscom');
+                    }}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       vaultProvider === 'chesscom' ? 'bg-emerald-600 text-white font-black' : 'text-zinc-400 hover:text-zinc-200'
                     }`}
@@ -1213,7 +1242,10 @@ function AnalysisStudioContent() {
                     Chess.com
                   </button>
                   <button
-                    onClick={() => setVaultProvider('lichess')}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setVaultProvider('lichess');
+                    }}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       vaultProvider === 'lichess' ? 'bg-amber-600 text-white font-black' : 'text-zinc-400 hover:text-zinc-200'
                     }`}
@@ -1227,7 +1259,7 @@ function AnalysisStudioContent() {
             {/* Direct FEN / PGN Paste Import Box */}
             <div className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-2 shrink-0">
               <span className="text-xs font-bold text-white flex items-center gap-2">
-                <Upload className="w-3.5 h-3.5 text-[#81b64c]" />
+                <Upload className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Paste FEN String or Full PGN Notation</span>
               </span>
               <div className="flex gap-2">
@@ -1236,7 +1268,7 @@ function AnalysisStudioContent() {
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="e.g. 1. e4 e5 2. Nf3 Nc6 3. d4 or rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-                  className="flex-1 bg-[#141311] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-500 font-mono outline-none focus:border-[#81b64c]"
+                  className="flex-1 bg-[#141311] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-500 font-mono outline-none focus:border-emerald-500"
                 />
                 <Button variant="secondary" size="xs" rounded="lg" onClick={handleImportSubmit} className="font-bold">
                   Load Position
@@ -1259,7 +1291,7 @@ function AnalysisStudioContent() {
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                     : isLichess
                     ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                    : 'bg-[#81b64c]/15 text-[#81b64c] border-[#81b64c]/30';
+                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
 
                   return (
                     <div
@@ -1269,7 +1301,7 @@ function AnalysisStudioContent() {
                       <div className="flex items-center gap-3 min-w-0">
                         <span
                           className={`text-[10px] font-black px-2 py-1 rounded-md shrink-0 uppercase tracking-wider ${
-                            isWin ? 'bg-[#81b64c]/20 text-[#81b64c]' : isLoss ? 'bg-red-400/20 text-red-400' : 'bg-zinc-400/20 text-zinc-400'
+                            isWin ? 'bg-emerald-500/20 text-emerald-400' : isLoss ? 'bg-red-400/20 text-red-400' : 'bg-zinc-400/20 text-zinc-400'
                           }`}
                         >
                           {isWin ? 'VICTORY' : isLoss ? 'DEFEAT' : 'DRAW'}
@@ -1310,7 +1342,7 @@ function AnalysisStudioContent() {
                           className="font-bold"
                           title="Stockfish 18 Accuracy Review"
                         >
-                          <Sparkles className="w-3 h-3 text-[#81b64c]" />
+                          <Sparkles className="w-3 h-3 text-emerald-400" />
                           <span>Review</span>
                         </Button>
                       </div>
@@ -1355,7 +1387,7 @@ export default function AnalysisPage() {
     <Suspense
       fallback={
         <div className="flex-1 flex items-center justify-center h-full bg-[#161512] text-zinc-400 text-xs">
-          <Loader2 className="w-5 h-5 animate-spin text-[#81b64c]" />
+          <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
         </div>
       }
     >

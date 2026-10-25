@@ -183,13 +183,13 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#35322b] flex items-center justify-between bg-[#262420] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#81b64c]/20 border border-[#81b64c]/40 flex items-center justify-center text-lg shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-lg shrink-0">
               {activePlatform === 'chesscom' ? '♟️' : '⚔️'}
             </div>
             <div className="flex flex-col min-w-0">
               <h2 className="text-sm font-black text-white flex items-center gap-2">
                 <span>Connect External Account</span>
-                <span className="text-[9px] font-mono uppercase bg-[#81b64c]/20 text-[#81b64c] border border-[#81b64c]/40 px-2 py-0.5 rounded-full">
+                <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded-full">
                   Optional
                 </span>
               </h2>
@@ -211,9 +211,9 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
           <div className="flex gap-2">
             <button
               onClick={() => handlePlatformChange('chesscom')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
+              className={`tactile-btn px-3.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
                 activePlatform === 'chesscom'
-                  ? 'bg-[#81b64c] text-white shadow-sm'
+                  ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                   : 'bg-[#25221d] text-zinc-400 hover:text-white border border-[#35322b]'
               }`}
             >
@@ -259,7 +259,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
               onChange={(e) => setUsername(e.target.value)}
               placeholder={`Enter ${activePlatform === 'chesscom' ? 'Chess.com' : 'Lichess'} username`}
               onKeyDown={(e) => e.key === 'Enter' && handleSync()}
-              className="flex-1 px-4 py-2.5 bg-[#141311] border border-[#35322b] rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] font-semibold"
+              className="flex-1 px-4 py-2.5 bg-[#141311] border border-[#35322b] rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-semibold"
             />
             <Button
               variant="primary"
@@ -340,7 +340,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
 
                 <div className="p-3 bg-[#262420] rounded-xl border border-[#35322b] flex flex-col">
                   <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1">
-                    <Award className="w-3 h-3 text-[#81b64c]" /> Bullet
+                    <Award className="w-3 h-3 text-emerald-400" /> Bullet
                   </span>
                   <span className="text-base sm:text-lg font-black text-white font-mono mt-0.5">
                     {currentlyConnected?.ratings?.bullet || 800}
@@ -353,7 +353,7 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
                 <div className="flex flex-col gap-2 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-white flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#81b64c]" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Imported Games ({syncData.games.length})</span>
                     </span>
                     <span className="text-[10px] text-zinc-400">Click Review to analyze</span>

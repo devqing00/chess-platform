@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Chess, Square, PieceSymbol, Move } from 'chess.js';
 import { PieceIcon } from './PieceIcons';
+import { soundService } from '@/lib/audioService';
 import {
   ClassificationBadge,
   CLASSIFICATION_CONFIG,
@@ -40,6 +41,7 @@ export interface ChessBoardProps {
   disabled?: boolean;
   blindfold?: boolean;
   isFastForward?: boolean;
+  defeatedColor?: PieceColor | null;
 }
 
 // Authoritative Chess.com theme color palettes
@@ -67,7 +69,8 @@ interface BoardSquareProps {
   isLastMoveFrom: boolean;
   isLastMoveTo: boolean;
   isCheckSquare: boolean;
-  isCheckmatedKing: boolean;
+  isDefeatedKing: boolean;
+  isCheckmate: boolean;
   isWinningKing: boolean;
   classificationOnSquare: MoveClassification | null;
   customHighlight?: { square: Square; color?: string; label?: string; border?: string };
@@ -86,6 +89,7 @@ interface BoardSquareProps {
   isPieceBeingDragged: boolean;
   isDragOver: boolean;
   bgSquareColor: string;
+  cornerRoundedClass?: string;
   onSquareClick: (sq: Square) => void;
   onPointerDownSquare: (e: React.PointerEvent, sq: Square) => void;
   onMouseDownSquare: (e: React.MouseEvent, sq: Square) => void;
@@ -102,7 +106,8 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
   isLastMoveFrom,
   isLastMoveTo,
   isCheckSquare,
-  isCheckmatedKing,
+  isDefeatedKing,
+  isCheckmate,
   isWinningKing,
   classificationOnSquare,
   customHighlight,
@@ -121,6 +126,7 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
   isPieceBeingDragged,
   isDragOver,
   bgSquareColor,
+  cornerRoundedClass,
   onSquareClick,
   onPointerDownSquare,
   onMouseDownSquare,
@@ -133,11 +139,8 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
       !isFastForward
   );
 
-  // Prevent badges from being cut off at the outer edges of the chessboard
-  const isRightEdge = fileIdx === 7;
-  const isTopEdge = rankIdx === 0;
-  const badgeTopClass = isTopEdge ? 'top-0.5 sm:top-1' : '-top-2.5 sm:-top-3';
-  const badgeRightClass = isRightEdge ? 'right-0.5 sm:right-1' : '-right-2.5 sm:-right-3';
+  // Badges are positioned strictly at standard top-right corner of each square
+  const badgePositionClass = '-top-1.5 sm:-top-2 -right-1.5 sm:-right-2';
 
   return (
     <div
@@ -153,12 +156,12 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
-      className="relative w-full h-full flex items-center justify-center cursor-pointer focus:outline-none select-none"
+      className={`relative w-full h-full flex items-center justify-center cursor-pointer focus:outline-none select-none ${cornerRoundedClass || ''}`}
     >
       {/* Move Type Classification Highlight Overlay */}
       {moveHighlightOverlayColor && (
         <div
-          className="absolute inset-0 pointer-events-none z-10 transition-colors duration-150"
+          className={`absolute inset-0 pointer-events-none z-10 transition-colors duration-150 ${cornerRoundedClass || ''}`}
           style={{ backgroundColor: moveHighlightOverlayColor }}
         />
       )}
@@ -177,24 +180,26 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
         </div>
       )}
 
-      {/* Checkmated King or King in Check Red Glow */}
-      {isCheckmatedKing ? (
+      {/* Defeated King or King in Check Red Glow */}
+      {isDefeatedKing ? (
         <>
           <div
-            className="absolute inset-0 pointer-events-none z-10"
+            className={`absolute inset-0 pointer-events-none z-10 animate-in fade-in duration-300 ${cornerRoundedClass || ''}`}
             style={{
               background:
                 'radial-gradient(circle at center, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.75) 45%, rgba(127, 29, 29, 0.4) 75%, transparent 100%)',
               boxShadow: 'inset 0 0 16px 4px rgba(185, 28, 28, 0.85)',
             }}
           />
-          <div className={`absolute ${badgeTopClass} ${badgeRightClass} z-40 pointer-events-none animate-in zoom-in-75 duration-200`}>
-            <CheckmateBadge size="board" />
-          </div>
+          {isCheckmate && (
+            <div className={`absolute ${badgePositionClass} z-30 pointer-events-none animate-in zoom-in-75 duration-200`}>
+              <CheckmateBadge size="board" />
+            </div>
+          )}
         </>
       ) : isCheckSquare ? (
         <div
-          className="absolute inset-0 pointer-events-none z-10 animate-pulse"
+          className={`absolute inset-0 pointer-events-none z-10 animate-pulse ${cornerRoundedClass || ''}`}
           style={{
             background:
               'radial-gradient(circle at center, rgba(239, 68, 68, 0.88) 0%, rgba(220, 38, 38, 0.55) 35%, rgba(185, 28, 28, 0.22) 65%, transparent 85%)',
@@ -205,14 +210,14 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
 
       {/* Winning King Crown Badge */}
       {isWinningKing && (
-        <div className={`absolute ${badgeTopClass} ${badgeRightClass} z-40 pointer-events-none animate-in zoom-in-75 duration-200`}>
+        <div className={`absolute ${badgePositionClass} z-30 pointer-events-none animate-in zoom-in-75 duration-200`}>
           <WinnerBadge size="board" />
         </div>
       )}
 
-      {/* Classification Badge on Top-Right (Clamped on edge squares to avoid clipping) */}
+      {/* Classification Badge on Top-Right */}
       {classificationOnSquare && (
-        <div className={`absolute ${badgeTopClass} ${badgeRightClass} z-40 pointer-events-none animate-in zoom-in-75 duration-200`}>
+        <div className={`absolute ${badgePositionClass} z-30 pointer-events-none animate-in zoom-in-75 duration-200`}>
           <ClassificationBadge classification={classificationOnSquare} size="board" />
         </div>
       )}
@@ -222,7 +227,7 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
         <div
           className={`absolute inset-0 pointer-events-none z-15 transition-all duration-75 ${
             isLegalDestination
-              ? 'bg-[#81b64c]/45 ring-4 ring-inset ring-[#81b64c]'
+              ? 'bg-emerald-500/40 ring-4 ring-inset ring-emerald-500'
               : 'bg-white/20 ring-2 ring-inset ring-white/40'
           }`}
         />
@@ -271,8 +276,8 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
               : undefined
           }
           className={`w-[86%] h-[86%] flex items-center justify-center pointer-events-none transition-transform ${
-            isCheckmatedKing && piece.type === 'k'
-              ? 'animate-king-defeated select-none drop-shadow-md z-20'
+            isDefeatedKing && piece.type === 'k'
+              ? 'animate-king-defeated select-none drop-shadow-md z-30'
               : isLastMovePiece && !isPieceBeingDragged
               ? 'animate-piece-speed-blur select-none z-30'
               : isPieceBeingDragged
@@ -315,6 +320,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
   disabled = false,
   blindfold = false,
   isFastForward = false,
+  defeatedColor = null,
 }) {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(null);
@@ -461,10 +467,38 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
     return null;
   }, [chess]);
 
-  // Find Winning King on checkmate
+  // Find Defeated King (Checkmate or explicit resignation/loss/timeout)
+  const defeatedKingSquare = useMemo<Square | null>(() => {
+    let targetColor: PieceColor | null = defeatedColor || null;
+    if (!targetColor && chess.isCheckmate()) {
+      targetColor = chess.turn();
+    }
+    if (!targetColor) return null;
+
+    const board = chess.board();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const piece = board[r][c];
+        if (piece && piece.type === 'k' && piece.color === targetColor) {
+          const file = FILES[c];
+          const rank = RANKS[r];
+          return `${file}${rank}` as Square;
+        }
+      }
+    }
+    return null;
+  }, [chess, defeatedColor]);
+
+  // Find Winning King on checkmate or explicit game victory
   const winningKingSquare = useMemo<Square | null>(() => {
-    if (!chess.isCheckmate()) return null;
-    const winnerColor = chess.turn() === 'w' ? 'b' : 'w';
+    let winnerColor: PieceColor | null = null;
+    if (defeatedColor) {
+      winnerColor = defeatedColor === 'w' ? 'b' : 'w';
+    } else if (chess.isCheckmate()) {
+      winnerColor = chess.turn() === 'w' ? 'b' : 'w';
+    }
+    if (!winnerColor) return null;
+
     const board = chess.board();
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
@@ -477,7 +511,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
       }
     }
     return null;
-  }, [chess]);
+  }, [chess, defeatedColor]);
 
   // Execute Move Helper (Optimistic local dispatch)
   const executeMove = useCallback(
@@ -720,7 +754,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
       if (e.button === 2 && arrowDragStart) {
         e.preventDefault();
         if (onAddCustomArrow) {
-          onAddCustomArrow({ from: arrowDragStart, to: sq, color: '#81b64c' });
+          onAddCustomArrow({ from: arrowDragStart, to: sq, color: '#10b981' });
         }
         setArrowDragStart(null);
       }
@@ -764,7 +798,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
-      className="relative w-full h-full aspect-square rounded-none sm:rounded-xl shadow-2xl overflow-hidden select-none"
+      className="relative w-full h-full aspect-square rounded-none sm:rounded-xl shadow-2xl overflow-visible select-none"
     >
       {/* 8x8 Board Grid */}
       <div className="grid grid-cols-8 grid-rows-8 w-full h-full select-none" style={{ touchAction: 'none' }}>
@@ -782,7 +816,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
             const isLastMoveTo = lastMove?.to === sq;
 
             const isCheckSquare = kingInCheckSquare === sq;
-            const isCheckmatedKing = winningKingSquare !== null && kingInCheckSquare === sq;
+            const isDefeatedKing = defeatedKingSquare === sq;
             const isWinningKing = winningKingSquare === sq;
 
             const showRank = fileIdx === 0;
@@ -811,6 +845,17 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
             const customHighlight = customSquareHighlights.find((h) => h.square === sq);
             const isPieceBeingDragged = activeDrag !== null && activeDrag.square === sq;
 
+            const cornerRoundedClass =
+              rankIdx === 0 && fileIdx === 0
+                ? 'sm:rounded-tl-xl'
+                : rankIdx === 0 && fileIdx === 7
+                ? 'sm:rounded-tr-xl'
+                : rankIdx === 7 && fileIdx === 0
+                ? 'sm:rounded-bl-xl'
+                : rankIdx === 7 && fileIdx === 7
+                ? 'sm:rounded-br-xl'
+                : '';
+
             return (
               <BoardSquare
                 key={sq}
@@ -823,7 +868,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 isLastMoveFrom={isLastMoveFrom}
                 isLastMoveTo={isLastMoveTo}
                 isCheckSquare={isCheckSquare}
-                isCheckmatedKing={isCheckmatedKing}
+                isDefeatedKing={isDefeatedKing}
+                isCheckmate={chess.isCheckmate()}
                 isWinningKing={isWinningKing}
                 classificationOnSquare={classificationOnSquare}
                 customHighlight={customHighlight}
@@ -842,6 +888,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 isPieceBeingDragged={isPieceBeingDragged}
                 isDragOver={dragOverSquare === sq && activeDrag?.square !== sq}
                 bgSquareColor={bgSquareColor}
+                cornerRoundedClass={cornerRoundedClass}
                 onSquareClick={handleSquareClick}
                 onPointerDownSquare={handlePointerDown}
                 onMouseDownSquare={handleMouseDown}
@@ -894,7 +941,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
             const end = getSquareCenterPercent(arrow.to);
             if (!start || !end) return null;
 
-            const arrowColor = arrow.color || '#81b64c';
+            const arrowColor = arrow.color || '#10b981';
 
             if (arrow.from === arrow.to) {
               return (
@@ -1027,12 +1074,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 <button
                   key={pType}
                   onClick={() => {
+                    soundService.playTactilePop();
                     if (onMove) {
                       onMove(pendingPromotion.from, pendingPromotion.to, pType);
                     }
                     setPendingPromotion(null);
                   }}
-                  className="w-14 h-14 rounded-xl bg-[#322f2b] hover:bg-[#81b64c] transition-all flex items-center justify-center p-2 cursor-pointer shadow"
+                  className="w-14 h-14 rounded-xl bg-gradient-to-b from-[#3a3731] to-[#2a2723] hover:from-[#8fd649] hover:to-[#699c30] border-t border-white/20 transition-all flex items-center justify-center p-2 cursor-pointer shadow-[0_3px_0_0_#141311] hover:shadow-[0_3px_0_0_#385a16] active:translate-y-[2px] active:shadow-[0_1px_0_0_#385a16]"
                 >
                   <PieceIcon type={pType} color={chess.turn()} theme={pieceTheme} />
                 </button>

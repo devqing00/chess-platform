@@ -107,18 +107,10 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
       {/* Typography Lockup */}
       {showText && (
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-baseline gap-1 leading-none">
-            <span className={`${dimensions.text} font-black tracking-tight text-white uppercase`}>
-              Check<span className="text-emerald-400">mate</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-1 h-1 rounded-full bg-emerald-400" />
-            <span className={`${dimensions.sub} font-mono uppercase tracking-[0.16em] text-zinc-400 font-semibold`}>
-              Chess Platform
-            </span>
-          </div>
+        <div className="flex items-center min-w-0">
+          <span className={`${dimensions.text} font-black tracking-tight text-white uppercase`}>
+            Check<span className="text-emerald-400">mate</span>
+          </span>
         </div>
       )}
     </div>

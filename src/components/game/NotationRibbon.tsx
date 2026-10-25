@@ -44,7 +44,7 @@ export const NotationRibbon: React.FC<NotationRibbonProps> = ({
             onClick={() => onSelectMove(idx)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 ${
               isCurrent
-                ? 'bg-[#81b64c] text-white font-black border-2 border-[#5c8a32] shadow-[0_2px_0_0_#4d7a24]'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-300 hover:text-white hover:bg-[#262420] border-2 border-transparent font-bold'
             }`}
           >

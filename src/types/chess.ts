@@ -20,7 +20,7 @@ export type Square =
   | 'a1' | 'b1' | 'c1' | 'd1' | 'e1' | 'f1' | 'g1' | 'h1';
 
 export type BoardTheme = 'green' | 'wood' | 'glass' | 'neon' | 'marble' | 'arcade' | 'high_contrast' | 'low_vision_amber';
-export type PieceTheme = 'neo' | 'staunton' | '8bit' | 'alpha';
+export type PieceTheme = 'neo' | 'vinyl' | 'glass' | 'staunton' | '8bit' | 'alpha';
 export type SoundTheme = 'classic' | 'wood' | 'marble' | 'arcade' | 'silman' | 'duolingo';
 export type LowTimeRegister = 'tick' | 'shrill' | 'beep' | 'voice';
 export type SoundPreset = 'focus' | 'casual' | 'commentary';
@@ -56,7 +56,7 @@ export type MoveClassification =
 export interface ArrowAnnotation {
   from: Square;
   to: Square;
-  color?: string; // e.g. '#81b64c' for best move, '#06b6d4' for brilliant/coach, '#ef4444' for blunder
+  color?: string; // e.g. '#10b981' for best move, '#06b6d4' for brilliant/coach, '#ef4444' for blunder
 }
 
 export interface Premove {

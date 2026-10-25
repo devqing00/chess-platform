@@ -202,64 +202,34 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
       {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
       {/* ========================================================================= */}
       <nav className="shrink-0 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
-          <button
-            onClick={() => setActiveScreen('blunders')}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'blunders'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Blunder Lab</span>
-            <span className="sm:hidden">Blunders</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen('curriculum')}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'curriculum'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Daily Curriculum</span>
-            <span className="sm:hidden">Curriculum</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen('dna')}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'dna'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Brain className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Chess DNA &amp; Hotspots</span>
-            <span className="sm:hidden">DNA</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen('pillars')}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'pillars'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Mastery Pillars</span>
-            <span className="sm:hidden">Pillars</span>
-          </button>
-        </div>
-
-        {/* Right Ambient Indicator */}
-        <div className="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-400">
-          <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-pulse" />
-          <span>Real-Match Engine Telemetry</span>
+        <div className="flex items-center gap-1.5 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto text-xs font-bold">
+          {[
+            { id: 'blunders' as const, label: 'Fix Mistakes', shortLabel: 'Mistakes', icon: Shield },
+            { id: 'curriculum' as const, label: 'Daily Training', shortLabel: 'Daily', icon: Target },
+            { id: 'dna' as const, label: 'Style & Strengths', shortLabel: 'Stats', icon: Brain },
+            { id: 'pillars' as const, label: 'Key Skills', shortLabel: 'Skills', icon: Layers },
+          ].map((screen) => {
+            const isActive = activeScreen === screen.id;
+            const Icon = screen.icon;
+            return (
+              <button
+                key={screen.id}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setActiveScreen(screen.id);
+                }}
+                className={`tactile-btn flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap select-none ${
+                  isActive
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{screen.label}</span>
+                <span className="sm:hidden">{screen.shortLabel}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 
@@ -267,7 +237,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
       {/* 2. SUB-SCREEN 1: BLUNDER REPAIR LAB                                       */}
       {/* ========================================================================= */}
       {activeScreen === 'blunders' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top HUD: Leak Verdict Strip */}
           <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -292,23 +262,33 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
 
             {/* Blunder Stepper Controls */}
             <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-              <button
-                onClick={() => setSelectedQuestIndex((prev) => (prev > 0 ? prev - 1 : questsCount - 1))}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer"
+              <Button
+                variant="secondary"
+                size="icon-xs"
+                rounded="lg"
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setSelectedQuestIndex((prev) => (prev > 0 ? prev - 1 : questsCount - 1));
+                }}
                 title="Previous Blunder"
               >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
               <span className="text-xs font-mono font-bold text-zinc-400 px-1">
                 Blunder {selectedQuestIndex + 1} of {questsCount}
               </span>
-              <button
-                onClick={() => setSelectedQuestIndex((prev) => (prev < questsCount - 1 ? prev + 1 : 0))}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition cursor-pointer"
+              <Button
+                variant="secondary"
+                size="icon-xs"
+                rounded="lg"
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setSelectedQuestIndex((prev) => (prev < questsCount - 1 ? prev + 1 : 0));
+                }}
                 title="Next Blunder"
               >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </div>
 
@@ -342,7 +322,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                     <Shield className="w-3.5 h-3.5" />
                     <span>Motif: {activeQuest?.motif || 'Tactical Slip'}</span>
                   </span>
-                  <span className="text-[11px] font-mono font-bold text-[#81b64c] bg-[#81b64c]/10 px-2 py-0.5 rounded-full border border-[#81b64c]/20">
+                  <span className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                     +{activeQuest?.xpReward || 35} XP
                   </span>
                 </div>
@@ -358,7 +338,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
 
                 {/* Coach Danny Commentary */}
                 <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-relaxed font-medium">
-                  <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1.5">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase tracking-wider mb-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Coach Danny Rensch</span>
                   </div>
@@ -417,7 +397,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                   fullWidth
                   onClick={() => setActiveScreen('dna')}
                 >
-                  <Grid className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <Grid className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Inspect 64-Square Blunder Hotspots &amp; Biases</span>
                 </Button>
               </div>
@@ -430,11 +410,11 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
       {/* 3. SUB-SCREEN 2: DAILY CURRICULUM & MISSIONS                              */}
       {/* ========================================================================= */}
       {activeScreen === 'curriculum' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top HUD: Curriculum Progress */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                 <Target className="w-4 h-4" />
               </div>
               <div>
@@ -448,7 +428,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-center">
-              <span className="text-[11px] font-mono text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/20 px-2.5 py-1 rounded-xl font-bold">
+              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl font-bold">
                 Daily Pool: +135 XP
               </span>
               <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl font-bold">
@@ -479,7 +459,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                       <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${phaseBadge}`}>
                         {mission.phase}
                       </span>
-                      <span className="text-[11px] font-mono font-bold text-[#81b64c]">
+                      <span className="text-[11px] font-mono font-bold text-emerald-400">
                         +{mission.xpReward} XP
                       </span>
                     </div>
@@ -508,7 +488,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                     onClick={() => router.push(mission.actionRoute)}
                   >
                     <span>Start {mission.phase} Drill</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
                   </Button>
                 </div>
               );
@@ -518,7 +498,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
           {/* EXACTLY ONE P1 PRIMARY ANCHOR */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
-              <Zap className="w-4 h-4 text-[#81b64c]" />
+              <Zap className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-bold text-zinc-200">
                 Ready for today&apos;s primary challenge? Tackle your biggest middlegame blindspot.
               </span>
@@ -542,7 +522,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
       {/* 4. SUB-SCREEN 3: CHESS DNA & 64-SQUARE HOTSPOTS                           */}
       {/* ========================================================================= */}
       {activeScreen === 'dna' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top Archetype Banner */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -588,7 +568,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
-                    <Grid className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <Grid className="w-3.5 h-3.5 text-emerald-400" />
                     <span>64-Square Blunder Density Matrix</span>
                   </h3>
                   <span className="text-[10px] text-zinc-400 font-mono">Click any square to inspect</span>
@@ -616,7 +596,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                           onClick={() => setSelectedHotspotSquare(sq)}
                           className={`relative rounded-md flex items-center justify-center text-[10px] font-mono transition-all cursor-pointer ${
                             isSelected
-                              ? 'ring-2 ring-[#81b64c] z-10 scale-105'
+                              ? 'ring-2 ring-emerald-400 z-10 scale-105'
                               : ''
                           } ${
                             hasBlunders
@@ -686,7 +666,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
               {/* Phase Accuracy Balance */}
               <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-2.5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
-                  <BarChart3 className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Phase Accuracy Balance</span>
                 </h3>
                 <div className="grid grid-cols-3 gap-2.5 text-center">
@@ -741,26 +721,26 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
       {/* 5. SUB-SCREEN 4: MASTERY VAULT & PILLARS                                  */}
       {/* ========================================================================= */}
       {activeScreen === 'pillars' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top HUD: Mastery Overview */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                 <Layers className="w-4 h-4" />
               </div>
               <div>
                 <h2 className="text-xs sm:text-sm font-extrabold text-white">
-                  Check.mate Training Pillars
+                  Core Chess Skills
                 </h2>
                 <p className="text-[11px] text-zinc-400">
-                  Four interconnected disciplines to systematically elevate your competitive rating
+                  Four essential areas to systematically improve your chess rating
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-center font-mono text-[11px]">
               <span className="text-zinc-400">Overall Mastery:</span>
-              <span className="text-[#81b64c] font-black">{plan.overallProgressScore}%</span>
+              <span className="text-emerald-400 font-black">{plan.overallProgressScore}%</span>
             </div>
           </div>
 
@@ -776,7 +756,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                     </div>
                     <span className="text-xs font-black text-white">Tactics Arena</span>
                   </div>
-                  <span className="text-[10px] font-mono text-[#81b64c] font-bold bg-[#81b64c]/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                     +30 XP / puzzle
                   </span>
                 </div>
@@ -792,7 +772,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                 onClick={() => router.push('/puzzles')}
               >
                 <span>Enter Tactics Arena</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#81b64c]" />
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
               </Button>
             </div>
 
@@ -806,7 +786,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                     </div>
                     <span className="text-xs font-black text-white">Opening Repertoire</span>
                   </div>
-                  <span className="text-[10px] font-mono text-[#81b64c] font-bold bg-[#81b64c]/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-mono text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
                     +40 XP / line
                   </span>
                 </div>
@@ -836,7 +816,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                     </div>
                     <span className="text-xs font-black text-white">Endgame Studies</span>
                   </div>
-                  <span className="text-[10px] font-mono text-[#81b64c] font-bold bg-[#81b64c]/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-mono text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
                     +45 XP / study
                   </span>
                 </div>
@@ -866,7 +846,7 @@ export const PersonalizedAdaptiveHub: React.FC = () => {
                     </div>
                     <span className="text-xs font-black text-white">Interactive Lessons</span>
                   </div>
-                  <span className="text-[10px] font-mono text-[#81b64c] font-bold bg-[#81b64c]/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                     +50 XP / lesson
                   </span>
                 </div>

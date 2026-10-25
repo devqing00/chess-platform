@@ -105,9 +105,9 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
                 <button
                   ref={isWhiteActive ? activeMoveRef : null}
                   onClick={() => onSelectMove(turn.whiteIndex)}
-                  className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-all ${
                     isWhiteActive
-                      ? 'bg-[#81b64c] text-white font-bold'
+                      ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_1px_0_0_#385a16] border-t border-white/20'
                       : 'text-zinc-200 hover:bg-[#33302b]'
                   }`}
                 >
@@ -126,9 +126,9 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
                   <button
                     ref={isBlackActive ? activeMoveRef : null}
                     onClick={() => onSelectMove(turn.blackIndex)}
-                    className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors ${
+                    className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-all ${
                       isBlackActive
-                        ? 'bg-[#81b64c] text-white font-bold'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_1px_0_0_#385a16] border-t border-white/20'
                         : 'text-zinc-200 hover:bg-[#33302b]'
                     }`}
                   >

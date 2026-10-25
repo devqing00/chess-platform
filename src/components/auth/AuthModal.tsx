@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { X, Lock, User, Mail, Eye, EyeOff, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
 import { soundService } from '@/lib/audioService';
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { Button } from '@/components/ui/button';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -99,13 +100,16 @@ export const AuthModal: React.FC = () => {
       {/* Main Login Card */}
       <div className="relative w-full max-w-[420px] bg-[#201e1a] border-2 border-[#38342c] rounded-3xl p-6 sm:p-7 shadow-[0_16px_40px_rgba(0,0,0,0.7)] flex flex-col gap-4 text-zinc-100 z-10 animate-in zoom-in-95 duration-150">
         {/* Close Button */}
-        <button
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          rounded="full"
           onClick={closeAuthModal}
-          className="absolute top-4 right-4 p-2 rounded-full border border-[#38342c] bg-[#1a1815] text-zinc-400 hover:text-white hover:bg-[#282520] transition-all cursor-pointer"
+          className="absolute top-4 right-4"
           title="Close"
         >
           <X className="w-4 h-4" />
-        </button>
+        </Button>
 
         {/* Solid Brand Header with new Vector Logo */}
         <div className="flex flex-col items-center text-center gap-1.5 pt-1">
@@ -122,12 +126,13 @@ export const AuthModal: React.FC = () => {
           <button
             type="button"
             onClick={() => {
+              soundService.playTactilePop();
               setMode('login');
               setError(null);
             }}
-            className={`py-2 text-xs font-black rounded-xl transition-all ${
+            className={`py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
               mode === 'login'
-                ? 'bg-[#2a2722] text-white shadow-sm border border-[#3d3931]'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -136,12 +141,13 @@ export const AuthModal: React.FC = () => {
           <button
             type="button"
             onClick={() => {
+              soundService.playTactilePop();
               setMode('register');
               setError(null);
             }}
-            className={`py-2 text-xs font-black rounded-xl transition-all ${
+            className={`py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
               mode === 'register'
-                ? 'bg-[#2a2722] text-white shadow-sm border border-[#3d3931]'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -158,11 +164,15 @@ export const AuthModal: React.FC = () => {
         )}
 
         {/* Fast Google 1-Tap Sign-In */}
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="md"
+          rounded="2xl"
+          fullWidth
           onClick={handleGoogleLogin}
           disabled={isSubmitting}
-          className="w-full py-3 px-4 bg-[#282521] hover:bg-[#322e28] text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer border border-[#3d3830] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px]"
+          className="gap-2.5"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -171,7 +181,7 @@ export const AuthModal: React.FC = () => {
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
           </svg>
           <span>Continue with Google</span>
-        </button>
+        </Button>
 
         {/* Clean Divider */}
         <div className="flex items-center gap-3 my-0.5">
@@ -191,7 +201,7 @@ export const AuthModal: React.FC = () => {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-2.5 bg-[#171613] border border-[#35322b] focus:border-[#81b64c] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition font-semibold"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#171613] border border-[#35322b] focus:border-emerald-500 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition font-semibold"
               />
             </div>
           )}
@@ -205,7 +215,7 @@ export const AuthModal: React.FC = () => {
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-2.5 bg-[#171613] border border-[#35322b] focus:border-[#81b64c] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition font-semibold"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#171613] border border-[#35322b] focus:border-emerald-500 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition font-semibold"
             />
           </div>
 
@@ -219,7 +229,7 @@ export const AuthModal: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full pl-10 pr-10 py-2.5 bg-[#171613] border border-[#35322b] focus:border-[#81b64c] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition font-semibold"
+              className="w-full pl-10 pr-10 py-2.5 bg-[#171613] border border-[#35322b] focus:border-emerald-500 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition font-semibold"
             />
             <button
               type="button"
@@ -237,7 +247,7 @@ export const AuthModal: React.FC = () => {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded bg-[#171613] border border-[#35322b] text-[#81b64c] focus:ring-0 cursor-pointer"
+                className="w-4 h-4 rounded bg-[#171613] border border-[#35322b] text-emerald-500 focus:ring-0 cursor-pointer"
               />
               <span className="font-semibold text-zinc-300 text-[11px]">Remember me</span>
             </label>
@@ -254,14 +264,18 @@ export const AuthModal: React.FC = () => {
           </div>
 
           {/* Primary Action Button */}
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
+            rounded="xl"
+            fullWidth
             disabled={isSubmitting}
-            className="w-full py-3 bg-[#81b64c] hover:bg-[#72a342] text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all mt-1 cursor-pointer flex items-center justify-center gap-2"
+            className="mt-1 gap-2"
           >
             <span>{isSubmitting ? 'Please wait...' : mode === 'login' ? 'Log In to Checkmate' : 'Create Account'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         </form>
 
         {/* Quick Zero-Friction Guest Mode */}
@@ -272,7 +286,7 @@ export const AuthModal: React.FC = () => {
             disabled={isSubmitting}
             className="text-xs text-zinc-400 hover:text-white transition cursor-pointer flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-[#282520]"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
             <span>Just want to play? <strong className="text-zinc-200 underline">Continue as Guest</strong></span>
           </button>
         </div>

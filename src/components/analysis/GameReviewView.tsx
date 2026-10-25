@@ -8,6 +8,7 @@ import { ClassificationBadge } from '../board/ClassificationBadge';
 import { PieceIcon } from '../board/PieceIcons';
 import { CoachDannyAvatar } from './CoachDannyAvatar';
 import { MentorAvatar } from './MentorAvatar';
+import { Button } from '@/components/ui/button';
 import { useShell } from '@/context/ShellContext';
 import { MENTORS, getMentorById, generateMentorComment } from '@/lib/mentorsData';
 import { explainChessMove } from '@/lib/chessMoveExplainer';
@@ -63,7 +64,7 @@ import confetti from 'canvas-confetti';
 const PIP_COLORS: Record<string, string> = {
   brilliant: '#06b6d4',  // Cyan
   great: '#059669',      // Emerald
-  best: '#81b64c',       // Vibrant Green
+  best: '#10b981',       // Vibrant Emerald
   excellent: '#4ade80',  // Light Green
   good: '#84cc16',       // Yellow-Green
   book: '#a855f7',       // Purple / Book
@@ -1168,7 +1169,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
     const colorMap: Record<string, string> = {
       brilliant: '#1baca6',
       great: '#5c8bb0',
-      best: '#81b64c',
+      best: '#10b981',
       excellent: '#96bc4b',
       good: '#90928f',
       book: '#d5a47d',
@@ -1183,7 +1184,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       list.push({
         from: bestMoveVariation.from,
         to: bestMoveVariation.to,
-        color: '#81b64c',
+        color: '#10b981',
       });
       return list;
     }
@@ -1203,7 +1204,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       list.push({
         from: activeMove.from,
         to: activeMove.to,
-        color: colorMap[classification] || '#81b64c',
+        color: colorMap[classification] || '#10b981',
       });
     }
 
@@ -1211,7 +1212,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   }, [activeMove, showBestMove, showFollowUpMove, bestMoveVariation, followUpVariation, isRetryMode]);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-y-auto lg:overflow-hidden justify-start pb-16 lg:pb-0">
+    <div className="flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-y-auto xl:overflow-hidden justify-start pb-16 xl:pb-0">
       {/* Top Micro-Header Bar (36px-40px, flex-shrink: 0, never overlaps board) */}
       <header className="h-9 sm:h-10 px-2 sm:px-4 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0 shadow-sm z-30">
         {/* Left: Compact Back / Summary button */}
@@ -1263,12 +1264,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             </button>
             <button
               onClick={() => {
+                soundService.playTactilePop();
                 setAnalysisEngine('stockfish');
                 onEngineChange?.('stockfish');
               }}
               className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-150 cursor-pointer ${
                 analysisEngine === 'stockfish'
-                  ? 'bg-[#81b64c] text-white shadow'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-bold'
                   : 'text-zinc-400 hover:text-white'
               }`}
               title="Stockfish 18"
@@ -1287,10 +1289,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               return (
                 <button
                   key={tier}
-                  onClick={() => onStrengthChange?.(tier)}
+                  onClick={() => {
+                    soundService.playTactilePop();
+                    onStrengthChange?.(tier);
+                  }}
                   className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-[#35322b] text-[#81b64c] font-black shadow-sm'
+                      ? 'bg-[#35322b] text-emerald-400 font-black shadow-sm border border-emerald-500/30'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                   title={`${cfg.label}: ${cfg.description}`}
@@ -1319,11 +1324,14 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
           </button>
 
           <button
-            onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}
-            className="hidden sm:flex px-2 py-1 rounded-full text-zinc-200 hover:text-white bg-[#282622] hover:bg-[#34312b] border border-[#383530] text-[10px] font-black uppercase tracking-wider items-center gap-1 transition cursor-pointer"
+            onClick={() => {
+              soundService.playTactilePop();
+              setOrientation((o) => (o === 'w' ? 'b' : 'w'));
+            }}
+            className="hidden sm:flex px-2 py-1 rounded-full text-zinc-200 hover:text-white bg-[#282622] hover:bg-[#34312b] border border-[#383530] text-[10px] font-black uppercase tracking-wider items-center gap-1 transition cursor-pointer active:scale-95"
             title="Flip Board Orientation (F)"
           >
-            <ArrowUpDown className="w-3 h-3 text-[#81b64c]" />
+            <ArrowUpDown className="w-3 h-3 text-emerald-400" />
             <span className="hidden md:inline">Flip</span>
           </button>
 
@@ -1359,18 +1367,20 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 {/* Flip Board (Mobile & Desktop) */}
                 <button
                   onClick={() => {
+                    soundService.playTactilePop();
                     setOrientation((o) => (o === 'w' ? 'b' : 'w'));
                     setIsMoreMenuOpen(false);
                   }}
                   className="w-full py-1.5 px-2 rounded-lg bg-[#282622] hover:bg-[#34312b] text-xs font-bold text-zinc-200 hover:text-white flex items-center gap-2 cursor-pointer transition text-left"
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Flip Board Orientation</span>
                 </button>
 
                 {/* Analysis Studio */}
                 <button
                   onClick={() => {
+                    soundService.playTactilePop();
                     setIsMoreMenuOpen(false);
                     const movesStr = moves.map((m) => m.san).join(' ');
                     router.push(
@@ -1391,12 +1401,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   <div className="grid grid-cols-2 gap-1 bg-[#141311] p-1 rounded-lg">
                     <button
                       onClick={() => {
+                        soundService.playTactilePop();
                         setAnalysisEngine('torch_human');
                         onEngineChange?.('torch_human');
                         setIsMoreMenuOpen(false);
                       }}
                       className={`px-1.5 py-1 rounded text-[10px] font-black uppercase flex items-center justify-center gap-1 ${
-                        analysisEngine === 'torch_human' ? 'bg-[#f59e0b] text-white' : 'text-zinc-400 hover:text-white'
+                        analysisEngine === 'torch_human' ? 'bg-[#f59e0b] text-white shadow-sm' : 'text-zinc-400 hover:text-white'
                       }`}
                     >
                       <Flame className="w-2.5 h-2.5" />
@@ -1404,12 +1415,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                     </button>
                     <button
                       onClick={() => {
+                        soundService.playTactilePop();
                         setAnalysisEngine('stockfish');
                         onEngineChange?.('stockfish');
                         setIsMoreMenuOpen(false);
                       }}
                       className={`px-1.5 py-1 rounded text-[10px] font-black uppercase flex items-center justify-center gap-1 ${
-                        analysisEngine === 'stockfish' ? 'bg-[#81b64c] text-white' : 'text-zinc-400 hover:text-white'
+                        analysisEngine === 'stockfish' ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-bold' : 'text-zinc-400 hover:text-white'
                       }`}
                     >
                       <Cpu className="w-2.5 h-2.5" />
@@ -1422,7 +1434,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 <div className="pt-1 border-t border-[#2d2a26]">
                   <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider px-1 mb-1 flex items-center justify-between">
                     <span>Strength Tier</span>
-                    <span className="text-[#81b64c] font-mono text-[8px]">
+                    <span className="text-emerald-400 font-mono text-[8px]">
                       {ENGINE_STRENGTH_CONFIGS[engineStrength || 'fast'].label}
                     </span>
                   </div>
@@ -1435,12 +1447,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         <button
                           key={tier}
                           onClick={() => {
+                            soundService.playTactilePop();
                             onStrengthChange?.(tier);
                             setIsMoreMenuOpen(false);
                           }}
                           className={`px-1.5 py-1 rounded text-[10px] flex items-center justify-center gap-1 border ${
                             isSelected
-                              ? 'bg-[#2a2723] border-[#81b64c] text-white font-black'
+                              ? 'bg-[#2a2723] border-emerald-500 text-emerald-400 font-black'
                               : 'border-transparent text-zinc-400 hover:text-white'
                           }`}
                         >
@@ -1454,12 +1467,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 {onReanalyze && (
                   <button
                     onClick={() => {
+                      soundService.playTactilePop();
                       setIsMoreMenuOpen(false);
                       onReanalyze();
                     }}
                     className="w-full py-1.5 px-2 rounded-lg bg-[#282622] hover:bg-[#34312b] text-xs font-bold text-zinc-200 hover:text-white flex items-center gap-2 cursor-pointer transition text-left"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Re-analyze Match</span>
                   </button>
                 )}
@@ -1551,9 +1565,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   </div>
                 </div>
                 {topAccuracy !== undefined && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#81b64c]/15 border border-[#81b64c]/30 shrink-0">
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 shrink-0">
                     <span className="text-[9px] text-zinc-400 font-bold">ACC</span>
-                    <span className="text-[11px] font-black text-[#81b64c] font-mono">{topAccuracy.toFixed(1)}%</span>
+                    <span className="text-[11px] font-black text-emerald-400 font-mono">{topAccuracy.toFixed(1)}%</span>
                   </div>
                 )}
               </div>
@@ -1615,7 +1629,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-xs font-bold text-white truncate max-w-[120px] sm:max-w-[160px]">{bottomPlayer.name}</span>
-                    <span className="text-[8px] font-black text-[#81b64c] bg-[#81b64c]/20 px-1 rounded border border-[#81b64c]/30">YOU</span>
+                    <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/20 px-1 rounded border border-emerald-500/30">YOU</span>
                     {bottomPlayer.rating && (
                       <span className="text-[10px] text-zinc-400 font-mono">({bottomPlayer.rating})</span>
                     )}
@@ -1636,9 +1650,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   </div>
                 </div>
                 {bottomAccuracy !== undefined && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#81b64c]/15 border border-[#81b64c]/30 shrink-0">
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 shrink-0">
                     <span className="text-[9px] text-zinc-400 font-bold">ACC</span>
-                    <span className="text-[11px] font-black text-[#81b64c] font-mono">{bottomAccuracy.toFixed(1)}%</span>
+                    <span className="text-[11px] font-black text-emerald-400 font-mono">{bottomAccuracy.toFixed(1)}%</span>
                   </div>
                 )}
               </div>
@@ -1653,8 +1667,11 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] font-mono font-black bg-[#141311] px-1.5 py-0.5 rounded text-zinc-200">{formattedScore}</span>
                   <button
-                    onClick={() => setIsMobileDrawerOpen(true)}
-                    className="px-2 py-0.5 rounded-full bg-[#81b64c]/20 hover:bg-[#81b64c]/30 text-[#81b64c] text-[10px] font-black uppercase tracking-wider border border-[#81b64c]/40 cursor-pointer transition"
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setIsMobileDrawerOpen(true);
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/40 cursor-pointer transition active:scale-95"
                   >
                     Details ▾
                   </button>
@@ -1669,7 +1686,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 {moves.map((m, idx) => {
                   const isSelected = activeMoveIndex === idx;
                   const cls = getCleanClassification(m.classification);
-                  const pipColor = PIP_COLORS[cls] || '#81b64c';
+                  const pipColor = PIP_COLORS[cls] || '#10b981';
                   return (
                     <button
                       key={`mobile-pip-${idx}`}
@@ -1709,8 +1726,10 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       stopFastForward();
                       setIsPlaying((p) => !p);
                     }}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center border cursor-pointer ${
-                      isPlaying ? 'bg-[#81b64c] border-[#4d7a24] text-white' : 'bg-[#282622] border-[#35322b] text-white'
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition active:scale-95 ${
+                      isPlaying
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 shadow-[0_2px_0_0_#385a16] text-white'
+                        : 'bg-[#282622] border border-[#35322b] text-white hover:bg-[#34312b]'
                     }`}
                     title="Play/Pause"
                   >
@@ -1734,12 +1753,12 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   <button
                     onClick={handleToggleBest}
                     disabled={isBestDisabled && !showBestMove}
-                    className={`h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition cursor-pointer ${
+                    className={`h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer active:scale-95 ${
                       showBestMove
-                        ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 text-white shadow-[0_2px_0_0_#385a16]'
                         : isBestDisabled
-                        ? 'bg-[#22201d] border-[#2e2a24] text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none'
-                        : 'bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white'
+                        ? 'bg-[#22201d] border border-[#2e2a24] text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none'
+                        : 'bg-[#282622] border border-[#35322b] text-zinc-300 hover:text-white'
                     }`}
                   >
                     <Star className="w-3 h-3 text-amber-400" />
@@ -1774,11 +1793,14 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setIsNotationModalOpen(true)}
-                    className="h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white transition cursor-pointer"
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setIsNotationModalOpen(true);
+                    }}
+                    className="h-8 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border bg-[#282622] border-[#35322b] text-zinc-300 hover:text-white transition cursor-pointer active:scale-95"
                     title="View Notation"
                   >
-                    <BookOpen className="w-3 h-3 text-[#81b64c]" />
+                    <BookOpen className="w-3 h-3 text-emerald-400" />
                     <span className="hidden xs:inline">Moves</span>
                   </button>
                 </div>
@@ -1894,10 +1916,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   All ({moves.length})
                 </button>
                 <button
-                  onClick={() => setNotationFilter('highlights')}
+                  onClick={() => {
+                    soundService.playTactilePop();
+                    setNotationFilter('highlights');
+                  }}
                   className={`px-2 py-0.5 rounded-md cursor-pointer transition-colors flex items-center gap-1 ${
                     notationFilter === 'highlights'
-                      ? 'bg-[#81b64c] text-white shadow-sm font-black'
+                      ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
@@ -1932,7 +1957,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         onClick={() => navigateToMove(moveIdx)}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer text-xs ${
                           isSelected
-                            ? 'bg-[#81b64c] text-white font-bold shadow-sm'
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                             : 'bg-[#24221e] hover:bg-[#2c2924] text-zinc-200 border border-[#302d27]'
                         }`}
                       >
@@ -1996,7 +2021,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       }}
                       className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-xs ${
                         isWhiteSelected
-                          ? 'bg-[#81b64c] text-white font-bold shadow-sm'
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                           : 'text-zinc-200 hover:bg-[#33302b]'
                       }`}
                     >
@@ -2018,7 +2043,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         }}
                         className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-xs ${
                           isBlackSelected
-                            ? 'bg-[#81b64c] text-white font-bold shadow-sm'
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                             : 'text-zinc-200 hover:bg-[#33302b]'
                         }`}
                       >
@@ -2059,7 +2084,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             <div className="w-full flex flex-col gap-1 pt-1.5 border-t border-[#2a2723]">
               <div className="flex items-center justify-between text-[9px] font-bold text-zinc-400 px-0.5">
                 <span className="flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 text-[#81b64c]" />
+                  <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
                   <span>Advantage Pip Timeline</span>
                 </span>
                 <span className="font-mono text-zinc-500 text-[9px]">
@@ -2074,7 +2099,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 {moves.map((m, idx) => {
                   const isSelected = activeMoveIndex === idx;
                   const cls = getCleanClassification(m.classification);
-                  const pipColor = PIP_COLORS[cls] || '#81b64c';
+                  const pipColor = PIP_COLORS[cls] || '#10b981';
                   const moveNum = Math.floor(idx / 2) + 1;
                   const isWhitePly = idx % 2 === 0;
 
@@ -2182,14 +2207,15 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               {/* Play / Pause Auto-Play */}
               <button
                 onClick={() => {
+                  soundService.playTactilePop();
                   stopFastForward();
                   setIsPlaying((p) => !p);
                 }}
                 disabled={isFastForwarding}
-                className={`w-11 h-9 rounded-lg border-2 transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+                className={`w-11 h-9 rounded-lg border-t border-white/35 transition-all cursor-pointer flex items-center justify-center shrink-0 ${
                   isPlaying
-                    ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24]'
-                    : 'bg-[#282622] border-[#35322b] hover:bg-[#34312b] text-white shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_3px_0_0_#385a16] active:translate-y-[2px] active:shadow-[0_1px_0_0_#385a16]'
+                    : 'bg-gradient-to-b from-[#35322c] to-[#24221d] border-t border-white/10 hover:brightness-110 text-white shadow-[0_3px_0_0_#0f0e0c] active:translate-y-[2px] active:shadow-[0_1px_0_0_#0f0e0c]'
                 }`}
                 title={isPlaying ? 'Pause Auto-Play (Space)' : 'Start Auto-Play (Space)'}
               >
@@ -2213,11 +2239,12 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               {/* Speed Forward: Advances / DVD Fast-Forward to next highlight */}
               <button
                 onClick={() => {
+                  soundService.playTactilePop();
                   setIsPlaying(false);
                   handleNextKeyMoment();
                 }}
                 disabled={activeMoveIndex >= moves.length - 1 || isFastForwarding}
-                className="w-10 h-9 rounded-lg bg-[#81b64c] hover:bg-[#8cc653] disabled:opacity-30 disabled:bg-[#282622] disabled:border-[#2a2723] disabled:text-zinc-600 disabled:pointer-events-none text-white border-2 border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center shrink-0"
+                className="w-10 h-9 rounded-lg bg-gradient-to-b from-[#8fd649] to-[#699c30] hover:brightness-105 disabled:opacity-30 disabled:pointer-events-none text-white border-t border-white/35 shadow-[0_3px_0_0_#385a16] active:translate-y-[2px] active:shadow-[0_1px_0_0_#385a16] transition-all cursor-pointer flex items-center justify-center shrink-0"
                 title="Speed Fast-Forward to Next Highlight (Arrow Down)"
               >
                 <ChevronsRight className="w-4 h-4" />
@@ -2231,14 +2258,17 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             <div className="flex items-center justify-center gap-2.5 w-full">
               {/* BEST BUTTON */}
               <button
-                onClick={handleToggleBest}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  handleToggleBest();
+                }}
                 disabled={isBestDisabled && !showBestMove}
-                className={`h-9 px-3.5 sm:px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 border-2 ${
+                className={`h-9 px-3.5 sm:px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
                   showBestMove
-                    ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24] cursor-pointer'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 text-white shadow-[0_3px_0_0_#385a16] active:translate-y-[2px] active:shadow-[0_1px_0_0_#385a16] cursor-pointer'
                     : isBestDisabled
-                    ? 'bg-[#282622] border-[#35322b] text-zinc-500 opacity-30 cursor-not-allowed pointer-events-none'
-                    : 'bg-[#282622] border-[#35322b] hover:bg-[#34312b] text-zinc-300 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none cursor-pointer'
+                    ? 'bg-[#282622] border border-[#35322b] text-zinc-500 opacity-30 cursor-not-allowed pointer-events-none'
+                    : 'bg-gradient-to-b from-[#35322c] to-[#24221d] border-t border-white/10 hover:brightness-110 text-zinc-200 shadow-[0_3px_0_0_#0f0e0c] active:translate-y-[2px] active:shadow-[0_1px_0_0_#0f0e0c] cursor-pointer'
                 }`}
                 title={
                   showBestMove
@@ -2343,20 +2373,23 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-[#262420] p-2.5 rounded-xl border border-[#35322b] flex items-center justify-between">
                 <span className="text-[10px] text-zinc-400 font-bold truncate">{whitePlayer.name}</span>
-                <span className="text-xs font-black text-[#81b64c] font-mono">{whiteAccuracy?.toFixed(1)}%</span>
+                <span className="text-xs font-black text-emerald-400 font-mono">{whiteAccuracy?.toFixed(1)}%</span>
               </div>
               <div className="bg-[#262420] p-2.5 rounded-xl border border-[#35322b] flex items-center justify-between">
                 <span className="text-[10px] text-zinc-400 font-bold truncate">{blackPlayer.name}</span>
-                <span className="text-xs font-black text-[#81b64c] font-mono">{blackAccuracy?.toFixed(1)}%</span>
+                <span className="text-xs font-black text-emerald-400 font-mono">{blackAccuracy?.toFixed(1)}%</span>
               </div>
             </div>
 
-            <button
+            <Button
+              variant="primary"
+              fullWidth
+              size="md"
+              rounded="xl"
               onClick={() => setIsMobileDrawerOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-[#81b64c] text-white text-xs font-black uppercase tracking-wider shadow cursor-pointer"
             >
               Back to Board
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -2367,7 +2400,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
           <div className="bg-[#1f1d1a] border-t-2 border-[#38342e] rounded-t-3xl max-h-[75vh] flex flex-col p-4 text-white shadow-2xl animate-in slide-in-from-bottom">
             <div className="flex items-center justify-between pb-2 border-b border-[#2d2a26]">
               <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#81b64c]" />
+                <BookOpen className="w-4 h-4 text-emerald-400" />
                 <h3 className="text-xs font-black uppercase tracking-wider">Move Notation</h3>
               </div>
               <button
@@ -2380,14 +2413,28 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
 
             <div className="flex items-center gap-2 py-2">
               <button
-                onClick={() => setNotationFilter('all')}
-                className={`px-3 py-1 rounded-md text-xs font-bold ${notationFilter === 'all' ? 'bg-[#81b64c] text-white font-black' : 'bg-[#282622] text-zinc-400'}`}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setNotationFilter('all');
+                }}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  notationFilter === 'all'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                    : 'bg-[#282622] text-zinc-400 hover:text-white'
+                }`}
               >
                 All Moves ({moves.length})
               </button>
               <button
-                onClick={() => setNotationFilter('highlights')}
-                className={`px-3 py-1 rounded-md text-xs font-bold ${notationFilter === 'highlights' ? 'bg-[#81b64c] text-white font-black' : 'bg-[#282622] text-zinc-400'}`}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setNotationFilter('highlights');
+                }}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  notationFilter === 'highlights'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                    : 'bg-[#282622] text-zinc-400 hover:text-white'
+                }`}
               >
                 Highlights ({keyMomentIndices.length})
               </button>
@@ -2408,7 +2455,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         setIsNotationModalOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg mb-1 cursor-pointer ${
-                        isSelected ? 'bg-[#81b64c] text-white font-bold' : 'bg-[#24221e] text-zinc-200 border border-[#302d27]'
+                        isSelected
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                          : 'bg-[#24221e] text-zinc-200 border border-[#302d27]'
                       }`}
                     >
                       <span>{turnNum}{isWhite ? '.' : '...'} {m.san}</span>
@@ -2432,7 +2481,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                           setIsNotationModalOpen(false);
                         }}
                         className={`px-2 py-1 rounded text-left flex items-center justify-between cursor-pointer ${
-                          activeMoveIndex === wIdx ? 'bg-[#81b64c] text-white font-bold' : 'text-zinc-200'
+                          activeMoveIndex === wIdx
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                            : 'text-zinc-200'
                         }`}
                       >
                         <span className="truncate">{wMove?.san}</span>
@@ -2445,7 +2496,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                             setIsNotationModalOpen(false);
                           }}
                           className={`px-2 py-1 rounded text-left flex items-center justify-between cursor-pointer ${
-                            activeMoveIndex === bIdx ? 'bg-[#81b64c] text-white font-bold' : 'text-zinc-200'
+                            activeMoveIndex === bIdx
+                              ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                              : 'text-zinc-200'
                           }`}
                         >
                           <span className="truncate">{bMove.san}</span>
@@ -2467,7 +2520,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
           <div className="bg-[#1f1d1a] border-2 border-[#38342e] rounded-2xl w-full max-w-md shadow-2xl p-5 text-white">
             <div className="flex items-center justify-between pb-3 border-b border-[#2e2b26] mb-4">
               <div className="flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-[#81b64c]" />
+                <HelpCircle className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-base font-black uppercase tracking-wider">Keyboard Shortcuts</h3>
               </div>
               <button
@@ -2487,7 +2540,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               </div>
               <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-[#262420]">
                 <span className="text-zinc-300 font-medium">Previous / Next Highlight</span>
-                <span className="font-mono bg-[#171614] px-2 py-0.5 rounded border border-[#35322b] font-bold text-[#81b64c]">
+                <span className="font-mono bg-[#171614] px-2 py-0.5 rounded border border-[#35322b] font-bold text-emerald-400">
                   ↑ / ↓
                 </span>
               </div>
@@ -2530,12 +2583,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
             </div>
 
             <div className="mt-4 pt-3 border-t border-[#2e2b26] flex justify-end">
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setIsShortcutsOpen(false)}
-                className="px-4 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#8cc653] text-white text-xs font-black uppercase tracking-wider cursor-pointer transition shadow-[0_2px_0_0_#4d7a24]"
               >
                 Got It
-              </button>
+              </Button>
             </div>
           </div>
         </div>

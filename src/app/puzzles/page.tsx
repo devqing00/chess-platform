@@ -90,6 +90,7 @@ function PuzzlesMasteryContent() {
   }, [activeScreen, selectedTier, loadPuzzle]);
 
   const handleScreenChange = (screen: PuzzleScreen) => {
+    soundService.playTactilePop();
     setActiveScreen(screen);
     if (screen !== 'vault') {
       const nextPuz = PuzzleEngineService.getNextPuzzle(screen, selectedTier);
@@ -246,28 +247,28 @@ function PuzzlesMasteryContent() {
   const puzzleTurn = currentPuzzle.fen.split(' ')[1] as 'w' | 'b';
 
   return (
-    <div className="flex-1 flex flex-col min-h-full lg:h-full bg-[#161512] text-zinc-100 overflow-y-auto lg:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
+    <div className="flex-1 flex flex-col min-h-full xl:h-full bg-[#161512] text-zinc-100 overflow-y-auto xl:overflow-hidden select-none min-w-0 pb-24 md:pb-6">
       {recentGain && <XpGainToast gain={recentGain} />}
 
       {/* 1. TOP HEADER & SUB-SCREEN SWITCHER */}
-      <header className="border-b border-white/5 shrink-0 bg-[#141311] z-20 flex flex-col md:flex-row md:items-center md:justify-between px-3 sm:px-4 py-2 md:py-0 md:h-12 gap-2">
+      <header className="border-b border-white/5 shrink-0 bg-[#141311] z-20 flex flex-col lg:flex-row lg:items-center lg:justify-between px-3 sm:px-4 py-2 lg:py-0 lg:h-12 gap-2">
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center font-black shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-black shrink-0">
               <Puzzle className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
                 <span>Tactics &amp; Strategy</span>
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
-                  SRS
+                  Trainer
                 </span>
               </h1>
             </div>
           </div>
 
-          {/* Mobile HUD metrics */}
-          <div className="flex md:hidden items-center gap-1.5 shrink-0">
+          {/* Mobile & Tablet HUD metrics */}
+          <div className="flex lg:hidden items-center gap-1.5 shrink-0">
             {streak > 0 && (
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold">
                 <Flame className="w-3 h-3 fill-amber-400" />
@@ -281,13 +282,13 @@ function PuzzlesMasteryContent() {
           </div>
         </div>
 
-        {/* 4 Segmented Sub-Screen Switcher Pills - Dedicated scrollable row on mobile, inline on desktop */}
-        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full md:w-auto">
+        {/* 4 Segmented Sub-Screen Switcher Pills - Dedicated scrollable row on mobile & tablet, inline on desktop */}
+        <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full lg:w-auto">
           <button
             onClick={() => handleScreenChange('tactics')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'tactics'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -296,9 +297,9 @@ function PuzzlesMasteryContent() {
           </button>
           <button
             onClick={() => handleScreenChange('strategy')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'strategy'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -307,9 +308,9 @@ function PuzzlesMasteryContent() {
           </button>
           <button
             onClick={() => handleScreenChange('endgame')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'endgame'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -318,9 +319,9 @@ function PuzzlesMasteryContent() {
           </button>
           <button
             onClick={() => handleScreenChange('vault')}
-            className={`flex-1 md:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'vault'
-                ? 'bg-[#81b64c] text-black font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -329,8 +330,8 @@ function PuzzlesMasteryContent() {
           </button>
         </div>
 
-        {/* Desktop Quick HUD Metrics */}
-        <div className="hidden md:flex items-center gap-2">
+        {/* Large Desktop Quick HUD Metrics */}
+        <div className="hidden lg:flex items-center gap-2">
           {streak > 0 && (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold">
               <Flame className="w-3.5 h-3.5 fill-amber-400" />
@@ -365,7 +366,7 @@ function PuzzlesMasteryContent() {
 
                 {/* In-Board Success / Error Status Badge */}
                 {statusMessage === 'solved' && (
-                  <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-[#81b64c] text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xl backdrop-blur-sm animate-in fade-in">
+                  <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_2px_0_0_#385a16] border-t border-white/35 backdrop-blur-sm animate-in fade-in">
                     <CheckCircle2 className="w-4 h-4 stroke-[3]" />
                     <span>Solved! +{currentPuzzle.xpReward || 25} XP</span>
                   </div>
@@ -394,7 +395,7 @@ function PuzzlesMasteryContent() {
               <div className="flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
                 {/* Header: Theme and Difficulty Tier */}
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#81b64c] flex items-center gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Theme: {currentPuzzle.theme}</span>
                   </span>
@@ -425,7 +426,7 @@ function PuzzlesMasteryContent() {
 
                 {/* Coach Danny Rensch Teaching Card */}
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-relaxed font-medium">
-                  <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase tracking-wider mb-1">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Coach Danny Rensch</span>
                   </div>
@@ -442,8 +443,8 @@ function PuzzlesMasteryContent() {
 
                 {/* Spaced Repetition Mastery Alert */}
                 {masteryNotice && (
-                  <div className="p-2.5 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 text-[#81b64c] text-xs font-semibold flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-[#81b64c] shrink-0" />
+                  <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>{masteryNotice}</span>
                   </div>
                 )}
@@ -507,7 +508,7 @@ function PuzzlesMasteryContent() {
             <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-[#81b64c]" />
+                  <GraduationCap className="w-4 h-4 text-emerald-400" />
                   <span>Leitner Spaced Repetition Mastery Vault</span>
                 </h2>
                 <p className="text-xs text-zinc-400">
@@ -516,7 +517,7 @@ function PuzzlesMasteryContent() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#81b64c]/15 border border-[#81b64c]/30 rounded-xl text-[#81b64c] text-xs font-mono font-black">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-mono font-black">
                   <GraduationCap className="w-3.5 h-3.5" />
                   <span>{masteryStats.totalMastered} Mastered</span>
                 </div>
@@ -528,16 +529,16 @@ function PuzzlesMasteryContent() {
               <div className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                    <Target className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <Target className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Tactics Pillar</span>
                   </span>
-                  <span className="text-xs font-mono font-bold text-[#81b64c]">
+                  <span className="text-xs font-mono font-bold text-emerald-400">
                     {masteryStats.tacticsMastered} Mastered
                   </span>
                 </div>
                 <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-1">
                   <div
-                    className="bg-[#81b64c] h-full rounded-full transition-all"
+                    className="bg-emerald-500 h-full rounded-full transition-all"
                     style={{ width: `${Math.min(100, (masteryStats.tacticsMastered / 10) * 100)}%` }}
                   />
                 </div>
@@ -583,7 +584,7 @@ function PuzzlesMasteryContent() {
             {/* Leitner Box Explanation Card */}
             <div className="p-3 rounded-2xl bg-[#201e1a] border border-white/5 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#81b64c]/15 text-[#81b64c] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
                   <TrendingUp className="w-5 h-5" />
                 </div>
                 <div>
@@ -607,7 +608,7 @@ function PuzzlesMasteryContent() {
                     className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-5 h-5 rounded-full bg-[#81b64c]/20 text-[#81b64c] flex items-center justify-center text-[10px] font-black shrink-0">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-black shrink-0">
                         ✓
                       </span>
                       <div className="min-w-0">
@@ -653,7 +654,7 @@ export default function PuzzlesPage() {
     <Suspense
       fallback={
         <div className="flex-1 flex items-center justify-center h-full bg-[#161512] text-zinc-400 text-xs font-mono">
-          <Loader2 className="w-5 h-5 animate-spin text-[#81b64c]" />
+          <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
         </div>
       }
     >

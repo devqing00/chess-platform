@@ -357,7 +357,7 @@ export default function PlayLobbyPage() {
   };
 
   return (
-    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden p-2.5 sm:p-4 lg:p-6 flex flex-col justify-between select-none text-zinc-100 bg-[#161512] pb-24 md:pb-6">
+    <div className="w-full min-h-full xl:h-full xl:max-h-full overflow-y-auto xl:overflow-hidden p-2.5 sm:p-4 lg:p-6 flex flex-col justify-between select-none text-zinc-100 bg-[#161512] pb-24 md:pb-6">
       {/* 1. TOP HEADER & SCREEN TABS (Unified, Zero-Conflict Responsive Bar) */}
       <header className="shrink-0 pb-2 border-b border-white/5 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
@@ -371,13 +371,13 @@ export default function PlayLobbyPage() {
                 Play Arena
               </h1>
               <p className="text-[10px] sm:text-xs text-zinc-400 font-medium truncate">
-                {effectiveDisplayName} ({effectiveRating || 'Unranked'}) • Live &amp; Bots
+                {effectiveDisplayName} ({effectiveRating || 'Unranked'})
               </p>
             </div>
           </div>
 
-          {/* Center on Desktop: Screen Tabs */}
-          <nav className="hidden md:flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5">
+          {/* Center on Large Desktop: Screen Tabs */}
+          <nav className="hidden xl:flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5">
             <button
               onClick={() => setActiveScreen('arena')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -449,57 +449,61 @@ export default function PlayLobbyPage() {
           </div>
         </div>
 
-        {/* Mobile-Only Dedicated Screen Tabs Row (Horizontal Touch Scroll, Zero Collision) */}
-        <nav className="flex md:hidden items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full">
+        {/* Mobile & Tablet Dedicated Screen Tabs Row (Horizontal Touch Scroll, Zero Collision, No Header Jam) */}
+        <nav className="flex xl:hidden items-center gap-1.5 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full">
           <button
             onClick={() => setActiveScreen('arena')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'arena'
                 ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Swords className="w-3 h-3" />
-            <span>Arena</span>
+            <Swords className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Play Arena</span>
+            <span className="sm:hidden">Arena</span>
           </button>
           <button
             onClick={() => setActiveScreen('bots')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'bots'
                 ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Bot className="w-3 h-3" />
-            <span>Bots</span>
+            <Bot className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Choose Bot</span>
+            <span className="sm:hidden">Bots</span>
           </button>
           <button
             onClick={() => setActiveScreen('clocks')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'clocks'
                 ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Clock className="w-3 h-3" />
-            <span>Clocks</span>
+            <Clock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Clock Controls</span>
+            <span className="sm:hidden">Clocks</span>
           </button>
           <button
             onClick={() => setActiveScreen('history')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'history'
                 ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <History className="w-3 h-3" />
-            <span>History</span>
+            <History className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Match History</span>
+            <span className="sm:hidden">History</span>
           </button>
         </nav>
       </header>
 
-      {/* 2. CENTRAL STAGE (Naturally scrollable on mobile, framed on desktop) */}
-      <div className="flex-1 min-h-0 w-full overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-2">
+      {/* 2. CENTRAL STAGE (Naturally scrollable on mobile & tablet, framed on large desktop) */}
+      <div className="flex-1 min-h-0 w-full overflow-visible xl:overflow-hidden flex flex-col justify-start xl:justify-center py-2">
         {/* ========================================================================= */}
         {/* SCREEN 1: ARENA / MATCH LAUNCH */}
         {/* ========================================================================= */}
@@ -1297,23 +1301,6 @@ export default function PlayLobbyPage() {
         )}
       </div>
 
-      {/* 4. FOOTER STATUS BAR */}
-      <footer className="pt-2 border-t border-white/5 flex items-center justify-between text-xs shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[11px] text-zinc-500 font-medium">Matchmaking Gateway Ready</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-zinc-400 font-mono">
-            Mode: {selectedMode === 'bot' ? 'vs Bot' : selectedMode === 'online_pvp' ? 'Online 1v1' : selectedMode === 'friend_challenge' ? 'Friend Challenge' : 'Pass & Play'}
-          </span>
-          <span className="text-zinc-600">•</span>
-          <span className="text-[11px] text-zinc-300 font-mono">
-            {selectedTimeControl.label}
-          </span>
-        </div>
-      </footer>
 
       {/* Friend Challenge Created Share Modal */}
       {createdChallenge && (

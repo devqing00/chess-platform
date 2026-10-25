@@ -10,6 +10,7 @@ import { useShell } from '@/context/ShellContext';
 import { useAuth } from '@/context/AuthContext';
 import { reclassifyReportWithEngine } from '@/lib/server/capsCalculator';
 import { Loader2, Cpu, Sparkles, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const CHESS_FACTS = [
   "The word 'Checkmate' comes from the Persian 'Shah Mat', meaning 'The King is helpless'.",
@@ -385,12 +386,12 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
             </div>
 
             {/* Continuous Sweeping Radar Scanline (GPU animated) */}
-            <div className="absolute inset-x-0 h-5 bg-gradient-to-b from-transparent via-[#81b64c]/45 to-transparent pointer-events-none animate-pulse" />
+            <div className="absolute inset-x-0 h-5 bg-gradient-to-b from-transparent via-emerald-500/40 to-transparent pointer-events-none animate-pulse" />
 
             {/* Center Spinning Sparkle Emblem */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-9 h-9 rounded-full bg-[#161512]/95 border-2 border-[#81b64c] flex items-center justify-center shadow-[0_2px_0_0_#4d7a24]">
-                <Sparkles className="w-4 h-4 text-[#81b64c] animate-spin" />
+              <div className="w-9 h-9 rounded-full bg-[#161512]/95 border-2 border-emerald-500 flex items-center justify-center shadow-[0_2px_0_0_#065f46]">
+                <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" />
               </div>
             </div>
           </div>
@@ -398,7 +399,7 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           {/* Title & Simple Explanatory Subtitle */}
           <div className="flex flex-col items-center text-center gap-0.5 w-full">
             <h3 className="text-sm font-black text-white flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               <span>Analyzing Match</span>
             </h3>
             <p className="text-[11px] text-zinc-400 font-medium">
@@ -410,11 +411,11 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           <div className="w-full flex flex-col gap-1">
             <div className="flex justify-between items-center text-[10px] font-mono font-black">
               <span className="text-zinc-400 truncate max-w-[200px]">{loadingStep}</span>
-              <span className="text-[#81b64c]">{loadingProgress}%</span>
+              <span className="text-emerald-400">{loadingProgress}%</span>
             </div>
             <div className="w-full h-2 rounded-full bg-[#141311] p-0.5 border border-[#35322b]">
               <div
-                className="h-full bg-[#81b64c] rounded-full transition-all duration-300 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.2)]"
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.2)]"
                 style={{ width: `${loadingProgress}%` }}
               />
             </div>
@@ -423,7 +424,7 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           {/* Single Clean Chess Fact */}
           {shuffledFacts.length > 0 && (
             <div className="w-full bg-[#181614] border border-[#35322b] rounded-2xl p-3 flex flex-col gap-1 shadow-[0_2px_0_0_#141311]">
-              <div className="flex items-center gap-1.5 text-[10px] font-black text-[#81b64c] uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-400 uppercase tracking-wider">
                 <Sparkles className="w-3 h-3" />
                 <span>Chess Fact</span>
               </div>
@@ -450,24 +451,25 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           <div>
             <h3 className="text-base font-black text-white">Game Not Found</h3>
             <p className="text-xs text-zinc-400 font-medium mt-1 leading-relaxed">
-              Could not locate game record for ID <code className="text-[#81b64c] bg-[#161512] px-1.5 py-0.5 rounded font-mono font-bold">{gameId}</code>.
+              Could not locate game record for ID <code className="text-emerald-400 bg-[#161512] px-1.5 py-0.5 rounded font-mono font-bold">{gameId}</code>.
               Sync your Chess.com games on the home screen or choose another match.
             </p>
           </div>
-          <button
+          <Button
+            variant="primary"
             onClick={() => router.push('/')}
-            className="px-5 py-2.5 rounded-full border-2 border-[#5d8b32] bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-[0_4px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all"
+            className="rounded-full uppercase tracking-wider gap-2 px-5 py-2.5 text-xs font-black"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Return to Match History</span>
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] bg-[#161512] overflow-y-auto lg:overflow-hidden min-w-0 justify-start pb-16 lg:pb-0">
+    <div className="flex-1 flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:max-h-[100dvh] bg-[#161512] overflow-y-auto xl:overflow-hidden min-w-0 justify-start pb-16 xl:pb-0">
       {reviewStage === 'summary' ? (
         <GameReviewSummaryView
           report={report}

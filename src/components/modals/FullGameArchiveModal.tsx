@@ -150,8 +150,8 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
         {/* Modal Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262420] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#81b64c] border-2 border-[#5d8b32] flex items-center justify-center shadow-[0_3px_0_0_#4d7a24] shrink-0">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-950" />
             </div>
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2 flex-wrap">
@@ -174,7 +174,7 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                 className="px-2.5 sm:px-3.5 py-1.5 bg-[#282521] hover:bg-[#322f2a] text-[10px] sm:text-xs font-black uppercase tracking-wider text-zinc-200 rounded-full border-2 border-[#3d3a34] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 title="Fetch latest games from Chess.com & local storage"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#81b64c]' : 'text-zinc-400'}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-400' : 'text-zinc-400'}`} />
                 <span className="hidden sm:inline">Sync Latest</span>
               </button>
             )}
@@ -194,10 +194,10 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
             <div className="flex items-center gap-1 bg-[#141311] p-1 rounded-full border-2 border-[#35322b] shadow-[0_2px_0_0_#0f0e0c] overflow-x-auto scrollbar-none shrink-0">
               <button
                 onClick={() => setActiveSourceTab('all')}
-                className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 shrink-0 ${
+                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
                   activeSourceTab === 'all'
-                    ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24]'
-                    : 'border-transparent text-zinc-400 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -206,10 +206,10 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
 
               <button
                 onClick={() => setActiveSourceTab('checkmate')}
-                className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 shrink-0 ${
+                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
                   activeSourceTab === 'checkmate'
-                    ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24]'
-                    : 'border-transparent text-zinc-400 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 <Swords className="w-3.5 h-3.5" />
@@ -218,10 +218,10 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
 
               <button
                 onClick={() => setActiveSourceTab('chesscom')}
-                className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border-2 shrink-0 ${
+                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
                   activeSourceTab === 'chesscom'
-                    ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24]'
-                    : 'border-transparent text-zinc-400 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 <span>♟️</span>
@@ -237,7 +237,7 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                 placeholder="Search opponent..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#141311] border-2 border-[#35322b] rounded-full pl-9 pr-3.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c] shadow-[0_2px_0_0_#0f0e0c]"
+                className="w-full bg-[#141311] border-2 border-[#35322b] rounded-full pl-9 pr-3.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 shadow-[0_2px_0_0_#0f0e0c]"
               />
             </div>
           </div>
@@ -305,12 +305,16 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                 </span>
               </div>
               {onOpenSyncModal && activeSourceTab === 'chesscom' && (
-                <button
-                  onClick={onOpenSyncModal}
-                  className="mt-2 px-5 py-2.5 bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider rounded-full border-2 border-[#5d8b32] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] transition-all cursor-pointer"
-                >
-                  Sync Chess.com Games
-                </button>
+                <div className="mt-2">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    rounded="full"
+                    onClick={onOpenSyncModal}
+                  >
+                    Sync Chess.com Games
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
@@ -343,7 +347,7 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
               return (
                 <div
                   key={session.id || index}
-                  className="bg-[#282521] border-2 border-[#383530] hover:border-[#4d483e] rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px] transition-all"
+                  className="bg-[#282521] border-2 border-[#383530] hover:border-[#4d483f] rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px] transition-all"
                 >
                   {/* Left Section: Source, Date, Players */}
                   <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1 w-full sm:w-auto">
@@ -351,7 +355,7 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                     <div
                       className={`w-12 h-11 sm:w-14 sm:h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 font-black font-mono text-xs border-2 ${
                         isWin
-                          ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]/40 shadow-[0_2px_0_0_#4d7a24]'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-[0_2px_0_0_#385a16]'
                           : isDraw
                           ? 'bg-zinc-800 text-zinc-300 border-zinc-600 shadow-[0_2px_0_0_#27272a]'
                           : 'bg-rose-950/35 text-rose-400 border-rose-900/50 shadow-[0_2px_0_0_#7f1d1d]'
@@ -431,8 +435,8 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
                     >
                       {copiedId === session.id ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-[#81b64c]" />
-                          <span className="text-[10px] font-bold text-[#81b64c]">Copied</span>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-[10px] font-bold text-emerald-400">Copied</span>
                         </>
                       ) : (
                         <>

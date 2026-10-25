@@ -79,7 +79,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const titleText = isWin ? 'You Won!' : isDraw ? 'Game Drawn' : 'You Lost';
   const subtitleReason = `by ${result.reason ? (result.reason.charAt(0).toUpperCase() + result.reason.slice(1)) : 'Game Concluded'}`;
 
-  const headerBg = isWin ? 'bg-[#81b64c]' : isDraw ? 'bg-zinc-700' : 'bg-[#ca3431]';
+  const headerBg = isWin
+    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30]'
+    : isDraw
+    ? 'bg-zinc-700'
+    : 'bg-gradient-to-b from-[#e04545] via-[#ca3431] to-[#b32b28]';
   const opponentIsBot = Boolean(isUserWhite ? blackPlayer.isBot : whitePlayer.isBot);
 
   return (
@@ -147,7 +151,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <span className="flex items-center gap-1 min-w-0">
               <span className="truncate max-w-[80px] sm:max-w-[100px] text-white font-black">{whitePlayer.name}</span>
               {isUserWhite && (
-                <span className="text-[8px] sm:text-[9px] font-black text-[#81b64c] bg-[#81b64c]/15 px-1 sm:px-1.5 py-0.2 rounded-full border border-[#81b64c]/40 shrink-0">
+                <span className="text-[8px] sm:text-[9px] font-black text-emerald-400 bg-emerald-500/15 px-1 sm:px-1.5 py-0.2 rounded-full border border-emerald-500/40 shrink-0">
                   YOU
                 </span>
               )}
@@ -158,7 +162,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <span className="flex items-center gap-1 min-w-0">
               <span className="truncate max-w-[80px] sm:max-w-[100px] text-white font-black">{blackPlayer.name}</span>
               {!isUserWhite && (
-                <span className="text-[8px] sm:text-[9px] font-black text-[#81b64c] bg-[#81b64c]/15 px-1 sm:px-1.5 py-0.2 rounded-full border border-[#81b64c]/40 shrink-0">
+                <span className="text-[8px] sm:text-[9px] font-black text-emerald-400 bg-emerald-500/15 px-1 sm:px-1.5 py-0.2 rounded-full border border-emerald-500/40 shrink-0">
                   YOU
                 </span>
               )}

@@ -7,6 +7,7 @@ import { Bot, Swords, Sparkles, Star, Award, CheckCircle, Search, Play } from 'l
 import { useAuth } from '@/context/AuthContext';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 import { Button } from '@/components/ui/button';
+import { soundService } from '@/lib/audioService';
 
 interface BotSelectorProps {
   selectedBot: BotPersonality;
@@ -70,7 +71,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
       <div className="lg:col-span-5 h-full p-5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-4">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#81b64c] flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Bot className="w-3.5 h-3.5" />
               <span>Challenger Spotlight</span>
             </span>
@@ -89,7 +90,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                 <span>{selectedBot.avatar}</span>
               )}
               {selectedStars > 0 && (
-                <span className="absolute top-1 right-1 w-5 h-5 bg-[#81b64c] border-2 border-[#141311] rounded-full flex items-center justify-center text-white text-[10px] font-black">
+                <span className="absolute top-1 right-1 w-5 h-5 bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_2px_0_0_#385a16] border border-white/35 rounded-full flex items-center justify-center text-white text-[10px] font-black">
                   ✓
                 </span>
               )}
@@ -98,7 +99,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             <div>
               <div className="flex items-center justify-center gap-2">
                 <h3 className="text-base font-extrabold text-white">{selectedBot.name}</h3>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-white/10 text-[#81b64c]">
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
                   {selectedBot.rating} Elo
                 </span>
               </div>
@@ -120,7 +121,10 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             </span>
             <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => setPlayAsColor('w')}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setPlayAsColor('w');
+                }}
                 className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                   playAsColor === 'w'
                     ? 'bg-white/15 border-white text-white'
@@ -131,10 +135,13 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                 <span>White</span>
               </button>
               <button
-                onClick={() => setPlayAsColor('random')}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setPlayAsColor('random');
+                }}
                 className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                   playAsColor === 'random'
-                    ? 'bg-white/15 border-[#81b64c] text-[#81b64c]'
+                    ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400'
                     : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                 }`}
               >
@@ -142,7 +149,10 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                 <span>Random</span>
               </button>
               <button
-                onClick={() => setPlayAsColor('b')}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setPlayAsColor('b');
+                }}
                 className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                   playAsColor === 'b'
                     ? 'bg-white/15 border-zinc-400 text-white'
@@ -186,7 +196,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                 placeholder="Search bot..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-2.5 py-1 rounded-lg bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+                className="w-full pl-8 pr-2.5 py-1 rounded-lg bg-[#141311] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
@@ -202,11 +212,14 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             ].map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setFilter(cat.id as typeof filter)}
-                className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border transition cursor-pointer shrink-0 ${
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setFilter(cat.id as typeof filter);
+                }}
+                className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition cursor-pointer shrink-0 ${
                   filter === cat.id
-                    ? 'bg-[#81b64c] text-black border-[#81b64c]'
-                    : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
+                    : 'bg-white/5 border border-white/5 text-zinc-400 hover:text-white'
                 }`}
               >
                 {cat.label}
@@ -225,10 +238,13 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             return (
               <div
                 key={bot.id}
-                onClick={() => onSelectBot(bot)}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  onSelectBot(bot);
+                }}
                 className={`p-3 rounded-xl border flex items-center gap-3 transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-white/15 border-[#81b64c] shadow-sm'
+                    ? 'bg-emerald-500/15 border-emerald-500/60 shadow-sm'
                     : 'bg-white/5 border-white/5 hover:bg-white/10'
                 }`}
               >
@@ -240,7 +256,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                     <span>{bot.avatar}</span>
                   )}
                   {isDefeated && (
-                    <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#81b64c] rounded-full flex items-center justify-center text-white text-[8px] font-black">
+                    <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_1px_0_0_#385a16] rounded-full flex items-center justify-center text-white text-[8px] font-black">
                       ✓
                     </span>
                   )}

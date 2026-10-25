@@ -13,12 +13,12 @@ function LessonsContent() {
   const { effectiveRating, isSynced, syncedPlatform } = useAuth();
 
   return (
-    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
+    <div className="w-full min-h-full xl:h-full xl:max-h-full overflow-y-auto xl:overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
       <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
         {/* Top Header & Progression HUD Bar */}
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-2 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#81b64c]/15 border-2 border-[#81b64c]/40 flex items-center justify-center text-[#81b64c] shadow-[0_2px_0_0_#4d7a24] shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_2px_0_0_#385a16] shrink-0">
               <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>

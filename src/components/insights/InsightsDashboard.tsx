@@ -13,6 +13,7 @@ import { soundService } from '@/lib/audioService';
 import { useAuth } from '@/context/AuthContext';
 import { GameSessionStore, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
+import { Button } from '@/components/ui/button';
 import confetti from 'canvas-confetti';
 import {
   Flame,
@@ -369,7 +370,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
               <h1 className="text-base sm:text-xl font-black tracking-tight text-white">
                 Diamond Performance &amp; Weakness Repair
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-[#81b64c]/20 text-[#81b64c] border border-[#81b64c]/40">
+              <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
                 Actionable
               </span>
             </div>
@@ -382,11 +383,14 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
         {/* Primary Tab Switcher */}
         <div className="flex items-center bg-[#141311] border-2 border-[#35322b] rounded-xl sm:rounded-full p-1 shadow-[0_2px_0_0_#0f0e0c] shrink-0 w-full md:w-auto overflow-x-auto scrollbar-none gap-1">
           <button
-            onClick={() => setActiveTab('fixer')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border whitespace-nowrap ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveTab('fixer');
+            }}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'fixer'
-                ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-white'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-bold'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-300 shrink-0" />
@@ -394,11 +398,14 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
             <span className="sm:hidden">Fix ({realMistakes.length})</span>
           </button>
           <button
-            onClick={() => setActiveTab('leaks')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border whitespace-nowrap ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveTab('leaks');
+            }}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'leaks'
-                ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-white'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-bold'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
@@ -406,11 +413,14 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
             <span className="sm:hidden">Leaks</span>
           </button>
           <button
-            onClick={() => setActiveTab('heatmap')}
-            className={`px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border whitespace-nowrap ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveTab('heatmap');
+            }}
+            className={`px-3 sm:px-4 py-1.5 rounded-lg sm:rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'heatmap'
-                ? 'bg-[#81b64c] text-white border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-white'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-bold'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             <Flame className="w-3.5 h-3.5 shrink-0" />
@@ -469,19 +479,22 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
 
             {/* Feedback & Result Alert */}
             {fixerStatus === 'correct' && (
-              <div className="w-full p-3.5 rounded-2xl bg-emerald-950/60 border-2 border-emerald-500/70 text-emerald-200 text-xs font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-[0_3px_0_0_#4d7a24]">
+              <div className="w-full p-3.5 rounded-2xl bg-emerald-950/60 border-2 border-emerald-500/70 text-emerald-200 text-xs font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-[0_3px_0_0_#385a16]">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>
                     Brilliant! You found <strong className="text-white font-mono">{currentMistake.bestMoveSan}</strong>! Mistake successfully repaired.
                   </span>
                 </div>
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="full"
                   onClick={handleNextMistake}
-                  className="w-full sm:w-auto px-4 py-1.5 bg-[#81b64c] hover:bg-[#72a342] text-white rounded-full text-xs font-black uppercase tracking-wider border-2 border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24] cursor-pointer transition shrink-0 text-center"
+                  className="shrink-0"
                 >
                   Next Blunder &rarr;
-                </button>
+                </Button>
               </div>
             )}
 
@@ -546,13 +559,16 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
                 </button>
               </div>
 
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                rounded="xl"
                 onClick={handleNextMistake}
-                className="px-3 sm:px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#72a342] text-white text-[11px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer border-2 border-[#5d8b32] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] shrink-0"
+                className="shrink-0"
               >
                 <span>Next</span>
                 <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -579,10 +595,13 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
                   return (
                     <button
                       key={m.id}
-                      onClick={() => setActiveMistakeIdx(idx)}
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setActiveMistakeIdx(idx);
+                      }}
                       className={`w-full p-2.5 sm:p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                         isCurrent
-                          ? 'bg-[#282521] border-[#81b64c] text-white shadow-[0_3px_0_0_#4d7a24] -translate-y-[1px]'
+                          ? 'bg-[#282521] border-emerald-500 text-white shadow-[0_3px_0_0_#385a16] -translate-y-[1px]'
                           : 'bg-[#181614] border-[#2e2b26] text-zinc-300 hover:bg-[#201e1a] shadow-[0_2px_0_0_#141311]'
                       }`}
                     >
@@ -601,7 +620,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
                       </div>
 
                       {isSolved ? (
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-500/40 flex items-center gap-1 shadow-[0_1px_0_0_#4d7a24] shrink-0">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-500/40 flex items-center gap-1 shadow-[0_1px_0_0_#385a16] shrink-0">
                           <Check className="w-3 h-3" />
                           <span className="hidden sm:inline">Fixed</span>
                         </span>
@@ -625,7 +644,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
                     Personalized Training Prescriptions
                   </h3>
                 </div>
-                <span className="text-[10px] text-[#81b64c] font-black uppercase tracking-wider">Tailored to You</span>
+                <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider">Tailored to You</span>
               </div>
 
               <div className="flex flex-col gap-2.5">
@@ -677,7 +696,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3.5 bg-[#181614] rounded-2xl border-2 border-[#35322b] text-xs text-zinc-300 shadow-[0_2px_0_0_#141311]">
-              <strong className="text-[#81b64c] block mb-1 font-black uppercase tracking-wider text-[11px]">Recommended Fix:</strong>
+              <strong className="text-emerald-400 block mb-1 font-black uppercase tracking-wider text-[11px]">Recommended Fix:</strong>
               Solve 5 Hanging Piece / Fork puzzles daily in the Tactics Arena to rewire your subconscious piece safety.
             </div>
           </div>
@@ -696,7 +715,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3.5 bg-[#181614] rounded-2xl border-2 border-[#35322b] text-xs text-zinc-300 shadow-[0_2px_0_0_#141311]">
-              <strong className="text-[#81b64c] block mb-1 font-black uppercase tracking-wider text-[11px]">Recommended Fix:</strong>
+              <strong className="text-emerald-400 block mb-1 font-black uppercase tracking-wider text-[11px]">Recommended Fix:</strong>
               Keep rooks active on the 7th rank or behind passed pawns, never in passive defense.
             </div>
           </div>
@@ -715,7 +734,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3.5 bg-[#181614] rounded-2xl border-2 border-[#35322b] text-xs text-zinc-300 shadow-[0_2px_0_0_#141311]">
-              <strong className="text-[#81b64c] block mb-1 font-black uppercase tracking-wider text-[11px]">Recommended Fix:</strong>
+              <strong className="text-emerald-400 block mb-1 font-black uppercase tracking-wider text-[11px]">Recommended Fix:</strong>
               Play 10+5 Rapid time controls to retain focus and eliminate scramble blunders.
             </div>
           </div>
@@ -784,7 +803,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
                       ? 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_2px_0_0_#7f1d1d]'
                       : selectedSquareData.blunders >= 2
                       ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-[0_2px_0_0_#92400e]'
-                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-[0_2px_0_0_#4d7a24]'
+                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-[0_2px_0_0_#385a16]'
                   }`}
                 >
                   {selectedSquareData.blunderRatePct}% Blunder Rate

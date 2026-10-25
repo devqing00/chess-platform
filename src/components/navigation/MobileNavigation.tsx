@@ -5,30 +5,29 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Home,
   Gamepad2,
-  Target,
-  Bot,
-  Menu,
-  X,
+  Puzzle,
   GraduationCap,
   Microscope,
-  Flame,
-  History,
-  Users,
-  Settings,
+  Bot,
   Crown,
-  LogOut,
-  Search,
-  Award,
+  Settings,
+  History,
   Sparkles,
+  Users,
+  Compass,
+  Target,
   BookOpen,
+  Menu,
+  X,
+  LogOut,
   ChevronRight,
-  Shield,
-  Layers,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { AvatarUploader } from '@/components/profile/AvatarUploader';
+import { Button } from '@/components/ui/button';
+import { soundService } from '@/lib/audioService';
 
 interface MobileNavigationProps {
   onOpenMembershipModal?: () => void;
@@ -41,7 +40,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const [isBottomModalOpen, setIsBottomModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   const {
@@ -50,7 +49,6 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
     effectiveDisplayName,
     effectiveRating,
     effectiveAvatar,
-    effectiveCountry,
     syncedChessCom,
     syncedLichess,
     openAuthModal,
@@ -60,7 +58,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   const { membershipTier } = useShell();
   const effectiveTier = profile?.tier || membershipTier;
 
-  // Zero-scroll optimization: Hide general top mobile header and navbar on immersive play/arena/study screens
+  // Hide the top mobile header on immersive arena/board screens to maximize play area
   const isArenaScreen =
     pathname === '/play' ||
     pathname?.startsWith('/play/') ||
@@ -72,253 +70,240 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
     pathname === '/variants' ||
     pathname === '/lessons';
 
-  if (isArenaScreen) {
-    return null;
-  }
+  // Accurate active state matching that avoids substring collisions (e.g. /play vs /players)
+  const isItemActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    if (href === '/play') {
+      return (
+        pathname === '/play' ||
+        pathname?.startsWith('/play/') ||
+        (pathname?.startsWith('/game/') && !pathname?.startsWith('/game/review/'))
+      );
+    }
+    if (href === '/analysis') {
+      return (
+        pathname === '/analysis' ||
+        pathname?.startsWith('/analysis/') ||
+        pathname?.startsWith('/game/review/')
+      );
+    }
+    return pathname === href || pathname?.startsWith(`${href}/`);
+  };
 
-  const bottomNavItems = [
-    { id: 'home', label: 'Home', icon: Home, href: '/' },
-    { id: 'play', label: 'Play', icon: Gamepad2, href: '/play' },
-    { id: 'puzzles', label: 'Puzzles', icon: Target, href: '/puzzles' },
-    { id: 'bots', label: 'Bots', icon: Bot, href: '/bots' },
-    { id: 'menu', label: 'More', icon: Menu, isMenuToggle: true },
-  ];
-
-  // Full navigation items arranged in a diagonal symmetry layout with simple, relatable labels
-  const navGridItems = [
+  // Comprehensive, audited navigation items with simple, relatable labels
+  const navItems = [
+    {
+      id: 'home',
+      label: 'Home',
+      sublabel: 'Dashboard & activity',
+      icon: Home,
+      href: '/',
+      badge: 'Hub',
+    },
+    {
+      id: 'play',
+      label: 'Play',
+      sublabel: 'Live online matches',
+      icon: Gamepad2,
+      href: '/play',
+      badge: 'Live',
+    },
+    {
+      id: 'puzzles',
+      label: 'Puzzles',
+      sublabel: 'Tactics & streak drills',
+      icon: Puzzle,
+      href: '/puzzles',
+      badge: 'Tactics',
+    },
     {
       id: 'lessons',
       label: 'Lessons',
       sublabel: 'Interactive courses',
       icon: GraduationCap,
       href: '/lessons',
-      color: 'emerald',
-      diagonal: 'br', // top-left to bottom-right
       badge: 'Learn',
     },
     {
-      id: 'training',
-      label: 'Training Path',
-      sublabel: 'Daily learning road',
-      icon: Target,
-      href: '/training',
-      color: 'amber',
-      diagonal: 'bl', // top-right to bottom-left
-      badge: 'Daily XP',
-    },
-    {
       id: 'analysis',
-      label: 'Game Analysis',
-      sublabel: 'Computer move review',
+      label: 'Analysis',
+      sublabel: 'Review moves & lines',
       icon: Microscope,
       href: '/analysis',
-      color: 'blue',
-      diagonal: 'br',
-      badge: 'Stockfish',
+      badge: 'Review',
+    },
+    {
+      id: 'bots',
+      label: 'Bots',
+      sublabel: 'Practice against AI',
+      icon: Bot,
+      href: '/bots',
+      badge: 'AI',
+    },
+    {
+      id: 'training',
+      label: 'Training',
+      sublabel: 'Daily practice & exercises',
+      icon: Target,
+      href: '/training',
+      badge: 'Drills',
     },
     {
       id: 'openings',
-      label: 'Opening Library',
-      sublabel: 'Explore classic moves',
+      label: 'Openings',
+      sublabel: 'Book moves & win rates',
       icon: BookOpen,
       href: '/openings',
-      color: 'purple',
-      diagonal: 'bl',
-      badge: 'Catalog',
+      badge: 'Book',
     },
     {
       id: 'endgames',
-      label: 'Endgame Mastery',
-      sublabel: 'Tablebase precision & bridges',
-      icon: Award,
-      href: '/puzzles?pillar=endgame',
-      color: 'rose',
-      diagonal: 'br',
-      badge: 'SRS Mastery',
+      label: 'Endgames',
+      sublabel: 'Tablebase practice',
+      icon: Crown,
+      href: '/endgames',
+      badge: 'Tablebase',
+    },
+    {
+      id: 'insights',
+      label: 'Insights',
+      sublabel: 'Performance & stats',
+      icon: Compass,
+      href: '/insights',
+      badge: 'Stats',
     },
     {
       id: 'players',
-      label: 'Player Scout',
-      sublabel: 'Inspect & compare opponents',
+      label: 'Players',
+      sublabel: 'Search players & masters',
       icon: Users,
       href: '/players',
-      color: 'cyan',
-      diagonal: 'bl',
-      badge: 'Scout',
+      badge: 'Search',
     },
     {
       id: 'games',
       label: 'Master Games',
-      sublabel: 'Grandmaster matches',
+      sublabel: 'Historic famous games',
       icon: History,
       href: '/games',
-      color: 'yellow',
-      diagonal: 'br',
-      badge: 'Archives',
+      badge: 'Archive',
     },
     {
       id: 'variants',
-      label: 'Chess Variants',
-      sublabel: 'Fog, 960 & speed modes',
+      label: 'Variants',
+      sublabel: 'Chess960 & fun modes',
       icon: Sparkles,
       href: '/variants',
-      color: 'fuchsia',
-      diagonal: 'bl',
       badge: 'Fun',
-    },
-    {
-      id: 'players',
-      label: 'Leaderboards',
-      sublabel: 'Global player ranks',
-      icon: Users,
-      href: '/players',
-      color: 'teal',
-      diagonal: 'br',
-      badge: 'Rankings',
-    },
-    {
-      id: 'settings',
-      label: 'Board Themes',
-      sublabel: 'Pieces, sound & style',
-      icon: Settings,
-      isAction: 'settings',
-      color: 'zinc',
-      diagonal: 'bl',
-      badge: 'Custom',
     },
   ];
 
   const handleNavClick = (href: string) => {
-    setIsBottomModalOpen(false);
+    soundService.playTactilePop();
+    setIsModalOpen(false);
     router.push(href);
   };
 
   return (
     <>
-      {/* 1. Mobile Top Header Bar (Only visible on screens < md and non-arena pages) */}
-      <header className="md:hidden h-14 bg-[#181614] border-b border-[#2d2a26] px-3.5 flex items-center justify-between z-40 shrink-0 select-none">
-        {/* Solid Brand Logo Lockup */}
-        <BrandLogo size="sm" onClick={() => router.push('/')} />
+      {/* 1. Mobile Top Header (Only on screens < md and non-arena pages) */}
+      {!isArenaScreen && (
+        <header className="md:hidden h-14 bg-[#181614] border-b border-[#2d2a26] px-3.5 flex items-center justify-between z-40 shrink-0 select-none">
+          <BrandLogo size="sm" onClick={() => router.push('/')} />
 
-        {/* Right Top Mobile Actions: User Avatar / Rating & Quick Settings */}
-        <div className="flex items-center gap-2">
-          {/* User Quick Pill */}
-          <div
-            onClick={() => (user ? setIsAvatarModalOpen(true) : openAuthModal())}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-[#211f1c] border border-[#35322b] rounded-full text-xs cursor-pointer active:scale-95 transition-transform"
-          >
-            <div className="w-5 h-5 rounded-full overflow-hidden bg-[#2b2824] flex items-center justify-center text-[10px]">
-              {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={effectiveAvatar} alt={effectiveDisplayName} className="w-full h-full object-cover" />
-              ) : (
-                <span>♟️</span>
-              )}
-            </div>
-            <span className="text-[11px] font-black text-white max-w-[85px] truncate">{effectiveDisplayName}</span>
-            <span className="text-[10px] font-mono font-bold text-[#81b64c]">({effectiveRating})</span>
-          </div>
-
-          {/* Quick Settings Cog */}
-          <button
-            onClick={onOpenSettingsModal}
-            className="p-2 rounded-xl text-zinc-400 hover:text-white bg-[#211f1c] border border-[#35322b] active:scale-95 transition cursor-pointer"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* 2. Mobile Bottom Navigation Bar (Fixed bottom on < md screens) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 h-16 bg-[#181614]/95 backdrop-blur-md border-t-2 border-[#2d2a26] z-40 flex items-center justify-around px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] select-none">
-        {bottomNavItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.href ? (item.href === '/' ? pathname === '/' : pathname?.startsWith(item.href)) : false;
-
-          if (item.isMenuToggle) {
-            return (
-              <button
-                key={item.id}
-                onClick={() => setIsBottomModalOpen((open) => !open)}
-                className={`flex flex-col items-center justify-center flex-1 py-1 active:scale-95 transition-all cursor-pointer ${
-                  isBottomModalOpen ? 'text-[#81b64c]' : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <div
-                  className={`w-9 h-7 flex items-center justify-center rounded-xl transition-all ${
-                    isBottomModalOpen ? 'bg-[#81b64c]/20 border border-[#81b64c]/40 shadow-sm' : ''
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider">{item.label}</span>
-              </button>
-            );
-          }
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.href!)}
-              className={`flex flex-col items-center justify-center flex-1 py-1 active:scale-95 transition-all cursor-pointer ${
-                isActive ? 'text-[#81b64c]' : 'text-zinc-400 hover:text-white'
-              }`}
+          <div className="flex items-center gap-2">
+            {/* User Quick Pill */}
+            <div
+              onClick={() => (user ? setIsAvatarModalOpen(true) : openAuthModal())}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-[#211f1c] border border-[#35322b] rounded-full text-xs cursor-pointer active:scale-95 transition-transform"
             >
-              <div
-                className={`w-10 h-7 flex items-center justify-center rounded-xl transition-all ${
-                  isActive ? 'bg-[#81b64c]/20 border border-[#81b64c]/40 shadow-sm' : ''
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-[#81b64c]' : 'text-zinc-400'}`} />
+              <div className="w-5 h-5 rounded-full overflow-hidden bg-[#2b2824] flex items-center justify-center text-[10px]">
+                {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={effectiveAvatar} alt={effectiveDisplayName} className="w-full h-full object-cover" />
+                ) : (
+                  <span>♟️</span>
+                )}
               </div>
-              <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isActive ? 'text-[#81b64c]' : ''}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+              <span className="text-[11px] font-black text-white max-w-[85px] truncate">{effectiveDisplayName}</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-400">({effectiveRating})</span>
+            </div>
 
-      {/* 3. Creative Expanding Bottom Navigation Modal */}
-      {isBottomModalOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+            {/* Quick Settings Cog */}
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              rounded="xl"
+              onClick={onOpenSettingsModal}
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+          </div>
+        </header>
+      )}
+
+      {/* 2. Floating Tactile Navigation Action Button (Bottom Right on < md screens) */}
+      <div className="md:hidden fixed bottom-5 right-5 z-50 select-none">
+        <button
+          type="button"
+          onClick={() => {
+            soundService.playTactilePop();
+            setIsModalOpen((open) => !open);
+          }}
+          className="tactile-btn flex items-center justify-center w-13 h-13 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_8px_20px_rgba(0,0,0,0.55)] hover:shadow-[0_5px_0_0_#385a16] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16] transition-all cursor-pointer"
+          title="Navigation Menu"
+          aria-label="Open Navigation Menu"
+        >
+          {isModalOpen ? (
+            <X className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
+          ) : (
+            <Menu className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
+          )}
+        </button>
+      </div>
+
+      {/* 3. Comprehensive Mobile Navigation Modal */}
+      {isModalOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           {/* Backdrop Click to Dismiss */}
-          <div className="flex-1 w-full" onClick={() => setIsBottomModalOpen(false)} />
+          <div className="flex-1 w-full" onClick={() => setIsModalOpen(false)} />
 
           {/* Modal Bottom Sheet Card */}
-          <div className="relative w-full max-h-[82vh] bg-[#1a1815] border-t-2 border-[#38342c] rounded-t-[32px] shadow-[0_-12px_40px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250 select-none">
+          <div className="relative w-full max-h-[88vh] bg-[#1a1815] border-t-2 border-[#38342c] rounded-t-[32px] shadow-[0_-12px_40px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250 select-none">
             {/* Grabber Handle */}
-            <div className="pt-3 pb-1 flex justify-center cursor-pointer" onClick={() => setIsBottomModalOpen(false)}>
+            <div className="pt-3 pb-1 flex justify-center cursor-pointer" onClick={() => setIsModalOpen(false)}>
               <div className="w-12 h-1.5 bg-[#3a362f] hover:bg-[#4a453c] rounded-full transition-colors" />
             </div>
 
             {/* Modal Top Header */}
             <div className="px-5 py-2.5 flex items-center justify-between border-b border-[#2d2a26]">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <BrandLogo size="sm" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#81b64c] font-black">
-                  Navigation
+                <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-emerald-400 font-black">
+                  All Navigations
                 </span>
               </div>
-              <button
-                onClick={() => setIsBottomModalOpen(false)}
-                className="p-1.5 rounded-full bg-[#24211d] text-zinc-400 hover:text-white border border-[#35322b] transition cursor-pointer"
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                rounded="full"
+                onClick={() => setIsModalOpen(false)}
                 title="Close"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
-            {/* Scrollable Navigation Grid (Diagonal Symmetry Layout) */}
-            <div className="px-4 py-3.5 overflow-y-auto max-h-[58vh] flex flex-col gap-3">
-              {/* Connected Account Mini Pill (if any) */}
+            {/* Scrollable Navigation Grid */}
+            <div className="px-4 py-3.5 overflow-y-auto max-h-[64vh] flex flex-col gap-3">
+              {/* Connected Account Mini Pill */}
               {(syncedChessCom || syncedLichess) && (
                 <div className="px-3 py-2 bg-[#211f1c] border border-[#35322b] rounded-2xl flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[10px] uppercase font-black tracking-wider text-zinc-400">Connected:</span>
                     {syncedChessCom && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#81b64c] truncate">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 truncate">
                         ♟️ {syncedChessCom.username} ({syncedChessCom.ratings?.rapid || 800})
                       </span>
                     )}
@@ -331,31 +316,20 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                 </div>
               )}
 
-              {/* Diagonal Symmetry Grid: 2 Columns with Alternating Corner Accents & Directional Gradients */}
+              {/* Grid of All Valid Navigations (2 Columns) */}
               <div className="grid grid-cols-2 gap-2.5">
-                {navGridItems.map((item, index) => {
+                {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = item.href ? pathname?.startsWith(item.href) : false;
-                  const isEven = index % 2 === 0;
-
-                  // Alternating diagonal styles for symmetrical balance
-                  const diagonalClasses = isEven
-                    ? 'bg-gradient-to-br from-[#24211d] via-[#1d1b17] to-[#171512] border-t-2 border-l-2 border-r border-b border-[#353128] hover:border-[#81b64c]/60'
-                    : 'bg-gradient-to-bl from-[#24211d] via-[#1d1b17] to-[#171512] border-t-2 border-r-2 border-l border-b border-[#353128] hover:border-amber-500/60';
+                  const isActive = isItemActive(item.href);
 
                   return (
                     <button
                       key={item.id}
-                      onClick={() => {
-                        if (item.isAction === 'settings') {
-                          setIsBottomModalOpen(false);
-                          onOpenSettingsModal?.();
-                        } else if (item.href) {
-                          handleNavClick(item.href);
-                        }
-                      }}
-                      className={`relative p-3 rounded-2xl flex flex-col justify-between text-left transition-all active:scale-95 shadow-[0_2px_0_0_#12110f] cursor-pointer group min-h-[82px] ${diagonalClasses} ${
-                        isActive ? 'ring-2 ring-[#81b64c] shadow-lg' : ''
+                      onClick={() => handleNavClick(item.href)}
+                      className={`tactile-btn relative p-3 rounded-2xl flex flex-col justify-between text-left transition-all active:scale-95 shadow-[0_2px_0_0_#12110f] cursor-pointer group min-h-[82px] border ${
+                        isActive
+                          ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16]'
+                          : 'bg-gradient-to-br from-[#24211d] via-[#1d1b17] to-[#171512] border-t-2 border-[#353128] border-b-[#12110f] border-x-[#292620] hover:border-emerald-500/60'
                       }`}
                     >
                       {/* Top Row: Icon + Badge */}
@@ -363,14 +337,20 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                         <div
                           className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
                             isActive
-                              ? 'bg-[#81b64c] text-white'
+                              ? 'bg-zinc-950/20 text-zinc-950 font-black'
                               : 'bg-[#2b2823] text-zinc-300 group-hover:text-white group-hover:scale-105'
                           }`}
                         >
                           <Icon className="w-4 h-4" />
                         </div>
                         {item.badge && (
-                          <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#27241f] border border-[#38342c] text-zinc-400">
+                          <span
+                            className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${
+                              isActive
+                                ? 'bg-zinc-950/25 text-zinc-950 font-black'
+                                : 'bg-[#27241f] border border-[#38342c] text-zinc-400'
+                            }`}
+                          >
                             {item.badge}
                           </span>
                         )}
@@ -378,10 +358,18 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
                       {/* Bottom Row: Label & Sublabel */}
                       <div className="flex flex-col mt-2">
-                        <span className="text-[11px] font-black text-white group-hover:text-[#81b64c] transition-colors leading-tight">
+                        <span
+                          className={`text-[12px] font-black leading-tight ${
+                            isActive ? 'text-zinc-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.2)]' : 'text-white group-hover:text-emerald-400'
+                          }`}
+                        >
                           {item.label}
                         </span>
-                        <span className="text-[9px] text-zinc-400 font-medium truncate mt-0.5">
+                        <span
+                          className={`text-[9.5px] font-medium truncate mt-0.5 ${
+                            isActive ? 'text-zinc-900/80 font-bold' : 'text-zinc-400'
+                          }`}
+                        >
                           {item.sublabel}
                         </span>
                       </div>
@@ -390,19 +378,41 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                 })}
               </div>
 
+              {/* Quick Settings & Themes Row */}
+              <button
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setIsModalOpen(false);
+                  onOpenSettingsModal?.();
+                }}
+                className="tactile-btn p-3 rounded-2xl bg-[#211f1c] border border-[#35322b] hover:border-emerald-500/50 flex items-center justify-between cursor-pointer active:scale-98 transition shadow-[0_2px_0_0_#12110f]"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#2a2722] flex items-center justify-center text-zinc-300">
+                    <Settings className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-black text-white">Board &amp; Audio Settings</span>
+                    <span className="text-[10px] text-zinc-400">Piece styles, board themes, sound effects</span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-400" />
+              </button>
+
               {/* VIP Membership Card */}
               <div
                 onClick={() => {
-                  setIsBottomModalOpen(false);
+                  soundService.playTactilePop();
+                  setIsModalOpen(false);
                   onOpenMembershipModal?.();
                 }}
-                className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-[#22201c] border-2 border-amber-500/40 flex items-center justify-between cursor-pointer active:scale-98 transition"
+                className="tactile-btn p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-[#22201c] border-2 border-amber-500/40 shadow-[0_3px_0_0_#78350f30] flex items-center justify-between cursor-pointer active:scale-98 transition"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
                     <Crown className="w-4 h-4" />
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col text-left">
                     <span className="text-xs font-black text-amber-300 capitalize">
                       {effectiveTier === 'free' ? 'Free Tier' : `${effectiveTier} Member`}
                     </span>
@@ -413,7 +423,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
               </div>
             </div>
 
-            {/* Modal Bottom Sticky Footer: Account / Logout */}
+            {/* Modal Bottom Footer: Profile / Login / Logout */}
             <div className="px-5 py-3 border-t border-[#2d2a26] bg-[#161512] flex items-center justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-[#26231e] border border-[#38342c] flex items-center justify-center overflow-hidden text-xs">
@@ -433,33 +443,37 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
               </div>
 
               {user ? (
-                <button
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  rounded="xl"
                   onClick={() => {
                     logout();
-                    setIsBottomModalOpen(false);
+                    setIsModalOpen(false);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-[#24211d] hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-[#35322b] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Log Out</span>
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="xl"
                   onClick={() => {
-                    setIsBottomModalOpen(false);
+                    setIsModalOpen(false);
                     openAuthModal();
                   }}
-                  className="px-4 py-1.5 bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow cursor-pointer transition"
                 >
                   Log In
-                </button>
+                </Button>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Avatar Modal */}
+      {/* Cloudflare R2 Avatar Upload Modal */}
       <AvatarUploader
         isOpen={isAvatarModalOpen}
         onClose={() => setIsAvatarModalOpen(false)}

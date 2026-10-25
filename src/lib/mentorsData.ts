@@ -19,7 +19,7 @@ export const MENTORS: MentorProfile[] = [
     title: 'Master Instructor',
     avatarEmoji: '🧔‍♂️',
     avatarBg: 'bg-emerald-600',
-    accentColor: '#81b64c',
+    accentColor: '#10b981',
     tagline: 'Always keep learning and having fun!',
     bio: 'Friendly, accessible instructor who breaks down complex concepts into engaging, digestible lessons.',
   },

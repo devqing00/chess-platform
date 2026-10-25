@@ -267,23 +267,23 @@ export default function PlayersExplorerPage() {
   }, [playerAGames, matchFilter]);
 
   return (
-    <div className="w-full h-full max-h-full overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none">
-      <div className="w-full max-w-6xl mx-auto h-full flex flex-col min-h-0 gap-2.5">
+    <div className="w-full min-h-full xl:h-full xl:max-h-full overflow-y-auto xl:overflow-hidden p-2.5 sm:p-4 lg:p-5 flex flex-col bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
+      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
         {/* ========================================================================= */}
         {/* 1. TOP HEADER & SEARCH BAR                                                */}
         {/* ========================================================================= */}
         <header className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col gap-2.5 shrink-0">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                 <Users className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                  Player Scout &amp; Strategy
+                  Player Explorer
                 </h1>
-                <span className="text-[9px] font-mono font-bold bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.2 rounded-full border border-[#81b64c]/30 uppercase">
-                  Live Intelligence
+                <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.2 rounded-full border border-emerald-500/30 uppercase">
+                  Live Search
                 </span>
               </div>
             </div>
@@ -291,10 +291,13 @@ export default function PlayersExplorerPage() {
             {/* Platform Toggle Pills */}
             <div className="flex items-center gap-1 p-0.5 bg-[#141311] border border-white/5 rounded-xl self-end sm:self-auto">
               <button
-                onClick={() => handlePlatformToggle('chesscom')}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  handlePlatformToggle('chesscom');
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                   platform === 'chesscom'
-                    ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -302,7 +305,10 @@ export default function PlayersExplorerPage() {
                 <span>Chess.com</span>
               </button>
               <button
-                onClick={() => handlePlatformToggle('lichess')}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  handlePlatformToggle('lichess');
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                   platform === 'lichess'
                     ? 'bg-amber-600 text-white font-black shadow-xs'
@@ -324,7 +330,7 @@ export default function PlayersExplorerPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder={`Search ${platform === 'chesscom' ? 'Chess.com' : 'Lichess'} handle (e.g. magnuscarlsen)...`}
-                className="w-full bg-[#141311] border border-white/10 rounded-xl pl-8 pr-20 py-1.5 text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+                className="w-full bg-[#141311] border border-white/10 rounded-xl pl-8 pr-20 py-1.5 text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
               <Button
                 type="submit"
@@ -335,7 +341,7 @@ export default function PlayersExplorerPage() {
                 className="absolute right-1"
               >
                 {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
-                <span>Scout</span>
+                <span>Search</span>
               </Button>
             </form>
 
@@ -350,12 +356,13 @@ export default function PlayersExplorerPage() {
                   <button
                     key={p.username}
                     onClick={() => {
+                      soundService.playTactilePop();
                       setSearchInput(p.username);
                       fetchPlayer(p.username, platform);
                     }}
                     className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shrink-0 ${
                       isActive
-                        ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                         : 'bg-[#141311] border border-white/5 text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -377,39 +384,48 @@ export default function PlayersExplorerPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* 2. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
+        {/* 2. SEGMENTED SUB-SCREEN SWITCHER                                          */}
         {/* ========================================================================= */}
         <nav className="shrink-0 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
             <button
-              onClick={() => setActiveScreen('dossier')}
+              onClick={() => {
+                soundService.playTactilePop();
+                setActiveScreen('dossier');
+              }}
               className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeScreen === 'dossier'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Dossier &amp; Ratings</span>
+              <span>Overview &amp; Stats</span>
             </button>
 
             <button
-              onClick={() => setActiveScreen('repertoire')}
+              onClick={() => {
+                soundService.playTactilePop();
+                setActiveScreen('repertoire');
+              }}
               className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeScreen === 'repertoire'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Repertoire Forensics</span>
+              <span>Openings Played</span>
             </button>
 
             <button
-              onClick={() => setActiveScreen('blueprint')}
+              onClick={() => {
+                soundService.playTactilePop();
+                setActiveScreen('blueprint');
+              }}
               className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeScreen === 'blueprint'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -418,34 +434,37 @@ export default function PlayersExplorerPage() {
             </button>
 
             <button
-              onClick={() => setActiveScreen('matches')}
+              onClick={() => {
+                soundService.playTactilePop();
+                setActiveScreen('matches');
+              }}
               className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeScreen === 'matches'
-                  ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
-              <span>Match Archives ({playerAGames.length})</span>
+              <span>Recent Games ({playerAGames.length})</span>
             </button>
           </div>
 
           {/* Right Matchup Badge Indicator */}
           <div className="hidden md:flex items-center gap-1.5 text-xs font-mono text-zinc-400">
-            <span className="text-[#81b64c] font-black">{howToBeatThemPlan.predictedWinChancePct}%</span>
-            <span>Win Expectancy vs @{playerADna.username}</span>
+            <span className="text-emerald-400 font-black">{howToBeatThemPlan.predictedWinChancePct}%</span>
+            <span>Win Chance vs @{playerADna.username}</span>
           </div>
         </nav>
 
         {/* ========================================================================= */}
         {/* 3. VIEWPORT-LOCKED CONTENT STAGES                                         */}
         {/* ========================================================================= */}
-        <div className="flex-1 w-full min-h-0 overflow-hidden flex flex-col">
+        <div className="flex-1 w-full min-h-0 overflow-visible flex flex-col">
           {/* ----------------------------------------------------------------------- */}
           {/* SUB-SCREEN 1: DOSSIER & RATINGS                                         */}
           {/* ----------------------------------------------------------------------- */}
           {activeScreen === 'dossier' && (
-            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
               {/* Player Header Card */}
               <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
@@ -564,10 +583,10 @@ export default function PlayersExplorerPage() {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-[#81b64c]" />
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Cognitive DNA &amp; Tendencies</span>
                       </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#81b64c]/15 text-[#81b64c] font-black uppercase">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-black uppercase">
                         {playerADna.phaseAnalysis.tacticalAggressiveness >= 60 ? 'Sharp Tactician' : 'Solid Strategist'}
                       </span>
                     </div>
@@ -640,8 +659,11 @@ export default function PlayersExplorerPage() {
                   <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
                     <span>Matches analyzed: <strong className="text-white font-mono">{playerAGames.length}</strong></span>
                     <button
-                      onClick={() => setActiveScreen('matches')}
-                      className="text-[#81b64c] hover:underline font-bold cursor-pointer"
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setActiveScreen('matches');
+                      }}
+                      className="text-emerald-400 hover:underline font-bold cursor-pointer"
                     >
                       View Games
                     </button>
@@ -655,10 +677,10 @@ export default function PlayersExplorerPage() {
           {/* SUB-SCREEN 2: REPERTOIRE FORENSICS                                      */}
           {/* ----------------------------------------------------------------------- */}
           {activeScreen === 'repertoire' && (
-            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
               <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                     <BookOpen className="w-4 h-4" />
                   </div>
                   <div>
@@ -776,7 +798,7 @@ export default function PlayersExplorerPage() {
           {/* SUB-SCREEN 3: GRANDMASTER BLUEPRINT (HOW TO BEAT THEM)                  */}
           {/* ----------------------------------------------------------------------- */}
           {activeScreen === 'blueprint' && (
-            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
               {/* Header Matchup Bar */}
               <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2.5">
@@ -826,7 +848,7 @@ export default function PlayersExplorerPage() {
                       </div>
                     </div>
 
-                    <div className="p-2 rounded-lg bg-[#141311] border border-white/5 font-mono text-xs text-[#81b64c]">
+                    <div className="p-2 rounded-lg bg-[#141311] border border-white/5 font-mono text-xs text-emerald-400">
                       {howToBeatThemPlan.recommendedWeaponWhite.moves}
                     </div>
 
@@ -858,7 +880,7 @@ export default function PlayersExplorerPage() {
                       </div>
                     </div>
 
-                    <div className="p-2 rounded-lg bg-[#141311] border border-white/5 font-mono text-xs text-[#81b64c]">
+                    <div className="p-2 rounded-lg bg-[#141311] border border-white/5 font-mono text-xs text-emerald-400">
                       {howToBeatThemPlan.recommendedDefenseBlack.moves}
                     </div>
 
@@ -905,11 +927,11 @@ export default function PlayersExplorerPage() {
           {/* SUB-SCREEN 4: MATCH ARCHIVES & GAME REVIEW                              */}
           {/* ----------------------------------------------------------------------- */}
           {activeScreen === 'matches' && (
-            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+            <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
               {/* Filter Tabs */}
               <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
@@ -924,10 +946,13 @@ export default function PlayersExplorerPage() {
                   {(['all', 'rapid', 'blitz', 'bullet'] as const).map((filter) => (
                     <button
                       key={filter}
-                      onClick={() => setMatchFilter(filter)}
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setMatchFilter(filter);
+                      }}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition cursor-pointer ${
                         matchFilter === filter
-                          ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >

@@ -232,7 +232,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
       {/* ----------------------------------------------------------------------- */}
       {/* TOP HEADER & 4 SUB-SCREEN SWITCHER                                      */}
       {/* ----------------------------------------------------------------------- */}
-      <header className="h-14 px-3 sm:px-6 border-b border-white/5 flex items-center justify-between shrink-0 bg-[#141311]">
+      <header className="min-h-12 py-2 lg:py-0 lg:h-14 px-3 sm:px-6 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-2 shrink-0 bg-[#141311]">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
             <Trophy className="w-4 h-4 text-amber-400" />
@@ -248,42 +248,54 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
         </div>
 
         {/* 4 Segmented Sub-Screen Switcher */}
-        <div className="flex items-center bg-[#1c1a17] p-1 rounded-xl border border-white/5 text-xs font-bold">
+        <div className="flex items-center gap-1 bg-[#1c1a17] p-1 rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full lg:w-auto">
           <button
-            onClick={() => setActiveScreen('theater')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('theater');
+            }}
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
               activeScreen === 'theater'
-                ? 'bg-[#81b64c] text-black font-black shadow-sm'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             Match Theater
           </button>
           <button
-            onClick={() => setActiveScreen('anthology')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('anthology');
+            }}
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
               activeScreen === 'anthology'
-                ? 'bg-[#81b64c] text-black font-black shadow-sm'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             Anthology ({HISTORICAL_GAMES.length})
           </button>
           <button
-            onClick={() => setActiveScreen('story')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('story');
+            }}
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
               activeScreen === 'story'
-                ? 'bg-[#81b64c] text-black font-black shadow-sm'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             Historical Context
           </button>
           <button
-            onClick={() => setActiveScreen('notation')}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all ${
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('notation');
+            }}
+            className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
               activeScreen === 'notation'
-                ? 'bg-[#81b64c] text-black font-black shadow-sm'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -295,12 +307,12 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
       {/* ----------------------------------------------------------------------- */}
       {/* MAIN VIEWPORT BODY                                                      */}
       {/* ----------------------------------------------------------------------- */}
-      <main className="flex-1 min-h-0 p-2 sm:p-4 overflow-hidden">
+      <main className="flex-1 min-h-0 p-2 sm:p-4 overflow-y-auto xl:overflow-hidden">
         {/* SUB-SCREEN 1: THEATER (Board, Stepper, Game Overview, P1 Launch Review) */}
         {activeScreen === 'theater' && (
-          <div className="h-full flex flex-col lg:flex-row items-center justify-center gap-3 sm:gap-6 animate-in fade-in duration-150">
+          <div className="h-full flex flex-col xl:flex-row items-center justify-center gap-3 sm:gap-6 animate-in fade-in duration-150">
             {/* Left/Center: Viewport-scaling Chessboard & Stepper */}
-            <div className="flex flex-col items-center justify-center h-full max-h-full min-h-0 w-full lg:w-auto">
+            <div className="flex flex-col items-center justify-center h-full max-h-full min-h-0 w-full xl:w-auto">
               {/* Opponent Identity Banner */}
               <div className="w-[min(100%,calc(100vh-230px),560px)] px-3 py-1.5 mb-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0">
                 <div className="flex items-center gap-2">
@@ -406,10 +418,13 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                     ].map((s) => (
                       <button
                         key={s.ms}
-                        onClick={() => setPlaySpeedMs(s.ms)}
+                        onClick={() => {
+                          soundService.playTactilePop();
+                          setPlaySpeedMs(s.ms);
+                        }}
                         className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
                           playSpeedMs === s.ms
-                            ? 'bg-[#81b64c] text-black font-black'
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_1px_0_0_#385a16] border-t border-white/35'
                             : 'text-zinc-400 hover:text-white'
                         }`}
                       >
@@ -434,7 +449,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                     <Calendar className="w-3.5 h-3.5 text-zinc-500" />
                     <span>{selectedGame.event} ({selectedGame.year})</span>
                   </div>
-                  <span className="text-xs font-mono font-black text-[#81b64c] bg-[#81b64c]/10 px-2 py-0.5 rounded-md border border-[#81b64c]/20">
+                  <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/30">
                     {selectedGame.result}
                   </span>
                 </div>
@@ -474,7 +489,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                   </span>
                   <button
                     onClick={() => setActiveScreen('anthology')}
-                    className="text-[10px] font-bold text-[#81b64c] hover:underline"
+                    className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 hover:underline"
                   >
                     Browse All {HISTORICAL_GAMES.length} &rarr;
                   </button>
@@ -485,17 +500,20 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                     return (
                       <button
                         key={g.id}
-                        onClick={() => handleSelectGame(g)}
-                        className={`px-2.5 py-1.5 rounded-xl border text-left shrink-0 transition-all cursor-pointer ${
+                        onClick={() => {
+                          soundService.playTactilePop();
+                          handleSelectGame(g);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-xl text-left shrink-0 transition-all cursor-pointer ${
                           isCur
-                            ? 'bg-[#81b64c] border-[#81b64c] text-black font-black'
-                            : 'bg-[#141311] border-white/5 text-zinc-300 hover:text-white'
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
+                            : 'bg-[#141311] border border-white/5 text-zinc-300 hover:text-white'
                         }`}
                       >
                         <div className="text-[11px] font-bold leading-tight">
                           {g.white.name.split(' ').pop()} vs {g.black.name.split(' ').pop()}
                         </div>
-                        <div className={`text-[9px] ${isCur ? 'text-black/70' : 'text-zinc-500'}`}>
+                        <div className={`text-[9px] ${isCur ? 'text-white/80' : 'text-zinc-500'}`}>
                           {g.year}
                         </div>
                       </button>
@@ -522,17 +540,20 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
 
         {/* SUB-SCREEN 2: ANTHOLOGY (Filter, Search, Grid of Masterpieces) */}
         {activeScreen === 'anthology' && (
-          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150 max-w-5xl mx-auto w-full">
+          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150 max-w-5xl mx-auto w-full">
             {/* Filter & Search Bar */}
             <div className="p-3 bg-[#1c1a17] rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
               <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 {(['all', 'romantic', 'golden', 'modern'] as const).map((era) => (
                   <button
                     key={era}
-                    onClick={() => setSelectedEra(era)}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setSelectedEra(era);
+                    }}
                     className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
                       selectedEra === era
-                        ? 'bg-[#81b64c] text-black font-black'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                         : 'bg-[#141311] text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -548,7 +569,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search player, ECO, opening..."
-                  className="w-full bg-[#141311] border border-white/5 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+                  className="w-full bg-[#141311] border border-white/5 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
@@ -560,17 +581,20 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                 return (
                   <div
                     key={g.id}
-                    onClick={() => handleSelectGame(g)}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      handleSelectGame(g);
+                    }}
                     className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                       isCur
-                        ? 'bg-[#1e1c18] border-[#81b64c]/40 shadow-sm'
+                        ? 'bg-[#1e1c18] border-emerald-500/50 shadow-sm'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/15'
                     }`}
                   >
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-zinc-400">{g.event}</span>
-                        <span className="font-mono text-[#81b64c] font-black">{g.result}</span>
+                        <span className="font-mono text-emerald-400 font-black">{g.result}</span>
                       </div>
                       <div className="text-sm font-black text-white">
                         {g.white.name} vs {g.black.name}
@@ -623,7 +647,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
 
         {/* SUB-SCREEN 3: HISTORICAL CONTEXT & STORY */}
         {activeScreen === 'story' && (
-          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
+          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
             <div className="flex-1 min-h-0 bg-[#1c1a17] rounded-2xl border border-white/5 p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto">
               <div className="flex items-center justify-between pb-3 border-b border-white/5">
                 <div className="flex flex-col">
@@ -634,14 +658,14 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                     {selectedGame.event} &bull; {selectedGame.year} &bull; {selectedGame.opening} ({selectedGame.eco})
                   </span>
                 </div>
-                <span className="text-sm font-mono font-black text-[#81b64c] bg-[#81b64c]/10 px-3 py-1 rounded-xl border border-[#81b64c]/20">
+                <span className="text-sm font-mono font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/30">
                   {selectedGame.result}
                 </span>
               </div>
 
               <div className="flex flex-col gap-3">
                 <span className="text-xs font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-[#81b64c]" />
+                  <BookOpen className="w-4 h-4 text-emerald-400" />
                   <span>The Story &amp; Immortality</span>
                 </span>
                 <p className="text-sm text-zinc-200 leading-relaxed font-sans">
@@ -693,7 +717,7 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
 
         {/* SUB-SCREEN 4: NOTATION & PGN EXPORT */}
         {activeScreen === 'notation' && (
-          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
+          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
             <div className="flex-1 min-h-0 bg-[#1c1a17] rounded-2xl border border-white/5 p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between pb-2 border-b border-white/5">
                 <span className="text-xs font-black uppercase tracking-wider text-white">
@@ -726,14 +750,17 @@ export const HistoricalGamesViewer: React.FC<HistoricalGamesViewerProps> = ({
                     <button
                       key={idx}
                       ref={isCurrent ? activeMoveButtonRef : null}
-                      onClick={() => handleStep(idx)}
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        handleStep(idx);
+                      }}
                       className={`px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between transition-all cursor-pointer ${
                         isCurrent
-                          ? 'bg-[#81b64c] text-black font-black shadow-sm'
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                           : 'bg-white/5 text-zinc-300 hover:bg-white/10'
                       }`}
                     >
-                      <span className="text-zinc-500 font-sans text-[10px]">
+                      <span className={`${isCurrent ? 'text-white/80' : 'text-zinc-500'} font-sans text-[10px]`}>
                         {isWhite ? `${turnNum}.` : `${turnNum}...`}
                       </span>
                       <span className="font-bold">{m}</span>

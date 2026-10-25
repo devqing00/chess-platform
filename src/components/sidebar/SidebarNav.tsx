@@ -29,25 +29,29 @@ import {
   ChevronLeft,
   ChevronRight,
   Target,
+  BookOpen,
 } from 'lucide-react';
 import { MembershipTier } from '@/types/chess';
 import { useAuth } from '@/context/AuthContext';
 import { AvatarUploader } from '@/components/profile/AvatarUploader';
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { Button } from '@/components/ui/button';
+import { soundService } from '@/lib/audioService';
 
 export type ActiveTab =
   | 'home'
   | 'play'
-  | 'training'
   | 'puzzles'
   | 'lessons'
-  | 'openings'
   | 'analysis'
-  | 'insights'
   | 'bots'
+  | 'training'
+  | 'openings'
+  | 'endgames'
+  | 'insights'
+  | 'players'
   | 'historical'
-  | 'variants'
-  | 'players';
+  | 'variants';
 
 interface SidebarNavProps {
   activeTab?: ActiveTab;
@@ -128,14 +132,37 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const navItems: { id: ActiveTab; label: string; icon: any; href: string }[] = [
     { id: 'home', label: 'Home', icon: Home, href: '/' },
     { id: 'play', label: 'Play', icon: Gamepad2, href: '/play' },
-    { id: 'training', label: 'Training Academy', icon: Target, href: '/training' },
+    { id: 'puzzles', label: 'Puzzles', icon: Puzzle, href: '/puzzles' },
     { id: 'lessons', label: 'Lessons', icon: GraduationCap, href: '/lessons' },
-    { id: 'analysis', label: 'Analysis Studio', icon: Microscope, href: '/analysis' },
-    { id: 'bots', label: 'Computer Bots', icon: Bot, href: '/bots' },
-    { id: 'players', label: 'Players Explorer', icon: Users, href: '/players' },
+    { id: 'analysis', label: 'Analysis', icon: Microscope, href: '/analysis' },
+    { id: 'bots', label: 'Bots', icon: Bot, href: '/bots' },
+    { id: 'training', label: 'Training', icon: Target, href: '/training' },
+    { id: 'openings', label: 'Openings', icon: BookOpen, href: '/openings' },
+    { id: 'endgames', label: 'Endgames', icon: Crown, href: '/endgames' },
+    { id: 'insights', label: 'Insights', icon: Compass, href: '/insights' },
+    { id: 'players', label: 'Players', icon: Users, href: '/players' },
     { id: 'historical', label: 'Master Games', icon: History, href: '/games' },
-    { id: 'variants', label: 'Chess Variants', icon: Sparkles, href: '/variants' },
+    { id: 'variants', label: 'Variants', icon: Sparkles, href: '/variants' },
   ];
+
+  const isItemActive = (itemHref: string) => {
+    if (itemHref === '/') return pathname === '/';
+    if (itemHref === '/play') {
+      return (
+        pathname === '/play' ||
+        pathname?.startsWith('/play/') ||
+        (pathname?.startsWith('/game/') && !pathname?.startsWith('/game/review/'))
+      );
+    }
+    if (itemHref === '/analysis') {
+      return (
+        pathname === '/analysis' ||
+        pathname?.startsWith('/analysis/') ||
+        pathname?.startsWith('/game/review/')
+      );
+    }
+    return pathname === itemHref || pathname?.startsWith(`${itemHref}/`);
+  };
 
   const handleNavClick = (item: typeof navItems[0]) => {
     setIsOverlayOpen(false);
@@ -164,8 +191,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
   const renderSidebarContent = (collapsed: boolean, isOverlay: boolean) => (
     <>
-      {/* Platform Header */}
-      <div className="flex flex-col">
+      {/* Platform Header & Navigation Items */}
+      <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
         {/* Platform Header with Bespoke Redesigned Logo */}
         <div
           onClick={() => {
@@ -178,7 +205,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           }}
           className={`h-16 ${
             collapsed ? 'px-2 justify-center' : 'px-4'
-          } flex items-center justify-between border-b border-[#2d2a26] bg-[#161512] cursor-pointer hover:bg-[#1a1916] transition-all group`}
+          } flex items-center justify-between border-b border-[#2d2a26] bg-[#161512] shrink-0 cursor-pointer hover:bg-[#1a1916] transition-all group`}
           title={collapsed ? (isTabletOrSmallLaptop ? 'Expand Menu' : 'Check·mate Home') : undefined}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -187,53 +214,48 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
           {/* If Drawer Overlay on Tablet/Laptop, show an explicit close Chevron button */}
           {isOverlay && (
-            <button
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              rounded="lg"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsOverlayOpen(false);
               }}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#25221e] border border-[#35322b] transition cursor-pointer"
               title="Close Menu"
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
+            </Button>
           )}
         </div>
 
-        {/* Navigation Items */}
-        <nav className={`space-y-1.5 ${collapsed ? 'p-1.5' : 'p-3'}`}>
+        {/* Navigation Items (Scrollable when needed) */}
+        <nav className={`space-y-1 ${collapsed ? 'p-1.5' : 'px-2.5 py-2'} flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700/40`}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              item.href === '/'
-                ? pathname === '/'
-                : item.id === 'training'
-                ? pathname?.startsWith('/training') ||
-                  pathname === '/puzzles' ||
-                  pathname === '/endgames' ||
-                  pathname === '/openings'
-                : pathname?.startsWith(item.href);
+            const isActive = isItemActive(item.href);
 
             return (
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item)}
+                onPointerDown={() => soundService.playTactilePop()}
                 title={item.label}
-                className={`w-full flex items-center ${
-                  collapsed ? 'justify-center px-0 py-2.5' : 'justify-between px-3.5 py-2.5'
-                } rounded-2xl text-sm font-extrabold border-2 transition-all duration-150 cursor-pointer select-none ${
+                className={`tactile-btn w-full flex items-center ${
+                  collapsed ? 'justify-center px-0 py-2' : 'justify-between px-3 py-2'
+                } rounded-xl text-[13px] font-extrabold border transition-all duration-150 cursor-pointer select-none ${
                   isActive
-                    ? 'bg-[#81b64c] text-white border-transparent shadow-[0_4px_0_0_#4d7a24] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24]'
-                    : 'text-zinc-300 border-transparent hover:text-white hover:bg-[#24221f] hover:border-[#38342c] hover:shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none'
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16,0_4px_12px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_0_0_#385a16] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#385a16]'
+                    : 'text-zinc-300 border-t border-transparent border-x-transparent border-b-transparent hover:text-white hover:bg-[#25221e] hover:border-t-white/10 hover:border-x-[#35322b] hover:border-b-[#12110f] hover:shadow-[0_2px_0_0_#12110f] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none'
                 }`}
               >
-                <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+                <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'}`}>
                   <Icon
-                    className={`w-5 h-5 shrink-0 ${
-                      isActive ? 'text-white' : 'text-zinc-400'
+                    className={`w-4.5 h-4.5 shrink-0 ${
+                      isActive ? 'text-zinc-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.3)]' : 'text-zinc-400'
                     }`}
                   />
-                  {!collapsed && <span>{item.label}</span>}
+                  {!collapsed && <span className={isActive ? 'drop-shadow-[0_1px_0_rgba(255,255,255,0.25)]' : ''}>{item.label}</span>}
                 </div>
               </button>
             );
@@ -242,20 +264,24 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       </div>
 
       {/* Bottom Section: Search, User Account, Tier Banner, and Social/Settings Toolbar */}
-      <div className={`border-t-2 border-[#2d2a26] bg-[#161512] ${collapsed ? 'p-2 flex flex-col items-center gap-2.5' : 'p-3 space-y-2.5'}`}>
+      <div className={`border-t-2 border-[#2d2a26] bg-[#161512] shrink-0 ${collapsed ? 'p-2 flex flex-col items-center gap-2.5' : 'p-3 space-y-2.5'}`}>
         {!collapsed ? (
           <>
             {/* Search button navigating to /players */}
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
+              rounded="xl"
+              fullWidth
               onClick={() => {
                 if (isOverlay) setIsOverlayOpen(false);
                 router.push('/players');
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 border-[#332f28] bg-[#1f1d1a] text-xs font-bold text-zinc-300 hover:text-white hover:border-[#48433a] hover:-translate-y-[1px] shadow-[0_2px_0_0_#141311] transition-all cursor-pointer"
+              className="justify-start gap-2.5 text-xs font-bold text-zinc-300"
             >
               <Search className="w-4 h-4 text-zinc-400" />
               <span>Search Players...</span>
-            </button>
+            </Button>
 
             {/* User Account / Profile Card */}
             <div className="p-2.5 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex items-center justify-between">
@@ -264,7 +290,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
                 title={user ? 'Click to change avatar' : 'Click to Log In'}
               >
-                <div className="relative w-8 h-8 rounded-xl bg-[#2b2824] border-2 border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 group-hover:border-[#81b64c] transition-colors shadow-sm">
+                <div className="relative w-8 h-8 rounded-xl bg-[#2b2824] border-2 border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 group-hover:border-emerald-500 transition-colors shadow-sm">
                   {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -282,7 +308,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                   )}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-black text-white truncate group-hover:text-[#81b64c] transition-colors">
+                  <span className="text-xs font-black text-white truncate group-hover:text-emerald-400 transition-colors">
                     {effectiveDisplayName}
                   </span>
                   <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
@@ -294,20 +320,25 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
               <div className="flex items-center gap-1 shrink-0">
                 {user ? (
-                  <button
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
+                    rounded="xl"
                     onClick={logout}
-                    className="p-1.5 rounded-xl border border-transparent hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition cursor-pointer"
                     title="Sign Out"
                   >
-                    <LogOut className="w-4 h-4" />
-                  </button>
+                    <LogOut className="w-3.5 h-3.5" />
+                  </Button>
                 ) : (
-                  <button
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    rounded="full"
                     onClick={openAuthModal}
-                    className="px-3 py-1 rounded-full bg-[#81b64c] hover:bg-[#92cb56] text-white text-[10px] font-black shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
+                    className="text-[10px] px-3.5 py-1"
                   >
                     Log In
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -315,7 +346,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             {/* Tier Banner */}
             <div
               onClick={onOpenMembershipModal || (() => {})}
-              className="p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-600/10 to-[#211f1c] border-2 border-amber-500/40 shadow-[0_3px_0_0_#78350f30] hover:border-amber-500/70 hover:-translate-y-[1px] transition-all cursor-pointer group"
+              onPointerDown={() => soundService.playTactilePop()}
+              className="p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-600/10 to-[#211f1c] border-t border-white/35 border-x-amber-500/30 border-b-amber-950/50 shadow-[0_4px_0_0_#78350f40,0_4px_12px_rgba(245,158,11,0.2)] hover:shadow-[0_5px_0_0_#78350f60] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#78350f40] transition-all cursor-pointer group tactile-btn"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -331,46 +363,49 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </div>
 
             {/* Bottom Social/Tool Action Icons */}
-            <div ref={popoversRef} className="flex items-center justify-between px-2 pt-1 border-t border-[#252320] text-zinc-400 relative">
-              <button
+            <div ref={popoversRef} className="flex items-center justify-between px-1 pt-1.5 border-t border-[#252320] text-zinc-400 relative">
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                rounded="xl"
                 onClick={() => {
                   if (isOverlay) setIsOverlayOpen(false);
                   router.push('/players');
                 }}
-                className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
                 title="Players Explorer"
               >
                 <Users className="w-4 h-4" />
-              </button>
+              </Button>
 
               {/* Messages Button with Unread Badge & Flyout */}
               <div className="relative">
-                <button
+                <Button
+                  variant={isMessagesOpen ? 'primary' : 'secondary'}
+                  size="icon-sm"
+                  rounded="xl"
                   onClick={() => {
                     setIsMessagesOpen(!isMessagesOpen);
                     setIsNotificationsOpen(false);
                   }}
-                  className={`p-1.5 rounded-lg transition cursor-pointer relative ${
-                    isMessagesOpen ? 'text-white bg-[#272522]' : 'hover:text-white hover:bg-[#272522]'
-                  }`}
                   title="Messages & Inbox"
+                  className="relative"
                 >
                   <Mail className="w-4 h-4" />
                   {messages.some((m) => m.unread) && (
-                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#81b64c] ring-2 ring-[#161512]" />
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#161512]" />
                   )}
-                </button>
+                </Button>
 
                 {isMessagesOpen && (
                   <div className="fixed sm:absolute bottom-16 sm:bottom-0 left-4 sm:left-full sm:ml-3 w-80 max-w-[calc(100vw-2rem)] bg-[#1e1c19] border border-[#33302b] rounded-2xl shadow-2xl p-3.5 z-[999] animate-in fade-in zoom-in-95 duration-150">
                     <div className="flex items-center justify-between pb-2.5 border-b border-[#2d2a26]">
                       <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-[#81b64c]" />
+                        <Mail className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Inbox & Coaching</span>
                       </span>
                       <button
                         onClick={() => setMessages((prev) => prev.map((m) => ({ ...m, unread: false })))}
-                        className="text-[10px] text-[#81b64c] hover:underline cursor-pointer font-semibold"
+                        className="text-[10px] text-emerald-400 hover:underline cursor-pointer font-semibold"
                       >
                         Mark read
                       </button>
@@ -393,21 +428,22 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
               {/* Notifications Button with Unread Badge & Flyout */}
               <div className="relative">
-                <button
+                <Button
+                  variant={isNotificationsOpen ? 'warning' : 'secondary'}
+                  size="icon-sm"
+                  rounded="xl"
                   onClick={() => {
                     setIsNotificationsOpen(!isNotificationsOpen);
                     setIsMessagesOpen(false);
                   }}
-                  className={`p-1.5 rounded-lg transition cursor-pointer relative ${
-                    isNotificationsOpen ? 'text-white bg-[#272522]' : 'hover:text-white hover:bg-[#272522]'
-                  }`}
                   title="Alerts & Notifications"
+                  className="relative"
                 >
                   <Bell className="w-4 h-4" />
                   {notifications.some((n) => n.unread) && (
                     <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#161512]" />
                   )}
-                </button>
+                </Button>
 
                 {isNotificationsOpen && (
                   <div className="fixed sm:absolute bottom-16 sm:bottom-0 left-4 sm:left-full sm:ml-3 w-80 max-w-[calc(100vw-2rem)] bg-[#1e1c19] border border-[#33302b] rounded-2xl shadow-2xl p-3.5 z-[999] animate-in fade-in zoom-in-95 duration-150">
@@ -418,14 +454,14 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                       </span>
                       <button
                         onClick={() => setNotifications([])}
-                        className="text-[10px] text-[#81b64c] hover:underline cursor-pointer font-semibold"
+                        className="text-[10px] text-emerald-400 hover:underline cursor-pointer font-semibold"
                       >
                         Clear all
                       </button>
                     </div>
                     {notifications.length === 0 ? (
                       <div className="py-7 flex flex-col items-center justify-center text-center gap-1.5 text-zinc-500">
-                        <CheckCircle className="w-5 h-5 text-[#81b64c]" />
+                        <CheckCircle className="w-5 h-5 text-emerald-400" />
                         <span className="text-xs font-bold text-zinc-300">All caught up!</span>
                         <span className="text-[10px] text-zinc-500">No unread notifications or alerts.</span>
                       </div>
@@ -454,16 +490,18 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 )}
               </div>
 
-              <button
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                rounded="xl"
                 onClick={() => {
                   if (isOverlay) setIsOverlayOpen(false);
                   onOpenSettingsModal?.();
                 }}
-                className="p-1.5 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer"
                 title="Board, Sound & Account Settings"
               >
                 <Settings className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
           </>
         ) : (
@@ -477,7 +515,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                   user ? setIsAvatarModalOpen(true) : openAuthModal();
                 }
               }}
-              className="relative w-9 h-9 rounded-lg bg-[#2b2824] border border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold cursor-pointer hover:border-[#81b64c] transition-colors shadow"
+              className="relative w-9 h-9 rounded-lg bg-[#2b2824] border border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold cursor-pointer hover:border-emerald-500 transition-colors shadow"
               title={isTabletOrSmallLaptop ? 'Expand Menu' : `${effectiveDisplayName} (${effectiveRating})`}
             >
               {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
@@ -493,18 +531,24 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </div>
 
             {/* Collapsed Mode Settings */}
-            <button
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              rounded="xl"
               onClick={onOpenSettingsModal || (() => {})}
-              className="p-2 rounded-lg hover:text-white hover:bg-[#272522] transition cursor-pointer text-zinc-400"
               title="Board, Sound & Account Settings"
             >
               <Settings className="w-4 h-4" />
-            </button>
+            </Button>
           </>
         )}
 
         {/* Collapse / Expand Toggle Button */}
-        <button
+        <Button
+          variant="subtle"
+          size="xs"
+          rounded="xl"
+          fullWidth
           onClick={() => {
             if (isTabletOrSmallLaptop) {
               setIsOverlayOpen(!isOverlayOpen);
@@ -512,7 +556,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               setIsDesktopCollapsed(!isDesktopCollapsed);
             }
           }}
-          className="w-full flex items-center justify-center py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-[#272522] transition-colors cursor-pointer text-xs font-semibold gap-1.5 border border-transparent hover:border-[#33302b]"
+          className="text-zinc-400 hover:text-white"
           title={
             isTabletOrSmallLaptop
               ? isOverlayOpen
@@ -531,7 +575,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               <span className="text-[11px]">Collapse</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
     </>
   );

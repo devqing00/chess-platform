@@ -100,7 +100,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
   }, [recentSessions]);
 
   return (
-    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden flex flex-col justify-between p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6 gap-4">
+    <div className="w-full min-h-full xl:h-full xl:max-h-full overflow-y-auto xl:overflow-hidden flex flex-col justify-between p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6 gap-4">
       {/* ----------------------------------------------------------------------- */}
       {/* 1. TOP HEADER & IDENTITY STRIP                                          */}
       {/* ----------------------------------------------------------------------- */}
@@ -124,10 +124,10 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
               )}
             </div>
             <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <span className="font-mono text-[#81b64c] font-black">
-                Level {xpProfile?.level || 1} &bull; {xpProfile?.levelTitle || 'Novice'}
+              <span className="font-mono text-emerald-400 font-black">
+                Level {xpProfile?.level || 1} ({xpProfile?.levelTitle || 'Novice'})
               </span>
-              <span>&bull;</span>
+              <span className="text-zinc-600">|</span>
               <span className="font-mono text-zinc-300">
                 {effectiveRating || 1200} Rapid
               </span>
@@ -155,14 +155,17 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
           </div>
 
           {onOpenSyncModal && (
-            <button
+            <Button
+              variant="secondary"
+              size="xs"
+              rounded="xl"
               onClick={onOpenSyncModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-xs font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
               title="Sync External Chess Accounts"
+              className="gap-1.5 text-xs font-bold text-zinc-300"
             >
-              <RotateCw className={`w-3.5 h-3.5 ${isSyncingExternal ? 'animate-spin text-[#81b64c]' : ''}`} />
+              <RotateCw className={`w-3.5 h-3.5 ${isSyncingExternal ? 'animate-spin text-emerald-400' : ''}`} />
               <span className="hidden sm:inline">{isSynced ? 'Synced' : 'Sync Chess.com'}</span>
-            </button>
+            </Button>
           )}
         </div>
       </header>
@@ -172,13 +175,13 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
       {/* ----------------------------------------------------------------------- */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-2 sm:my-3 shrink-0">
         {/* Gateway 1: Play Hub (P1 Hero Anchor) */}
-        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#1f231b] to-[#181916] border border-[#81b64c]/30 shadow-lg flex flex-col justify-between gap-3 group hover:border-[#81b64c]/60 transition-all">
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#1b2416] via-[#161a13] to-[#121410] border border-emerald-500/30 shadow-lg flex flex-col justify-between gap-3 group hover:border-emerald-500/60 transition-all">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/20 border border-[#81b64c]/40 flex items-center justify-center text-[#81b64c]">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
                 <Swords className="w-4 h-4" />
               </div>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#81b64c]/20 text-[#81b64c] font-black uppercase">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-black uppercase">
                 Live &amp; Bots
               </span>
             </div>
@@ -200,13 +203,13 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
         </div>
 
         {/* Gateway 2: Tactics & Puzzles */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 hover:border-white/15 flex flex-col justify-between gap-3 transition-all group">
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#131d27] via-[#11171d] to-[#0f1317] border border-blue-500/25 hover:border-blue-500/50 flex flex-col justify-between gap-3 transition-all group shadow-md">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
                 <Zap className="w-4 h-4" />
               </div>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 font-bold uppercase">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold uppercase">
                 Infinite SRS
               </span>
             </div>
@@ -216,25 +219,25 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
             </p>
           </div>
           <Button
-            variant="secondary"
+            variant="blue"
             size="sm"
             rounded="xl"
             fullWidth
             onClick={onOpenPuzzles}
           >
             <span>Solve Daily Puzzle</span>
-            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>
 
         {/* Gateway 3: Lessons Academy */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 hover:border-white/15 flex flex-col justify-between gap-3 transition-all group">
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#1f1527] via-[#17111c] to-[#120e16] border border-purple-500/25 hover:border-purple-500/50 flex flex-col justify-between gap-3 transition-all group shadow-md">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
                 <BookOpen className="w-4 h-4" />
               </div>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 font-bold uppercase">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold uppercase">
                 Curriculum
               </span>
             </div>
@@ -244,25 +247,25 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
             </p>
           </div>
           <Button
-            variant="secondary"
+            variant="purple"
             size="sm"
             rounded="xl"
             fullWidth
             onClick={onOpenLessons}
           >
             <span>Explore Courses</span>
-            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>
 
         {/* Gateway 4: Bot Sparring Lab */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 hover:border-white/15 flex flex-col justify-between gap-3 transition-all group">
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-[#241517] via-[#1a1012] to-[#140d0e] border border-rose-500/25 hover:border-rose-500/50 flex flex-col justify-between gap-3 transition-all group shadow-md">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
                 <Bot className="w-4 h-4" />
               </div>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 font-bold uppercase">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold uppercase">
                 20+ Personalities
               </span>
             </div>
@@ -272,14 +275,14 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
             </p>
           </div>
           <Button
-            variant="secondary"
+            variant="destructive"
             size="sm"
             rounded="xl"
             fullWidth
             onClick={() => onOpenBots()}
           >
             <span>Pick Sparring Bot</span>
-            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>
       </section>
@@ -287,19 +290,19 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
       {/* ----------------------------------------------------------------------- */}
       {/* 3. MINIMALISTIC LOWER SECTION (Recent Activity & Cognitive Focus)       */}
       {/* ----------------------------------------------------------------------- */}
-      <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 overflow-visible lg:overflow-hidden">
+      <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 overflow-visible xl:overflow-hidden">
         {/* Left: Recent Matches & 1-Click Game Review */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-visible lg:overflow-hidden">
+        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-visible xl:overflow-hidden">
           <div className="flex items-center justify-between pb-2 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-[#81b64c]" />
+              <History className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-black uppercase tracking-wider text-white">
-                Recent Matches &bull; Game Review
+                Recent Matches
               </span>
             </div>
             <button
               onClick={() => onOpenReview()}
-              className="text-[11px] font-bold text-[#81b64c] hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-emerald-400 hover:underline cursor-pointer"
             >
               Analysis Studio &rarr;
             </button>
@@ -347,7 +350,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                         rounded="lg"
                         onClick={() => onOpenReview(g.id)}
                       >
-                        <Sparkles className="w-3 h-3 text-[#81b64c]" />
+                        <Sparkles className="w-3 h-3 text-emerald-400" />
                         <span>Review</span>
                       </Button>
                     </div>
@@ -359,7 +362,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
         </div>
 
         {/* Right: Cognitive Focus & Quick Tools */}
-        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-visible lg:overflow-hidden">
+        <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0 overflow-visible xl:overflow-hidden">
           <div className="flex items-center justify-between pb-2 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-amber-400" />
@@ -393,7 +396,7 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
                 className="p-2.5 rounded-xl bg-[#141311] border border-white/5 hover:border-white/15 text-left flex items-center justify-between group cursor-pointer transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <Microscope className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <Microscope className="w-3.5 h-3.5 text-emerald-400" />
                   <span className="text-xs font-bold text-white">Analysis Studio</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-zinc-500 group-hover:text-white transition-all" />

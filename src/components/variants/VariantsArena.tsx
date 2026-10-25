@@ -423,11 +423,11 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
   };
 
   return (
-    <div className="w-full min-h-full lg:h-full lg:max-h-full overflow-y-auto lg:overflow-hidden flex flex-col min-h-0 bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
+    <div className="w-full min-h-full xl:h-full xl:max-h-full overflow-y-auto xl:overflow-hidden flex flex-col min-h-0 bg-[#161512] text-zinc-100 select-none pb-24 md:pb-6">
       {/* ----------------------------------------------------------------------- */}
       {/* HEADER / NAVIGATION BAR (Zero-Conflict Responsive Bar)                  */}
       {/* ----------------------------------------------------------------------- */}
-      <header className="border-b border-white/5 shrink-0 bg-[#141311] flex flex-col md:flex-row md:items-center md:justify-between px-3 sm:px-6 py-2 md:py-0 md:h-14 gap-2">
+      <header className="border-b border-white/5 shrink-0 bg-[#141311] flex flex-col lg:flex-row lg:items-center lg:justify-between px-3 sm:px-6 py-2 lg:py-0 lg:h-14 gap-2">
         <div className="flex items-center justify-between gap-2.5 sm:gap-3 min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
@@ -445,49 +445,38 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
         </div>
 
         {/* 4-Screen Segmented Switcher */}
-        <div className="flex items-center bg-[#1c1a17] p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-none w-full md:w-auto">
-          <button
-            onClick={() => setActiveScreen('arena')}
-            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
-              activeScreen === 'arena'
-                ? 'bg-[#81b64c] text-black shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Arena
-          </button>
-          <button
-            onClick={() => setActiveScreen('rules')}
-            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
-              activeScreen === 'rules'
-                ? 'bg-[#81b64c] text-black shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <span className="hidden sm:inline">Rules &amp; Strategy</span>
-            <span className="sm:hidden">Rules</span>
-          </button>
-          <button
-            onClick={() => setActiveScreen('bot_spar')}
-            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
-              activeScreen === 'bot_spar'
-                ? 'bg-[#81b64c] text-black shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <span className="hidden sm:inline">Bot Sparring</span>
-            <span className="sm:hidden">Bot Spar</span>
-          </button>
-          <button
-            onClick={() => setActiveScreen('history')}
-            className={`flex-1 md:flex-initial px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap text-center ${
-              activeScreen === 'history'
-                ? 'bg-[#81b64c] text-black shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Moves ({moveHistory.length})
-          </button>
+        <div className="flex items-center gap-1.5 bg-[#1c1a17] p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-none w-full lg:w-auto text-xs font-bold">
+          {[
+            { id: 'arena' as const, label: 'Arena' },
+            { id: 'rules' as const, label: 'Rules & Strategy', shortLabel: 'Rules' },
+            { id: 'bot_spar' as const, label: 'Bot Sparring', shortLabel: 'Bot Spar' },
+            { id: 'history' as const, label: `Moves (${moveHistory.length})` },
+          ].map((screen) => {
+            const isActive = activeScreen === screen.id;
+            return (
+              <button
+                key={screen.id}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setActiveScreen(screen.id);
+                }}
+                className={`tactile-btn flex-1 lg:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap text-center cursor-pointer select-none ${
+                  isActive
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                }`}
+              >
+                {screen.shortLabel ? (
+                  <>
+                    <span className="hidden sm:inline">{screen.label}</span>
+                    <span className="sm:hidden">{screen.shortLabel}</span>
+                  </>
+                ) : (
+                  screen.label
+                )}
+              </button>
+            );
+          })}
         </div>
       </header>
 
@@ -660,9 +649,9 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                           }}
                           className={`relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-[#81b64c]/30 border-[#81b64c] shadow-sm -translate-y-0.5'
+                              ? 'bg-emerald-500/25 border-emerald-500 shadow-sm -translate-y-0.5'
                               : canDrop
-                              ? 'bg-[#22201d] border-white/10 hover:border-[#81b64c] text-white hover:-translate-y-0.5'
+                              ? 'bg-[#22201d] border-white/10 hover:border-emerald-500 text-white hover:-translate-y-0.5'
                               : 'bg-black/20 border-white/5 opacity-30 cursor-not-allowed'
                           }`}
                         >
@@ -670,7 +659,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                             <PieceIcon type={pt as PieceType} color="w" theme={pieceTheme} />
                           </div>
                           {count > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-[#81b64c] text-black text-[9px] font-black rounded-full px-1 border border-black shadow">
+                            <span className="absolute -top-1 -right-1 bg-emerald-500 text-black text-[9px] font-black rounded-full px-1 border border-black shadow">
                               {count}
                             </span>
                           )}
@@ -704,10 +693,13 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                     return (
                       <button
                         key={v}
-                        onClick={() => handleSelectVariant(v)}
-                        className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                        onClick={() => {
+                          soundService.playTactilePop();
+                          handleSelectVariant(v);
+                        }}
+                        className={`tactile-btn flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer select-none ${
                           isCur
-                            ? 'bg-[#81b64c] border-[#81b64c] text-black font-black shadow-sm'
+                            ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
                             : 'bg-[#141311] border-white/5 text-zinc-300 hover:text-white hover:bg-white/5'
                         }`}
                       >
@@ -821,7 +813,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
         {/* SUB-SCREEN 2: RULES & STRATEGY */}
         {activeScreen === 'rules' && (
-          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-0 overflow-y-auto">
               {(['kingofthehill', '3check', 'crazyhouse', 'chess960'] as ChessVariant[]).map((v) => {
                 const meta = VARIANT_DETAILS[v];
@@ -832,7 +824,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
                     key={v}
                     className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
                       isSelected
-                        ? 'bg-[#1e1c18] border-[#81b64c]/40'
+                        ? 'bg-[#1e1c18] border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.06)]'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/10'
                     }`}
                   >
@@ -888,7 +880,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
             {/* Bottom Global P1 Anchor for Rules */}
             <div className="p-3 bg-[#1c1a17] rounded-2xl border border-white/5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 text-xs text-zinc-300">
-                <HelpCircle className="w-4 h-4 text-[#81b64c]" />
+                <HelpCircle className="w-4 h-4 text-emerald-400" />
                 <span>All variants follow official Chess.com and Lichess tournament regulations.</span>
               </div>
               <Button
@@ -906,7 +898,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
         {/* SUB-SCREEN 3: BOT SPARRING LAB */}
         {activeScreen === 'bot_spar' && (
-          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
+          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 min-h-0">
               {/* Bot Difficulty Tier Card */}
               <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
@@ -1037,7 +1029,7 @@ export const VariantsArena: React.FC<VariantsArenaProps> = ({
 
         {/* SUB-SCREEN 4: MOVE TIMELINE & GAME REVIEW */}
         {activeScreen === 'history' && (
-          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
+          <div className="h-full flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150 max-w-4xl mx-auto w-full">
             {/* Move List Container */}
             <div className="flex-1 min-h-0 bg-[#1c1a17] rounded-2xl border border-white/5 p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between pb-2 border-b border-white/5">

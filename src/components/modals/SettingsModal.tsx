@@ -35,6 +35,7 @@ import { useShell } from '@/context/ShellContext';
 import { MENTORS, getMentorById, generateMentorComment } from '@/lib/mentorsData';
 import { MentorAvatar } from '@/components/analysis/MentorAvatar';
 import { PieceIcon } from '@/components/board/PieceIcons';
+import { Button } from '@/components/ui/button';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -142,8 +143,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const pieceThemes: { id: PieceTheme; name: string; desc: string }[] = [
     { id: 'neo', name: 'Neo Vector', desc: 'Sleek, modern vectorized competition pieces' },
-    { id: 'staunton', name: 'Staunton Classic', desc: 'Timeless weighted tournament design' },
-    { id: '8bit', name: '8-Bit Arcade', desc: 'Retro pixelated gaming aesthetic' },
+    { id: '8bit', name: '8-Bit Arcade', desc: 'Charming pixelated retro sprites with crisp contours' },
+    { id: 'staunton', name: 'Tournament Wood', desc: 'Warm polished golden boxwood and dark walnut' },
+    { id: 'vinyl', name: 'Modern Vinyl', desc: 'Matte ivory porcelain and sleek obsidian vinyl' },
+    { id: 'glass', name: 'Crystal Glass', desc: 'Luminous frosted ice and smoked obsidian glass' },
     { id: 'alpha', name: 'Alpha Minimal', desc: 'Crisp high-legibility minimalist outlines' },
   ];
 
@@ -292,84 +295,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262421] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#81b64c] border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] flex items-center justify-center shrink-0">
-              <Sliders className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] flex items-center justify-center shrink-0">
+              <Sliders className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-950" />
             </div>
             <div className="min-w-0">
               <span className="text-sm sm:text-base font-black text-white block truncate">Platform Preferences</span>
-              <span className="text-[10px] sm:text-[11px] text-[#81b64c] font-black flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] text-emerald-400 font-black flex items-center gap-1">
                 <Check className="w-3.5 h-3.5 stroke-[3]" /> Live auto-saved preferences
               </span>
             </div>
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="icon-sm"
+            rounded="full"
             onClick={() => {
               updateSnapshot();
               onClose();
             }}
-            className="p-1.5 sm:p-2 rounded-full border-2 border-[#35322b] bg-[#211f1c] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none text-zinc-400 hover:text-white transition-all cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
-          </button>
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* Tab Navigation */}
         <div className="flex bg-[#191815] border-b-2 border-[#35322b] px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-black overflow-x-auto no-scrollbar scroll-smooth gap-1.5 sm:gap-2 shrink-0">
-          <button
-            onClick={() => handleRequestTabSwitch('accounts')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'accounts'
-                ? 'border-[#4d7a24] bg-[#81b64c] text-white shadow-[0_3px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:border-[#35322b] hover:bg-[#22201d]'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Accounts</span>
-          </button>
-          <button
-            onClick={() => handleRequestTabSwitch('board')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'board'
-                ? 'border-[#4d7a24] bg-[#81b64c] text-white shadow-[0_3px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:border-[#35322b] hover:bg-[#22201d]'
-            }`}
-          >
-            <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Board & Pieces</span>
-          </button>
-          <button
-            onClick={() => handleRequestTabSwitch('audio')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'audio'
-                ? 'border-[#4d7a24] bg-[#81b64c] text-white shadow-[0_3px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:border-[#35322b] hover:bg-[#22201d]'
-            }`}
-          >
-            <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Audio</span>
-          </button>
-          <button
-            onClick={() => handleRequestTabSwitch('mentors')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'mentors'
-                ? 'border-[#4d7a24] bg-[#81b64c] text-white shadow-[0_3px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:border-[#35322b] hover:bg-[#22201d]'
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>AI Mentors</span>
-          </button>
-          <button
-            onClick={() => handleRequestTabSwitch('accessibility')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-              activeTab === 'accessibility'
-                ? 'border-[#4d7a24] bg-[#81b64c] text-white shadow-[0_3px_0_0_#4d7a24]'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:border-[#35322b] hover:bg-[#22201d]'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Accessibility</span>
-          </button>
+          {[
+            { id: 'accounts' as const, label: 'Accounts', icon: Globe },
+            { id: 'board' as const, label: 'Board & Pieces', icon: Palette },
+            { id: 'audio' as const, label: 'Audio', icon: Volume2 },
+            { id: 'mentors' as const, label: 'AI Mentors', icon: Bot },
+            { id: 'accessibility' as const, label: 'Accessibility', icon: Eye },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleRequestTabSwitch(tab.id)}
+                className={`tactile-btn px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap select-none ${
+                  isActive
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#22201d]'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Content Body */}
@@ -391,7 +365,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => onChangeBoardTheme(theme.id)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-[#2b2926] border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24]'
+                            ? 'bg-[#2b2926] border-emerald-500 shadow-[0_4px_0_0_#065f46]'
                             : 'bg-[#21201d] border-[#35322b] hover:border-[#4d483f] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
                         }`}
                       >
@@ -405,7 +379,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {theme.name}
                         </span>
                         {theme.tag && (
-                          <span className="text-[9px] font-black bg-[#81b64c]/20 border border-[#81b64c]/40 text-[#81b64c] px-2 py-0.5 rounded-full uppercase">
+                          <span className="text-[9px] font-black bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 px-2 py-0.5 rounded-full uppercase">
                             {theme.tag}
                           </span>
                         )}
@@ -429,7 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => onChangePieceTheme(pt.id)}
                         className={`p-3.5 rounded-2xl border-2 flex items-center justify-between text-left transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-[#2b2926] border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24]'
+                            ? 'bg-[#2b2926] border-emerald-600/80 shadow-[0_4px_0_0_#385a16]'
                             : 'bg-[#21201d] border-[#35322b] hover:border-[#4d483f] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
                         }`}
                       >
@@ -440,7 +414,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs font-black text-white">{pt.name}</span>
-                              {isSel && <Check className="w-4 h-4 text-[#81b64c] stroke-[3]" />}
+                              {isSel && <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />}
                             </div>
                             <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">{pt.desc}</span>
                           </div>
@@ -488,7 +462,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => setMoveInputMode(mode.id)}
                         className={`p-3.5 rounded-2xl border-2 flex flex-col justify-between text-left transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-[#2b2926] border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24]'
+                            ? 'bg-[#2b2926] border-emerald-500 shadow-[0_4px_0_0_#065f46]'
                             : 'bg-[#21201d] border-[#35322b] hover:border-[#4d483f] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
                         }`}
                       >
@@ -499,7 +473,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <span
                                 className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
                                   isSel
-                                    ? 'bg-[#81b64c]/20 border-[#81b64c]/40 text-[#81b64c]'
+                                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
                                     : 'bg-black/30 border-[#35322b] text-zinc-400'
                                 }`}
                               >
@@ -509,7 +483,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-black text-white">{mode.name}</span>
-                            {isSel && <Check className="w-4 h-4 text-[#81b64c] stroke-[3]" />}
+                            {isSel && <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />}
                           </div>
                           <span className="text-[11px] text-zinc-400 font-medium block mt-1 leading-snug">
                             {mode.desc}
@@ -539,10 +513,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       key={p}
                       onClick={() => handleApplyPreset(p)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
+                      className={`tactile-btn px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                         audioSettings.preset === p
-                          ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24]'
-                          : 'bg-[#23211e] border-[#35322b] text-zinc-400 hover:text-zinc-200 shadow-[0_2px_0_0_#141311]'
+                          ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
+                          : 'bg-[#23211e] border-2 border-[#35322b] text-zinc-400 hover:text-zinc-200 shadow-[0_2px_0_0_#141311]'
                       }`}
                     >
                       {p}
@@ -589,13 +563,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }}
                           className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
                             isSel
-                              ? 'bg-[#2b2824] border-[#4d7a24] text-white shadow-[0_3px_0_0_#4d7a24]'
+                              ? 'bg-[#2b2824] border-emerald-600/80 text-white shadow-[0_3px_0_0_#385a16]'
                               : 'bg-[#181614] border-[#35322b] text-zinc-400 hover:text-zinc-200 shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-black text-zinc-100">{reg.label}</span>
-                            {isSel && <Check className="w-3.5 h-3.5 text-[#81b64c] stroke-[3]" />}
+                            {isSel && <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />}
                           </div>
                           <span className="text-[10px] text-zinc-400 font-medium line-clamp-1 mt-0.5">
                             {reg.desc}
@@ -611,7 +585,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <div className="flex justify-between text-xs font-black text-zinc-300 mb-2">
                       <span>Alert Threshold:</span>
-                      <strong className="text-[#81b64c] font-mono">
+                      <strong className="text-emerald-400 font-mono">
                         ≤ {audioSettings.lowTimeThresholdSeconds} Seconds
                       </strong>
                     </div>
@@ -620,10 +594,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           key={sec}
                           onClick={() => updateAudio({ lowTimeThresholdSeconds: sec })}
-                          className={`flex-1 py-1.5 rounded-full text-xs font-black font-mono transition-all cursor-pointer border-2 ${
+                          className={`tactile-btn flex-1 py-1.5 rounded-full text-xs font-black font-mono transition-all cursor-pointer ${
                             audioSettings.lowTimeThresholdSeconds === sec
-                              ? 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24]'
-                              : 'bg-[#181614] border-[#35322b] text-zinc-400 hover:text-white shadow-[0_2px_0_0_#141311]'
+                              ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
+                              : 'bg-[#181614] border-2 border-[#35322b] text-zinc-400 hover:text-white shadow-[0_2px_0_0_#141311]'
                           }`}
                         >
                           {sec}s
@@ -635,7 +609,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     <div className="flex justify-between text-xs font-semibold text-zinc-300 mb-1.5">
                       <span>Alert Volume:</span>
-                      <strong className="text-[#81b64c]">
+                      <strong className="text-emerald-400">
                         {Math.round(audioSettings.lowTimeVolume * 100)}%
                       </strong>
                     </div>
@@ -646,7 +620,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       step="0.05"
                       value={audioSettings.lowTimeVolume}
                       onChange={(e) => updateAudio({ lowTimeVolume: parseFloat(e.target.value) })}
-                      className="w-full accent-[#81b64c] cursor-pointer"
+                      className="w-full accent-emerald-500 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -670,28 +644,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }}
                         className={`p-3.5 rounded-2xl border-2 flex items-center justify-between transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-[#2b2926] border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24]'
+                            ? 'bg-[#2b2926] border-emerald-600/80 shadow-[0_3px_0_0_#385a16]'
                             : 'bg-[#21201d] border-[#35322b] hover:border-[#4d483f] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
                         }`}
                       >
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-white">{st.name}</span>
-                            {isSel && <Check className="w-4 h-4 text-[#81b64c] stroke-[3]" />}
+                            {isSel && <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />}
                           </div>
                           <p className="text-[11px] text-zinc-400 font-medium mt-0.5">{st.desc}</p>
                         </div>
 
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          rounded="full"
                           onClick={(e) => {
                             e.stopPropagation();
                             soundService.setTheme(st.id);
                             soundService.playCapture();
                           }}
-                          className="px-3 py-1 rounded-full bg-[#161512] hover:bg-[#25221d] text-[11px] font-black text-[#81b64c] border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
                         >
                           Sample
-                        </button>
+                        </Button>
                       </div>
                     );
                   })}
@@ -724,7 +700,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setActiveMentorId(m.id)}
                       className={`p-4 rounded-3xl border-2 flex flex-col gap-3 transition-all cursor-pointer ${
                         isSel
-                          ? 'bg-[#272420] border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24]'
+                          ? 'bg-[#272420] border-emerald-600/80 shadow-[0_4px_0_0_#385a16]'
                           : 'bg-[#1e1c19] border-[#35322b] hover:border-[#4d483f] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
                       }`}
                     >
@@ -734,7 +710,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <MentorAvatar mentorId={m.id} size={56} />
                           </div>
                           {isSel && (
-                            <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#81b64c] border-2 border-white text-white flex items-center justify-center shadow">
+                            <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white text-zinc-950 flex items-center justify-center shadow">
                               <Check className="w-3.5 h-3.5 stroke-[3]" />
                             </div>
                           )}
@@ -774,8 +750,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           </p>
 
                           {isSel && (
-                            <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black text-[#81b64c] uppercase tracking-wider">
-                              <span className="w-2 h-2 rounded-full bg-[#81b64c] shadow-[0_0_6px_#81b64c]" />
+                            <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black text-emerald-400 uppercase tracking-wider">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
                               <span>Active Coach in Live Games & Review</span>
                             </div>
                           )}
@@ -829,11 +805,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }}
                         className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#282622] border-[#4d7a24] text-white shadow-[0_3px_0_0_#4d7a24]'
+                            ? 'bg-[#282622] border-emerald-600/80 text-white shadow-[0_3px_0_0_#385a16]'
                             : 'bg-[#1b1916] border-[#35322b] text-zinc-400 hover:text-white shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
                         }`}
                       >
-                        <span className={`text-xs font-black block ${isSelected ? 'text-[#81b64c]' : ''}`}>
+                        <span className={`text-xs font-black block ${isSelected ? 'text-emerald-400' : ''}`}>
                           {lvl.label}
                         </span>
                         <span className="text-[10px] text-zinc-500 font-medium mt-0.5 block leading-tight">
@@ -864,7 +840,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         Every square outputs full piece & coordinate speech labels for screen readers.
                       </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-[#81b64c] bg-[#81b64c]/20 px-3 py-0.5 rounded-full border border-[#81b64c]/40">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40">
                       Active
                     </span>
                   </div>
@@ -876,7 +852,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         Use Arrow Keys to traverse squares; press Space or Enter to select and place pieces.
                       </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-[#81b64c] bg-[#81b64c]/20 px-3 py-0.5 rounded-full border border-[#81b64c]/40">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40">
                       Enabled
                     </span>
                   </div>
@@ -907,14 +883,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-[#81b64c]/20 border-2 border-[#81b64c]/40 text-[#81b64c] flex items-center justify-center font-black text-lg shadow-inner">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner">
                       ♟️
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-black text-white flex items-center gap-2">
                         Chess.com Profile Sync
                         {syncedChessCom && (
-                          <span className="text-[10px] bg-[#81b64c]/20 text-[#81b64c] border border-[#81b64c]/40 px-2.5 py-0.5 rounded-full font-black uppercase">
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
                             Connected
                           </span>
                         )}
@@ -926,17 +902,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {onOpenChessComSync && (
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      rounded="full"
                       onClick={() => {
                         updateSnapshot();
                         onClose();
                         onOpenChessComSync();
                       }}
-                      className="px-4 py-2 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -1037,17 +1015,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() => setAnalysisEngine('stockfish')}
                     className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
                       analysisEngine === 'stockfish'
-                        ? 'bg-[#81b64c]/15 border-[#81b64c] shadow-[0_3px_0_0_#4d7a24]'
+                        ? 'bg-emerald-500/15 border-emerald-500 shadow-[0_3px_0_0_#385a16]'
                         : 'bg-[#1b1916] border-[#35322b] hover:border-[#4d483f] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-[#81b64c] flex items-center gap-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-[#81b64c]" />
+                      <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
+                        <Cpu className="w-3.5 h-3.5 text-emerald-400" />
                         Stockfish (Deep Tactical)
                       </span>
                       {analysisEngine === 'stockfish' && (
-                        <CheckCircle2 className="w-4 h-4 text-[#81b64c]" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       )}
                     </div>
                     <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
@@ -1110,17 +1088,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Footer */}
         <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#161512] border-t-2 border-[#35322b] flex items-center justify-between shrink-0">
           <span className="text-[10px] sm:text-[11px] text-zinc-500 font-mono font-bold">
-            Check.mate Engine 2.0 • Active
+            Check.mate v2.0
           </span>
-          <button
+          <Button
+            variant="primary"
+            size="md"
+            rounded="full"
             onClick={() => {
+              soundService.playTactilePop();
               updateSnapshot();
               onClose();
             }}
-            className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black transition-all cursor-pointer border-2 border-[#4d7a24] shadow-[0_4px_0_0_#4d7a24] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24]"
           >
             Done
-          </button>
+          </Button>
         </div>
 
         {/* 1. Tab Switch Confirmation Dialog */}
@@ -1142,25 +1123,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-3 bg-[#171614] rounded-2xl border-2 border-[#2b2926] space-y-1.5 shadow-inner">
                 {tabChangesList.map((ch, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs font-bold text-zinc-200">
-                    <span className="w-2 h-2 rounded-full bg-[#81b64c]" />
+                    <span className="text-emerald-400 font-bold">-</span>
                     <span>{ch}</span>
                   </div>
                 ))}
               </div>
 
               <div className="flex items-center justify-end gap-2.5 pt-1">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  rounded="full"
                   onClick={handleRevertTabSwitch}
-                  className="px-4 py-2 rounded-full bg-[#262420] hover:bg-[#322f29] border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] text-zinc-300 text-xs font-black transition-all cursor-pointer"
                 >
                   Revert Changes
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  rounded="full"
                   onClick={handleConfirmTabSwitch}
-                  className="px-5 py-2 rounded-full bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
                 >
                   Confirm & Switch
-                </button>
+                </Button>
               </div>
             </div>
           </div>

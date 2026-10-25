@@ -248,9 +248,9 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           </span>
           <button
             onClick={() => handlePillarChange('tactics')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+            className={`tactile-btn px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer select-none ${
               activePillar === 'tactics'
-                ? 'bg-[#81b64c] text-black shadow-sm font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16] font-black'
                 : 'bg-white/5 text-zinc-400 hover:text-white'
             }`}
           >
@@ -260,9 +260,9 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
 
           <button
             onClick={() => handlePillarChange('strategy')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+            className={`tactile-btn px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer select-none ${
               activePillar === 'strategy'
-                ? 'bg-amber-600 text-white shadow-sm font-black'
+                ? 'bg-gradient-to-b from-[#fbbf24] via-[#f59e0b] to-[#d97706] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#78350f] font-black'
                 : 'bg-white/5 text-zinc-400 hover:text-white'
             }`}
           >
@@ -272,9 +272,9 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
 
           <button
             onClick={() => handlePillarChange('endgame')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+            className={`tactile-btn px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer select-none ${
               activePillar === 'endgame'
-                ? 'bg-purple-600 text-white shadow-sm font-black'
+                ? 'bg-gradient-to-b from-[#c084fc] via-[#a855f7] to-[#9333ea] text-white border-t border-white/35 shadow-[0_2px_0_0_#4c1d95] font-black'
                 : 'bg-white/5 text-zinc-400 hover:text-white'
             }`}
           >
@@ -344,7 +344,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
         <div className="lg:col-span-5 h-full max-h-[460px] p-5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3">
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#81b64c] flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Target className="w-3.5 h-3.5" />
                 <span>Theme: {currentPuzzle.theme}</span>
               </span>
@@ -356,13 +356,13 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             <div>
               <h3 className="text-base font-extrabold text-white">{currentPuzzle.title}</h3>
               <p className="text-xs text-zinc-400 mt-0.5">
-                {puzzleTurn === 'w' ? '⚪ White to move' : '⚫ Black to move'} &bull; Find the winning continuation.
+                {puzzleTurn === 'w' ? 'White to move' : 'Black to move'} — Find the best move.
               </p>
             </div>
 
             {/* Coach Danny Rensch Commentary */}
             <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-relaxed font-medium">
-              <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1.5">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase tracking-wider mb-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Coach Danny Rensch</span>
               </div>
@@ -396,7 +396,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
               </Button>
 
               <Button
-                variant="secondary"
+                variant="warning"
                 size="xs"
                 rounded="xl"
                 onClick={() => setHintLevel((prev) => prev + 1)}

@@ -258,63 +258,39 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       {/* 1. SEGMENTED SUB-SCREEN SWITCHER ("Screens, Not Pages" Architecture)       */}
       {/* ========================================================================= */}
       <nav className="shrink-0 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none flex-nowrap w-full sm:w-auto">
-          <button
-            onClick={() => setActiveScreen('study')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'study'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" />
-            <span className="sm:hidden">Board</span>
-            <span className="hidden sm:inline">Interactive Board</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen('catalog')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'catalog'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span className="sm:hidden">Catalog ({filteredDossiers.length})</span>
-            <span className="hidden sm:inline">Opening Catalog ({filteredDossiers.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen('counter')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'counter'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span className="sm:hidden">Counter</span>
-            <span className="hidden sm:inline">Counter Strategy</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen('traps')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeScreen === 'traps'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span className="sm:hidden">Traps</span>
-            <span className="hidden sm:inline">Traps &amp; Pitfalls</span>
-          </button>
+        <div className="flex items-center gap-1.5 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none flex-nowrap w-full sm:w-auto text-xs font-bold">
+          {[
+            { id: 'study' as const, label: 'Interactive Board', shortLabel: 'Board', icon: Compass },
+            { id: 'catalog' as const, label: `Opening Catalog (${filteredDossiers.length})`, shortLabel: `Catalog (${filteredDossiers.length})`, icon: BookOpen },
+            { id: 'counter' as const, label: 'Counter Strategy', shortLabel: 'Counter', icon: Shield },
+            { id: 'traps' as const, label: 'Traps & Pitfalls', shortLabel: 'Traps', icon: AlertTriangle },
+          ].map((screen) => {
+            const isActive = activeScreen === screen.id;
+            const Icon = screen.icon;
+            return (
+              <button
+                key={screen.id}
+                onClick={() => {
+                  soundService.playTactilePop();
+                  setActiveScreen(screen.id);
+                }}
+                className={`tactile-btn flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap select-none ${
+                  isActive
+                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="sm:hidden">{screen.shortLabel}</span>
+                <span className="hidden sm:inline">{screen.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Current Active Opening Chip */}
         <div className="hidden md:flex items-center gap-2 text-xs font-mono">
-          <span className="text-[#81b64c] font-black">{selectedDossier.eco}</span>
+          <span className="text-emerald-400 font-black">{selectedDossier.eco}</span>
           <span className="text-zinc-400 truncate max-w-[200px]">{selectedDossier.name}</span>
         </div>
       </nav>
@@ -323,7 +299,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       {/* 2. SUB-SCREEN 1: INTERACTIVE BOARD & CONTINUATION STEPPER                 */}
       {/* ========================================================================= */}
       {activeScreen === 'study' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top Active Opening Info Strip */}
           <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -332,7 +308,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
               </div>
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.2 rounded-full border border-[#81b64c]/30">
+                  <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.2 rounded-full border border-emerald-500/30">
                     {selectedDossier.eco}
                   </span>
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
@@ -374,7 +350,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                 rounded="lg"
                 onClick={() => setActiveScreen('catalog')}
               >
-                <BookOpen className="w-3.5 h-3.5 text-[#81b64c]" />
+                <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Change Opening</span>
               </Button>
             </div>
@@ -429,7 +405,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                       {isPlayingAutoplay ? (
                         <Pause className="w-3.5 h-3.5 text-amber-400" />
                       ) : (
-                        <Play className="w-3.5 h-3.5 text-[#81b64c]" />
+                        <Play className="w-3.5 h-3.5 text-emerald-400" />
                       )}
                     </Button>
                     <Button
@@ -457,10 +433,10 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   {/* Move indicator */}
                   <span className="text-xs font-mono font-bold text-zinc-300">
                     {drillStatus === 'practicing' ? (
-                      <span className="text-[#81b64c]">Drill Step {drillIndex + 1}/{selectedDossier.continuationTree.length}</span>
+                      <span className="text-emerald-400">Step {drillIndex + 1} of {selectedDossier.continuationTree.length}</span>
                     ) : (
                       <span>
-                        Ply {currentPly}/{historyPositions.length - 1} &bull;{' '}
+                        Move {currentPly}/{historyPositions.length - 1}:{' '}
                         <strong className="text-white">{historyPositions[currentPly]?.label || 'Start'}</strong>
                       </span>
                     )}
@@ -480,7 +456,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                         }}
                         className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all shrink-0 cursor-pointer ${
                           isActive
-                            ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                            ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 shadow-[0_1px_0_0_#385a16]'
                             : 'bg-[#141311] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5'
                         }`}
                       >
@@ -497,14 +473,14 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
               {/* Practice Mode Active View */}
               {drillStatus === 'practicing' && (
                 <div className="flex flex-col gap-3">
-                  <div className="p-3 rounded-xl bg-[#81b64c]/10 border border-[#81b64c]/30 flex items-center justify-between">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#81b64c]" />
-                      <span className="text-xs font-extrabold text-[#81b64c]">
-                        Continuation Drill &bull; Step {drillIndex + 1} of {selectedDossier.continuationTree.length}
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-extrabold text-emerald-400">
+                        Practice (Step {drillIndex + 1} of {selectedDossier.continuationTree.length})
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded font-bold">
+                    <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold">
                       +30 XP
                     </span>
                   </div>
@@ -539,7 +515,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   <p className="text-xs text-zinc-300 leading-relaxed font-sans">
                     {coachFeedback}
                   </p>
-                  <span className="text-xs font-mono font-bold text-[#81b64c] bg-[#81b64c]/10 px-3 py-1 rounded-full border border-[#81b64c]/20">
+                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                     +30 XP Added to Profile
                   </span>
                 </div>
@@ -549,12 +525,12 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
               {drillStatus === 'idle' && (
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                    <div className="w-7 h-7 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                       <Sparkles className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] block">
-                        Coach Danny &bull; Strategic Directive
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
+                        Coach Advice
                       </span>
                       <span className="text-xs font-bold text-white">{selectedDossier.name}</span>
                     </div>
@@ -661,7 +637,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       {/* 3. SUB-SCREEN 2: OPENING CATALOG & DIRECTORY                              */}
       {/* ========================================================================= */}
       {activeScreen === 'catalog' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Search & Category Filter Bar */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
             <div className="flex-1 relative flex items-center">
@@ -671,7 +647,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                 placeholder="Search openings by ECO or name (e.g. Italian, Sicilian, E10)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#141311] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+                className="w-full bg-[#141311] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
@@ -682,7 +658,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   onClick={() => setCategoryFilter(cat)}
                   className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition cursor-pointer ${
                     categoryFilter === cat
-                      ? 'bg-[#81b64c] text-black font-black shadow-xs'
+                      ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -700,7 +676,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                 <div
                   key={d.eco}
                   className={`p-3.5 rounded-2xl bg-[#1c1a17] border flex flex-col justify-between gap-2.5 transition cursor-pointer hover:border-white/20 ${
-                    isSelected ? 'border-[#81b64c]/60 shadow-md ring-1 ring-[#81b64c]/30' : 'border-white/5'
+                    isSelected ? 'border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30' : 'border-white/5'
                   }`}
                   onClick={() => {
                     loadOpeningDossier(d);
@@ -709,7 +685,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                 >
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-[#81b64c] bg-[#81b64c]/10 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
                         {d.eco}
                       </span>
                       <span className="text-[10px] text-zinc-400 font-mono">
@@ -741,7 +717,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       {/* 4. SUB-SCREEN 3: COUNTER-OPENING STRATEGY & ROADMAP                       */}
       {/* ========================================================================= */}
       {activeScreen === 'counter' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
@@ -805,14 +781,14 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
             {/* Strategic Winning Roadmap */}
             <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
               <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 pb-2 border-b border-white/5">
-                <Target className="w-3.5 h-3.5 text-[#81b64c]" />
+                <Target className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Grandmaster Winning Roadmap</span>
               </span>
 
               <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 text-xs text-zinc-300">
                 {selectedDossier.winningRoadmap.map((step, idx) => (
                   <div key={idx} className="p-2.5 rounded-xl bg-[#141311] border border-white/5 flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#81b64c]/20 text-[#81b64c] font-black text-[10px] flex items-center justify-center shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[10px] flex items-center justify-center shrink-0">
                       {idx + 1}
                     </span>
                     <span className="leading-snug">{step}</span>
@@ -843,7 +819,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       {/* 5. SUB-SCREEN 4: TRAPS & PITFALLS                                          */}
       {/* ========================================================================= */}
       {activeScreen === 'traps' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -851,10 +827,10 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
               </div>
               <div>
                 <h2 className="text-xs sm:text-sm font-extrabold text-white">
-                  Tactical Traps &bull; {selectedDossier.name}
+                  Common Traps in {selectedDossier.name}
                 </h2>
                 <p className="text-[11px] text-zinc-400">
-                  Known pitfalls to dodge when contesting this system
+                  Mistakes and tricks to watch out for
                 </p>
               </div>
             </div>
@@ -907,7 +883,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
             <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
               <div className="flex flex-col gap-2.5">
                 <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 pb-2 border-b border-white/5">
-                  <Bot className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <Bot className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Interactive Bot Sparring</span>
                 </span>
 
@@ -916,7 +892,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   <strong className="text-white">{selectedDossier.name}</strong>.
                 </p>
 
-                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 font-mono text-xs text-[#81b64c] truncate">
+                <div className="p-3 rounded-xl bg-[#141311] border border-white/5 font-mono text-xs text-emerald-400 truncate">
                   {selectedDossier.moves}
                 </div>
               </div>

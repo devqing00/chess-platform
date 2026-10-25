@@ -243,7 +243,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
         {
           from: step.arrowHint.from as Square,
           to: step.arrowHint.to as Square,
-          color: '#81b64c',
+          color: '#10b981',
         },
       ]);
     }
@@ -282,10 +282,13 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
       <nav className="shrink-0 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full sm:w-auto">
           <button
-            onClick={() => setActiveScreen('study')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('study');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'study'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -295,10 +298,13 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveScreen('curriculum')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('curriculum');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'curriculum'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -308,10 +314,13 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveScreen('learning_path')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('learning_path');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'learning_path'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -321,10 +330,13 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveScreen('diplomas')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setActiveScreen('diplomas');
+            }}
             className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeScreen === 'diplomas'
-                ? 'bg-[#81b64c] text-black shadow-xs font-black'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -336,7 +348,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
 
         {/* Right Ambient Indicator */}
         <div className="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-400">
-          <span className="text-[#81b64c] font-black">{overallPercent}%</span>
+          <span className="text-emerald-400 font-black">{overallPercent}%</span>
           <span>Curriculum Mastered</span>
         </div>
       </nav>
@@ -345,20 +357,20 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
       {/* 2. SUB-SCREEN 1: INTERACTIVE STUDY BOARD                                  */}
       {/* ========================================================================= */}
       {activeScreen === 'study' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top Active Lesson Strip */}
           <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                 <GraduationCap className="w-4 h-4" />
               </div>
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#81b64c]">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
                     {selectedTrack.title}
                   </span>
                   {isCurrentLessonCompleted && (
-                    <span className="text-[10px] font-mono font-bold bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded-full border border-[#81b64c]/30">
+                    <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">
                       Mastered
                     </span>
                   )}
@@ -414,7 +426,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                     key={s.stepId}
                     className={`h-1.5 rounded-full transition-all ${
                       idx < currentStepIndex
-                        ? 'w-6 bg-[#81b64c]'
+                        ? 'w-6 bg-emerald-500'
                         : idx === currentStepIndex
                         ? 'w-8 bg-white'
                         : 'w-4 bg-[#2b2926]'
@@ -439,7 +451,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
 
                 {/* Coach Analysis Card */}
                 <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-200 leading-relaxed font-medium">
-                  <div className="flex items-center gap-1.5 text-[#81b64c] font-bold text-[10px] uppercase tracking-wider mb-1">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase tracking-wider mb-1">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Coach Danny Rensch</span>
                   </div>
@@ -537,7 +549,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                   fullWidth
                   onClick={() => setActiveScreen('curriculum')}
                 >
-                  <BookOpen className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Browse All Curriculum Tracks ({totalLessonsCount})</span>
                 </Button>
               </div>
@@ -550,11 +562,11 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
       {/* 3. SUB-SCREEN 2: FULL CURRICULUM & TRACKS                                 */}
       {/* ========================================================================= */}
       {activeScreen === 'curriculum' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top Progress & Track Picker */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c] shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
@@ -572,10 +584,13 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
               {LESSON_TRACKS.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => setSelectedTrack(t)}
+                  onClick={() => {
+                    soundService.playTactilePop();
+                    setSelectedTrack(t);
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedTrack.id === t.id
-                      ? 'bg-[#81b64c] text-black font-black'
+                      ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
                       : 'bg-[#141311] text-zinc-400 hover:text-white border border-white/5'
                   }`}
                 >
@@ -596,19 +611,19 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                   key={les.id}
                   className={`p-4 rounded-2xl bg-[#1c1a17] border flex flex-col justify-between gap-3 transition-all ${
                     isCurrent
-                      ? 'border-[#81b64c]/50 shadow-md ring-1 ring-[#81b64c]/30'
+                      ? 'border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
                       : 'border-white/5 hover:border-white/10'
                   }`}
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-zinc-500 font-bold">
-                        MODULE #{idx + 1}
+                        LESSON {idx + 1}
                       </span>
                       {isDone ? (
-                        <span className="text-[10px] font-bold text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <Check className="w-3 h-3" />
-                          <span>Mastered</span>
+                          <span>Completed</span>
                         </span>
                       ) : (
                         <span className="text-[10px] font-mono text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full">
@@ -630,7 +645,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                       <Clock className="w-3.5 h-3.5 text-zinc-500" />
                       <span>{les.durationMinutes} mins</span>
                       <span>•</span>
-                      <span className="text-[#81b64c]">+50 XP</span>
+                      <span className="text-emerald-400 font-bold">+50 XP</span>
                     </div>
                   </div>
 
@@ -652,7 +667,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
           {/* EXACTLY ONE P1 PRIMARY ANCHOR */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
-              <Zap className="w-4 h-4 text-[#81b64c]" />
+              <Zap className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-bold text-zinc-200">
                 Ready to study? Jump into active lesson: <strong className="text-white">{selectedLesson.title}</strong>
               </span>
@@ -676,7 +691,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
       {/* 4. SUB-SCREEN 3: GAMIFIED LEARNING ROAD                                   */}
       {/* ========================================================================= */}
       {activeScreen === 'learning_path' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top HUD: Road Stats */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -697,7 +712,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
               <span className="text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
                 🔥 Streak: {xpProfile.streak}d
               </span>
-              <span className="text-[#81b64c] font-bold bg-[#81b64c]/10 px-2.5 py-1 rounded-xl border border-[#81b64c]/20">
+              <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
                 ⚡ Total: {xpProfile.totalXp} XP
               </span>
             </div>
@@ -712,14 +727,14 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                   <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                     Stage 1: Fundamentals
                   </span>
-                  <span className="text-[11px] font-mono text-[#81b64c] font-bold">+120 XP</span>
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold">+120 XP</span>
                 </div>
                 <h3 className="text-sm font-black text-white">Board Control &amp; Piece Mobility</h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
                   Learn to claim open files, coordinate minor pieces, and tuck your king to safety before initiating attacks.
                 </p>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono mt-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#81b64c]" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>4 Checkpoint Modules Complete</span>
                 </div>
               </div>
@@ -736,7 +751,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                 }}
               >
                 <span>Drill Stage 1</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#81b64c]" />
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
               </Button>
             </div>
 
@@ -747,7 +762,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                   <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                     Stage 2: Tactical Radar
                   </span>
-                  <span className="text-[11px] font-mono text-[#81b64c] font-bold">+150 XP</span>
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold">+150 XP</span>
                 </div>
                 <h3 className="text-sm font-black text-white">Pins, Forks &amp; Back-Rank Blasts</h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
@@ -778,7 +793,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                   <span className="text-[10px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
                     Stage 3: Endgame Mastery
                   </span>
-                  <span className="text-[11px] font-mono text-[#81b64c] font-bold">+180 XP</span>
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold">+180 XP</span>
                 </div>
                 <h3 className="text-sm font-black text-white">Lucena, Philidor &amp; King Opposition</h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
@@ -830,7 +845,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
       {/* 5. SUB-SCREEN 4: DIPLOMAS & GRADUATION VAULT                              */}
       {/* ========================================================================= */}
       {activeScreen === 'diplomas' && (
-        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto lg:overflow-hidden animate-in fade-in duration-150">
+        <div className="flex-1 w-full min-h-0 flex flex-col justify-between gap-3 overflow-y-auto xl:overflow-hidden animate-in fade-in duration-150">
           {/* Top HUD */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -849,7 +864,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
 
             <div className="flex items-center gap-2 self-end sm:self-center font-mono text-[11px]">
               <span className="text-zinc-400">Graduation Status:</span>
-              <span className="text-[#81b64c] font-black">
+              <span className="text-emerald-400 font-black">
                 {trackStats.filter((t) => t.isGraduated).length} of {trackStats.length} Diplomas
               </span>
             </div>
@@ -876,7 +891,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                         Level {idx + 1} Certificate
                       </span>
                       {stat.isGraduated ? (
-                        <span className="text-[10px] font-black text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/20 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                           Graduated
                         </span>
                       ) : (
@@ -899,11 +914,11 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                     <div className="flex flex-col gap-1 mt-1">
                       <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
                         <span>Milestone Progress</span>
-                        <span className="text-[#81b64c] font-bold">{stat.percent}%</span>
+                        <span className="text-emerald-400 font-bold">{stat.percent}%</span>
                       </div>
                       <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
                         <div
-                          className="h-full bg-gradient-to-r from-[#81b64c] to-[#a3d865] rounded-full transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-300"
                           style={{ width: `${stat.percent}%` }}
                         />
                       </div>
@@ -922,7 +937,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
                     }}
                   >
                     <span>{stat.isGraduated ? 'View Diploma' : 'Complete Requirements'}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-[#81b64c]" />
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
                   </Button>
                 </div>
               );
@@ -932,7 +947,7 @@ export const LessonArena: React.FC<LessonArenaProps> = ({
           {/* EXACTLY ONE P1 PRIMARY ANCHOR */}
           <div className="p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
-              <Award className="w-4 h-4 text-[#81b64c]" />
+              <Award className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-bold text-zinc-200">
                 Unlock official Grandmaster diplomas by completing the curriculum tracks.
               </span>

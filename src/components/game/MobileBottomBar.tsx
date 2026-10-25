@@ -52,7 +52,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = React.memo(functi
         >
           <MessageSquare className="w-3.5 h-3.5" />
           {hasUnreadChat && (
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#81b64c] border border-[#1a1815]" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-[#1a1815]" />
           )}
         </button>
         {onOpenMore && (
@@ -83,7 +83,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = React.memo(functi
         {isGameOver && (
           <button
             onClick={onOpenAnalysis}
-            className="px-3 py-1 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+            className="px-3 py-1 rounded-lg bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 shadow-[0_2px_0_0_#385a16] border-t border-white/35 active:translate-y-[1px]"
             title="Game Analysis & Review"
           >
             <Star className="w-3.5 h-3.5 fill-current text-white" />

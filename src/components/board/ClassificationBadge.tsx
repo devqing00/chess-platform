@@ -129,11 +129,11 @@ export const CLASSIFICATION_CONFIG: Record<
   },
   best: {
     label: '★',
-    bg: 'bg-[#81b64c]',
+    bg: 'bg-[#10b981]',
     text: 'text-white',
-    hex: '#81b64c',
-    countColor: 'text-[#81b64c]',
-    overlayRgba: 'rgba(129, 182, 76, 0.42)',
+    hex: '#10b981',
+    countColor: 'text-emerald-400',
+    overlayRgba: 'rgba(16, 185, 129, 0.42)',
     Icon: BestIcon,
   },
   excellent: {
@@ -230,7 +230,7 @@ export const ClassificationBadge: React.FC<ClassificationBadgeProps> = ({
     sm: 'w-5 h-5',
     md: 'w-6 h-6',
     lg: 'w-8 h-8',
-    board: 'w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 shadow-md',
+    board: 'w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6.5 md:h-6.5 shadow-sm',
   }[size];
 
   const titleText = typeof key === 'string' ? key.toUpperCase() : 'MOVE';
@@ -276,7 +276,7 @@ export const CheckmateBadge: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'board'; cla
     sm: 'w-5 h-5',
     md: 'w-6 h-6',
     lg: 'w-8 h-8',
-    board: 'w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 shadow-md',
+    board: 'w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6.5 md:h-6.5 shadow-sm',
   }[size];
 
   return (
@@ -298,12 +298,12 @@ export const WinnerBadge: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'board'; classN
     sm: 'w-5 h-5',
     md: 'w-6 h-6',
     lg: 'w-8 h-8',
-    board: 'w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 shadow-md',
+    board: 'w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6.5 md:h-6.5 shadow-sm',
   }[size];
 
   return (
     <div
-      className={`rounded-full flex items-center justify-center select-none shrink-0 transition-transform ${sizeClasses} bg-[#81b64c] shadow-md border-none ${className}`}
+      className={`rounded-full flex items-center justify-center select-none shrink-0 transition-transform ${sizeClasses} bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_2px_0_0_#385a16] border-t border-white/35 ${className}`}
       title="WINNER"
     >
       <WinnerCrownIcon />

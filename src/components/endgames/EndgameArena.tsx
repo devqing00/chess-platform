@@ -10,6 +10,7 @@ import { LearningProgressStore } from '@/lib/learningPathData';
 import { useXpSystem } from '@/hooks/useXpSystem';
 import { XpGainToast } from '@/components/xp/XpGainToast';
 import confetti from 'canvas-confetti';
+import { Button } from '@/components/ui/button';
 import {
   Crown,
   RotateCcw,
@@ -216,8 +217,7 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
                   </>
                 ) : (
                   <span>
-                    {currentStudy.turn === 'w' ? 'White to Move' : 'Black to Move'} &bull;{' '}
-                    {currentStudy.objective === 'Win' ? 'Convert Win' : 'Hold Draw'}
+                    {currentStudy.turn === 'w' ? 'White to Move' : 'Black to Move'} ({currentStudy.objective === 'Win' ? 'Win' : 'Draw'})
                   </span>
                 )}
               </span>
@@ -226,7 +226,7 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
                   ? 'Spacebar or Continue to next study'
                   : status === 'incorrect'
                   ? 'Try another tablebase move or use a hint'
-                  : `${currentStudy.tablebaseEvaluation || 'Syzygy 7-Piece'} • Move ${Math.min(moveStep + 1, currentStudy.moves.length)} of ${currentStudy.moves.length}`}
+                  : `${currentStudy.tablebaseEvaluation || 'Tablebase'} | Move ${Math.min(moveStep + 1, currentStudy.moves.length)} of ${currentStudy.moves.length}`}
               </span>
             </div>
           </div>
@@ -275,40 +275,44 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
         {/* Mobile Quick Action Ribbon */}
         <div className="w-[min(calc(100vw-2.5rem),calc(100vh-230px),540px)] lg:hidden flex items-center justify-between gap-2 p-2 bg-[#1a1815] border-2 border-[#2b2824] rounded-xl text-xs shadow-[0_2px_0_0_#141311]">
           <div className="flex items-center gap-1.5">
-            <button
+            <Button
+              variant="secondary"
+              size="xs"
+              rounded="lg"
               onClick={handleReset}
-              className="px-2.5 py-1.5 rounded-lg border border-[#3b372e] bg-[#272521] text-zinc-300 text-xs font-bold flex items-center gap-1 active:translate-y-[1px] cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="xs"
+              rounded="lg"
               onClick={handleShowHint}
-              className="px-2.5 py-1.5 rounded-lg border border-[#3b372e] bg-[#272521] text-zinc-300 text-xs font-bold flex items-center gap-1 active:translate-y-[1px] cursor-pointer"
             >
               <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
               <span>Hint</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="xs"
+              rounded="lg"
               onClick={handleShowSolution}
-              className="px-2.5 py-1.5 rounded-lg border border-[#3b372e] bg-[#272521] text-zinc-300 text-xs font-bold flex items-center gap-1 active:translate-y-[1px] cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5 text-cyan-400" />
               <span>Solution</span>
-            </button>
+            </Button>
           </div>
 
-          <button
+          <Button
+            variant="primary"
+            size="xs"
+            rounded="lg"
             onClick={handleNext}
-            className={`px-3.5 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition ${
-              status === 'solved'
-                ? 'bg-[#58cc02] border-[#3da300] text-white shadow-[0_2px_0_0_#2b7300]'
-                : 'bg-[#81b64c] border-[#4d7a24] text-white shadow-[0_2px_0_0_#4d7a24]'
-            }`}
           >
             <span>Next</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -326,12 +330,13 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
             <button
               key={cat.id}
               onClick={() => {
+                soundService.playTactilePop();
                 setSelectedCategory(cat.id);
                 setStudyIndex(0);
               }}
               className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 selectedCategory === cat.id
-                  ? 'bg-[#81b64c] text-white shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none'
+                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 active:translate-y-[1px]'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -345,7 +350,7 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20 inline-block mb-1">
-                {currentStudy.difficulty} &bull; Rating {currentStudy.rating}
+                {currentStudy.difficulty} ({currentStudy.rating})
               </span>
               <h2 className="text-sm sm:text-base font-black text-white">{currentStudy.title}</h2>
             </div>
@@ -399,48 +404,51 @@ export const EndgameArena: React.FC<EndgameArenaProps> = ({
 
           {/* Action Buttons Row */}
           <div className="pt-2 flex flex-col gap-2.5">
-            {status === 'solved' ? (
-              <button
-                onClick={handleNext}
-                className="w-full py-3 sm:py-3.5 rounded-xl sm:rounded-2xl border-2 border-[#3da300] bg-[#58cc02] hover:bg-[#4bad02] text-white text-xs font-black uppercase tracking-wider shadow-[0_5px_0_0_#2b7300] hover:-translate-y-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>Continue to Next Study</span>
-                <ArrowRight className="w-4 h-4 stroke-[3]" />
-              </button>
-            ) : (
-              <button
-                onClick={handleNext}
-                className="w-full py-2.5 sm:py-3 rounded-xl sm:rounded-2xl border-2 border-[#4d7a24] bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black uppercase tracking-wider shadow-[0_4px_0_0_#3d631c] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>Next Endgame Study</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
+            <Button
+              variant="primary"
+              size={status === 'solved' ? 'lg' : 'md'}
+              rounded="2xl"
+              fullWidth
+              onClick={handleNext}
+              className="gap-2"
+            >
+              <span>{status === 'solved' ? 'Continue to Next Study' : 'Next Endgame Study'}</span>
+              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+            </Button>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
                 onClick={handleReset}
-                className="flex-1 py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-xl border-2 border-[#3b372e] bg-[#272521] text-zinc-300 hover:text-white text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1"
+                className="flex-1 gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
                 onClick={handleShowHint}
-                className="flex-1 py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-xl border-2 border-[#3b372e] bg-[#272521] text-zinc-300 hover:text-white text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1"
+                className="flex-1 gap-1"
               >
                 <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
                 <span>Hint</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
                 onClick={handleShowSolution}
-                className="flex-1 py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-xl border-2 border-[#3b372e] bg-[#272521] text-zinc-300 hover:text-white text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-[0_2px_0_0_#141311] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1"
+                className="flex-1 gap-1"
               >
                 <Eye className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Solution</span>
-              </button>
+              </Button>
             </div>
           </div>
         </div>

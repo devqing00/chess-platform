@@ -45,14 +45,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   } = useShell();
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 overflow-x-hidden">
+    <div className="flex flex-col md:flex-row h-[100dvh] max-h-[100dvh] w-full bg-[#161512] text-zinc-100 overflow-hidden">
       {/* Mobile Top Header, Bottom Bar & Drawer (< md screens) */}
       <MobileNavigation
         onOpenMembershipModal={openMembership}
         onOpenSettingsModal={openSettings}
       />
 
-      {/* Persistent Left Sidebar (md and desktop screens) */}
+      {/* Persistent Left Sidebar (md and desktop screens) - Immovably Fixed to Viewport */}
       <SidebarNav
         membership={membershipTier}
         onOpenMembershipModal={openMembership}
@@ -60,8 +60,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         onOpenChessComSync={openChessComSync}
       />
 
-      {/* Main Page Content Area - Naturally Scrollable on Mobile, Viewport-Locked on Desktop */}
-      <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-[#161512] relative overflow-y-auto md:overflow-hidden">
+      {/* Main Page Content Area - Naturally Scrollable with Viewport Locked to Shell */}
+      <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-[#161512] relative overflow-y-auto">
         {children}
       </main>
 

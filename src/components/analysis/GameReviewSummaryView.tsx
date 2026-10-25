@@ -7,6 +7,7 @@ import { ClassificationBadge, CLASSIFICATION_CONFIG } from '../board/Classificat
 import { PieceIcon } from '../board/PieceIcons';
 import { CoachDannyAvatar } from './CoachDannyAvatar';
 import { MentorAvatar } from './MentorAvatar';
+import { Button } from '@/components/ui/button';
 import { useShell } from '@/context/ShellContext';
 import { getMentorById } from '@/lib/mentorsData';
 import {
@@ -379,7 +380,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
         <div
           className={`flex items-center justify-between px-3 py-2 rounded-xl border ${
             gameOutcome.badgeType === 'win'
-              ? 'bg-[#81b64c]/15 border-[#81b64c]/40 text-[#81b64c]'
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
               : gameOutcome.badgeType === 'loss'
               ? 'bg-[#e05344]/15 border-[#e05344]/40 text-[#f87171]'
               : 'bg-[#312e2b] border-[#44403a] text-zinc-300'
@@ -389,7 +390,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             {gameOutcome.subtitle.toLowerCase().includes('time') ? (
               <Clock className="w-4 h-4 shrink-0 text-amber-400" />
             ) : gameOutcome.subtitle.toLowerCase().includes('resignation') ? (
-              <Flag className="w-4 h-4 shrink-0 text-[#81b64c]" />
+              <Flag className="w-4 h-4 shrink-0 text-emerald-400" />
             ) : (
               <Trophy className="w-4 h-4 shrink-0 text-amber-400" />
             )}
@@ -405,7 +406,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           <span
             className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border shrink-0 shadow-sm ${
               gameOutcome.badgeType === 'win'
-                ? 'bg-[#81b64c] text-white border-[#4d7a24]'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                 : gameOutcome.badgeType === 'loss'
                 ? 'bg-[#ca3431] text-white border-[#7f1d1d]'
                 : 'bg-zinc-700 text-white border-zinc-600'
@@ -426,14 +427,14 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center flex items-center justify-center gap-1">
               <span className="truncate">{whitePlayer.name}</span>
               {isUserWhite && (
-                <span className="text-[9px] font-black text-[#81b64c] bg-[#81b64c]/10 px-1 py-0.2 rounded shrink-0">
+                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0">
                   YOU
                 </span>
               )}
             </span>
             <div
               className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#2a2723] ${
-                isUserWhite ? 'border-2 border-[#81b64c]' : 'border border-[#3d3932]'
+                isUserWhite ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-[#3d3932]'
               } flex items-center justify-center p-2 shadow-sm relative`}
             >
               {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
@@ -452,14 +453,14 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center flex items-center justify-center gap-1">
               <span className="truncate">{blackPlayer.name}</span>
               {!isUserWhite && (
-                <span className="text-[9px] font-black text-[#81b64c] bg-[#81b64c]/10 px-1 py-0.2 rounded shrink-0">
+                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0">
                   YOU
                 </span>
               )}
             </span>
             <div
               className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#272522] ${
-                !isUserWhite ? 'border-2 border-[#81b64c]' : 'border border-[#3d3932]'
+                !isUserWhite ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-[#3d3932]'
               } flex items-center justify-center p-2 shadow-sm relative`}
             >
               {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
@@ -571,13 +572,17 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-2">
-        <button
+        <Button
+          variant="primary"
+          size="md"
+          rounded="xl"
+          fullWidth
           onClick={onStartInteractiveReview}
-          className="w-full py-2.5 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white font-black text-sm uppercase tracking-wider border-2 border-[#4d7a24] shadow-[0_3px_0_0_#4d7a24] active:translate-y-[2px] active:shadow-[0_1px_0_0_#4d7a24] transition-all cursor-pointer flex items-center justify-center gap-2"
+          className="gap-2"
         >
           <Play className="w-3.5 h-3.5 fill-current" />
           <span>Continue Review</span>
-        </button>
+        </Button>
 
         {/* Interactive Mistakes SRS Practice Button */}
         {userMistakesPuzzles.length > 0 ? (
@@ -592,7 +597,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <span>Practice & Retry Mistakes ({userMistakesPuzzles.length})</span>
           </button>
         ) : (
-          <div className="w-full py-1.5 px-3 rounded-lg bg-[#81b64c]/10 border border-[#81b64c]/20 text-[#81b64c] text-xs font-bold flex items-center justify-center gap-1.5">
+          <div className="w-full py-1.5 px-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Flawless play — 0 Blunders or Misses!</span>
           </div>
@@ -656,7 +661,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           }}
           className="w-full py-1.5 rounded-lg bg-[#282622] hover:bg-[#34312b] text-zinc-400 hover:text-white font-black uppercase tracking-wider text-[10px] border border-[#3d3932] shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-1.5"
         >
-          <Sparkles className="w-3 h-3 text-[#81b64c]" />
+          <Sparkles className="w-3 h-3 text-emerald-400" />
           <span>Export PGN</span>
         </button>
       </div>
@@ -664,7 +669,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   );
 
   return (
-    <div className="flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-y-auto lg:overflow-hidden justify-start pb-20 lg:pb-0">
+    <div className="flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:max-h-[100dvh] w-full bg-[#161512] text-zinc-100 select-none overflow-y-auto xl:overflow-hidden justify-start pb-20 xl:pb-0">
       {/* Top Header Bar - Ultra-compact 36px-40px */}
       <header className="h-9 sm:h-10 px-2 sm:px-3 bg-[#1f1d1a] border-b border-[#2d2a26] flex items-center justify-between shrink-0 shadow-sm z-30">
         {/* Left: Back / Play button + Title */}
@@ -679,7 +684,6 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </button>
           <span className="text-zinc-600 hidden xs:inline">|</span>
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-[#81b64c] shrink-0" />
             <h1 className="text-xs font-black text-white tracking-wide uppercase truncate">
               Review Summary
             </h1>
@@ -688,12 +692,13 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <div className="hidden xl:flex items-center bg-[#141311] p-0.5 rounded-full border border-[#2e2a24] text-[9px] font-black uppercase tracking-wider ml-2">
               <button
                 onClick={() => {
+                  soundService.playTactilePop();
                   setAnalysisEngine('torch_human');
                   onEngineChange?.('torch_human');
                 }}
                 className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
                   analysisEngine === 'torch_human'
-                    ? 'bg-[#f59e0b] text-white shadow-sm'
+                    ? 'bg-gradient-to-b from-amber-500 to-amber-600 text-white shadow-sm border-t border-white/20'
                     : 'text-zinc-400 hover:text-white'
                 }`}
                 title="Torch Human (Maia NNUE)"
@@ -704,12 +709,13 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
               <button
                 onClick={() => {
+                  soundService.playTactilePop();
                   setAnalysisEngine('stockfish');
                   onEngineChange?.('stockfish');
                 }}
                 className={`px-2 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
                   analysisEngine === 'stockfish'
-                    ? 'bg-[#81b64c] text-white shadow-sm'
+                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_1px_0_0_#385a16] border-t border-white/35 font-black'
                     : 'text-zinc-400 hover:text-white'
                 }`}
                 title="Stockfish 18"
@@ -728,10 +734,13 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 return (
                   <button
                     key={tier}
-                    onClick={() => onStrengthChange?.(tier)}
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      onStrengthChange?.(tier);
+                    }}
                     className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#35322b] text-[#81b64c] font-black shadow-sm'
+                        ? 'bg-[#35322b] text-emerald-400 font-black shadow-sm'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                     title={`${cfg.label}: ${cfg.description}`}
@@ -781,13 +790,14 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   </button>
                   <button
                     onClick={() => {
+                      soundService.playTactilePop();
                       setAnalysisEngine('stockfish');
                       onEngineChange?.('stockfish');
                       setIsOptionsOpen(false);
                     }}
                     className={`px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 text-[10px] font-black uppercase transition-all cursor-pointer ${
                       analysisEngine === 'stockfish'
-                        ? 'bg-[#81b64c] text-white shadow'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_1px_0_0_#385a16] border-t border-white/35 font-black'
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
@@ -799,7 +809,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 {/* Engine Strength Tiers Section */}
                 <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                   <span>Strength Tier</span>
-                  <span className="text-[#81b64c] font-mono text-[9px]">
+                  <span className="text-emerald-400 font-mono text-[9px]">
                     {ENGINE_STRENGTH_CONFIGS[engineStrength || report.strengthTier || 'fast'].label}
                   </span>
                 </div>
@@ -812,12 +822,13 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                       <button
                         key={tier}
                         onClick={() => {
+                          soundService.playTactilePop();
                           onStrengthChange?.(tier);
                           setIsOptionsOpen(false);
                         }}
                         className={`px-2 py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] transition-all cursor-pointer border ${
                           isSelected
-                            ? 'bg-[#2a2723] border-[#81b64c] text-white shadow-sm font-black'
+                            ? 'bg-[#2a2723] border-emerald-500 text-white shadow-sm font-black'
                             : 'border-transparent text-zinc-400 hover:text-white hover:bg-[#201e1a]'
                         }`}
                       >
@@ -848,7 +859,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                       }}
                       className="w-full py-1.5 px-2 rounded-lg hover:bg-[#282622] text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-2 transition cursor-pointer"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 text-[#81b64c]" />
+                      <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Re-analyze Game</span>
                     </button>
                   )}
@@ -857,14 +868,17 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             )}
           </div>
 
-          <button
+          <Button
+            variant="primary"
+            size="xs"
+            rounded="full"
             onClick={onStartInteractiveReview}
-            className="px-3 py-1 rounded-full bg-[#81b64c] hover:bg-[#8cc653] text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1 border border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer shrink-0"
+            className="gap-1 shrink-0"
           >
             <Play className="w-2.5 h-2.5 fill-current" />
             <span className="hidden xs:inline">Start Review</span>
             <span className="xs:hidden">Review</span>
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -872,17 +886,27 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
       <div className="lg:hidden flex items-center justify-center p-1.5 bg-[#171614] border-b border-[#262420] shrink-0">
         <div className="flex bg-[#1f1d1a] p-0.5 rounded-full border border-[#2d2a26] w-full max-w-xs text-[11px] font-black uppercase">
           <button
-            onClick={() => setMobileTab('stats')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setMobileTab('stats');
+            }}
             className={`flex-1 py-1 rounded-full text-center transition-all cursor-pointer ${
-              mobileTab === 'stats' ? 'bg-[#81b64c] text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+              mobileTab === 'stats'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             📊 Accuracies & Stats
           </button>
           <button
-            onClick={() => setMobileTab('board')}
+            onClick={() => {
+              soundService.playTactilePop();
+              setMobileTab('board');
+            }}
             className={`flex-1 py-1 rounded-full text-center transition-all cursor-pointer ${
-              mobileTab === 'board' ? 'bg-[#81b64c] text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+              mobileTab === 'board'
+                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             ♟ Board & Advantage
@@ -891,7 +915,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
       </div>
 
       {/* Main Review Hub Body: Responsive container */}
-      <div className="flex-1 min-h-0 overflow-visible lg:overflow-hidden flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 lg:p-3 xl:p-4 gap-4 w-full max-w-5xl mx-auto">
+      <div className="flex-1 min-h-0 overflow-visible lg:overflow-hidden flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 lg:p-4 gap-4 w-full max-w-5xl mx-auto">
         {/* Desktop Split View (Left: Board + Graph, Right: Stats Panel) */}
         <div className="hidden lg:flex flex-row gap-5 w-full h-full justify-center items-start min-h-0">
           {/* Left Column: Board & Eval Flow */}
@@ -921,7 +945,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <div className="w-full bg-[#1b1917] p-2 rounded-lg border border-[#2d2a26] flex flex-col gap-1 shadow-md">
               <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
                 <span>Advantage Over Time</span>
-                <span className="font-mono text-[11px] text-[#81b64c] font-black">
+                <span className="font-mono text-[11px] text-emerald-400 font-black">
                   {moves.length} Moves
                 </span>
               </div>
@@ -930,7 +954,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                   <polyline
                     fill="none"
-                    stroke="#81b64c"
+                    stroke="#10b981"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -980,7 +1004,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
               <div className="w-full max-w-[min(100vw,calc(100dvh-175px))] bg-[#1b1917] p-2 rounded-lg border border-[#2d2a26] flex flex-col gap-1 shadow-md">
                 <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
                   <span>Advantage Over Time</span>
-                  <span className="font-mono text-[11px] text-[#81b64c] font-black">
+                  <span className="font-mono text-[11px] text-emerald-400 font-black">
                     {moves.length} Moves
                   </span>
                 </div>
@@ -989,7 +1013,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                     <polyline
                       fill="none"
-                      stroke="#81b64c"
+                      stroke="#10b981"
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1003,13 +1027,16 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
           {/* Fixed Bottom Bar on Mobile */}
           <div className="fixed bottom-0 inset-x-0 p-2 bg-[#1b1916]/95 backdrop-blur-md border-t border-[#2d2a26] z-20 flex gap-2 justify-center">
-            <button
+            <Button
+              variant="primary"
+              size="md"
+              rounded="xl"
               onClick={onStartInteractiveReview}
-              className="w-full max-w-sm py-2 rounded-xl bg-[#81b64c] hover:bg-[#8cc653] text-white font-black text-xs uppercase tracking-wider border border-[#4d7a24] shadow-[0_2px_0_0_#4d7a24] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full max-w-sm gap-1.5"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>Start Interactive Review</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -1033,7 +1060,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                       Mistake {currentMistakeIndex + 1} of {userMistakesPuzzles.length}
                     </span>
                     <span>•</span>
-                    <span className="text-[#81b64c]">
+                    <span className="text-emerald-400 font-bold">
                       {solvedMistakes.size} Solved
                     </span>
                   </div>
@@ -1082,7 +1109,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   </span>
                 </div>
                 {solvedMistakes.has(currentMistakeIndex) && (
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#81b64c] bg-[#81b64c]/15 px-2 py-0.5 rounded-full border border-[#81b64c]/30 flex items-center gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
                     <Check className="w-3 h-3" /> Solved
                   </span>
                 )}
@@ -1110,19 +1137,22 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
             {/* Status Feedback */}
             {blunderStatus === 'correct' && (
-              <div className="p-3 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 text-[#81b64c] text-xs font-bold flex items-center justify-between gap-2">
+              <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Brilliant! You found the winning continuation ({activeMistakePuzzle.solutionSan})!</span>
                 </div>
                 {currentMistakeIndex < userMistakesPuzzles.length - 1 && (
-                  <button
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    rounded="lg"
                     onClick={() => loadMistakeIndex(currentMistakeIndex + 1)}
-                    className="px-2.5 py-1 rounded-lg bg-[#81b64c] text-white hover:bg-[#8cc653] text-[11px] font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1 shrink-0"
+                    className="gap-1 shrink-0"
                   >
                     <span>Next</span>
                     <ChevronRight className="w-3 h-3" />
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
@@ -1151,28 +1181,36 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
             {/* Modal Controls */}
             <div className="flex items-center justify-between pt-1">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
                 onClick={resetBlunderPuzzle}
-                className="px-3 py-1.5 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Try Again</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
                 onClick={revealBlunderSolution}
-                className="px-3 py-1.5 rounded-xl bg-[#282622] hover:bg-[#34312b] text-zinc-300 hover:text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="gap-1.5"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 <span>Show Solution</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                rounded="xl"
                 onClick={() => setIsBlunderModalOpen(false)}
-                className="px-4 py-1.5 rounded-xl bg-[#81b64c] hover:bg-[#73a542] text-white text-xs font-black transition-colors cursor-pointer"
               >
                 Done
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -28,6 +28,7 @@ import { MoveHistory } from '@/components/game/MoveHistory';
 import { MobileBottomBar } from '@/components/game/MobileBottomBar';
 import { GameOverModal } from '@/components/game/GameOverModal';
 import { MatchVersusIntro } from '@/components/game/MatchVersusIntro';
+import { Button } from '@/components/ui/button';
 
 import {
   RotateCcw,
@@ -100,6 +101,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [gameResult, setGameResult] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState<GameResultDetails | null>(null);
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
+  const [hasSeenGameOverModal, setHasSeenGameOverModal] = useState(false);
   const [isResignModalOpen, setIsResignModalOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showVersusIntro, setShowVersusIntro] = useState(false);
@@ -318,14 +320,23 @@ export default function GameRoomPage({ params }: GamePageProps) {
       };
 
       setResultDetails(details);
-      setIsGameOverModalOpen(true);
 
-      if (isHumanWinner) {
-        soundService.playVictory();
-        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-      } else {
-        soundService.playDefeat();
+      // Play immediate tactile piece impact as the defeated king begins to topple
+      if (winnerColor !== 'draw') {
+        soundService.playCapture();
       }
+
+      // Allow the on-board king topple / defeat animation to play first briefly before showing modal
+      setTimeout(() => {
+        setIsGameOverModalOpen(true);
+        setHasSeenGameOverModal(true);
+        if (isHumanWinner) {
+          soundService.playVictory();
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+        } else if (winnerColor !== 'draw') {
+          soundService.playDefeat();
+        }
+      }, 1400);
 
       GameSessionStore.completeGame(gameId, moveHistoryRef.current, resultString, details);
     },
@@ -665,25 +676,25 @@ export default function GameRoomPage({ params }: GamePageProps) {
   }, [currentMoveIndex, moveHistory]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:max-h-[100dvh] overflow-y-auto lg:overflow-hidden bg-[#161512] text-zinc-100 select-none justify-start min-w-0 pb-16 lg:pb-0">
-      {/* 1. Ultra-Compact Gameplay Header (Strict 36px-40px on Mobile) */}
-      <header className="h-9 sm:h-10 px-2 sm:px-4 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none z-30">
-        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+    <div className="flex-1 flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:max-h-[100dvh] overflow-y-auto xl:overflow-hidden bg-[#161512] text-zinc-100 select-none justify-start min-w-0 pb-16 xl:pb-0">
+      {/* 1. Header with comfortable vertical padding */}
+      <header className="min-h-[52px] sm:min-h-[56px] py-2 sm:py-2.5 px-3 sm:px-5 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none z-30">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={() => router.push('/play')}
-            className="p-1 sm:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold shrink-0"
+            className="py-1.5 px-2.5 sm:px-3 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold shrink-0"
             title="Return to Play Lobby"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline">Lobby</span>
           </button>
           <span className="text-zinc-600 hidden xs:inline">|</span>
-          <span className="text-xs font-bold text-zinc-300 truncate">
+          <span className="text-xs sm:text-sm font-bold text-zinc-300 truncate">
             {botPlayer ? (
               <span className="flex items-center gap-1.5">
-                <span className="text-zinc-400">vs</span>
-                <strong className="text-white">{botPlayer.name}</strong>
-                <span className="text-[10px] text-zinc-400 font-mono">({botPlayer.rating})</span>
+                <span className="text-zinc-400 font-normal">vs</span>
+                <strong className="text-white font-extrabold">{botPlayer.name}</strong>
+                <span className="text-[11px] text-zinc-400 font-mono">({botPlayer.rating})</span>
               </span>
             ) : (
               <strong className="text-white font-mono">Live Match</strong>
@@ -694,20 +705,19 @@ export default function GameRoomPage({ params }: GamePageProps) {
         {/* Right Header Controls: Review Button or Compact More Options Popover */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0 relative">
           {gameResult ? (
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => router.push(`/game/review/${gameId}`)}
-              className="px-2.5 sm:px-3 py-1 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white text-xs font-black flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+              className="px-2.5 sm:px-3 py-1 gap-1 text-xs font-black shadow-sm"
             >
               <Award className="w-3.5 h-3.5" />
               <span>Review</span>
-            </button>
+            </Button>
           ) : (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#211f1c] border border-[#2d2a25]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c] animate-ping" />
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-                Live
-              </span>
-            </div>
+            <span className="text-[10px] font-mono font-bold text-zinc-400 px-2 py-0.5 rounded-md bg-[#211f1c] border border-[#2d2a25] uppercase tracking-wider">
+              Live
+            </span>
           )}
 
           {/* More Options Button */}
@@ -724,12 +734,13 @@ export default function GameRoomPage({ params }: GamePageProps) {
             <div className="absolute right-0 top-10 w-48 bg-[#1f1d1a] border border-[#35322b] rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95">
               <button
                 onClick={() => {
+                  soundService.playTactilePop();
                   setOrientation((o) => (o === 'w' ? 'b' : 'w'));
                   setIsMoreMenuOpen(false);
                 }}
                 className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-zinc-200 hover:bg-[#2c2924] flex items-center gap-2 text-left transition-colors"
               >
-                <ArrowUpDown className="w-3.5 h-3.5 text-[#81b64c]" />
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Flip Board</span>
               </button>
 
@@ -793,16 +804,15 @@ export default function GameRoomPage({ params }: GamePageProps) {
         </div>
       </header>
 
-      {/* 2. Main Workspace: Top-Aligned Responsive Container */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 sm:p-2 lg:p-4 gap-1 sm:gap-2 lg:gap-6 w-full max-w-6xl mx-auto overflow-visible lg:overflow-hidden min-h-0">
+      {/* 2. Main Workspace: Top-Aligned Responsive Container (Side-by-side on laptop/desktop md:+) */}
+      <main className="flex-1 flex flex-col md:flex-row items-center md:items-start justify-center p-1 sm:p-2 md:p-3 xl:p-4 gap-2 md:gap-4 xl:gap-6 w-full max-w-6xl mx-auto overflow-visible md:overflow-hidden min-h-0">
         
         {/* Center Column: Opponent Bar + Board + User Bar + Mobile Controls */}
-        <div className="w-full max-w-full lg:w-auto flex flex-col items-center justify-start shrink-0 px-0 sm:px-1 gap-1">
+        <div className="w-full max-w-full md:w-auto flex flex-col items-center justify-start shrink-0 px-0 sm:px-1 gap-1">
           
           {/* Top Opponent Player Bar */}
           <div
-            className="w-full px-1 sm:px-0"
-            style={{ width: 'min(100vw, calc(100dvh - 165px), 540px)' }}
+            className="w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
           >
             <PlayerCard
               player={topPlayer}
@@ -815,13 +825,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
             />
           </div>
 
-          {/* Edge-to-Edge Chessboard on Mobile (Strictly bounded by 100dvh) */}
+          {/* Edge-to-Edge Chessboard (Strictly bounded by 100dvh) */}
           <div
-            className="shrink-0 aspect-square flex items-center justify-center relative select-none"
-            style={{
-              width: 'min(100vw, calc(100dvh - 165px), 540px)',
-              height: 'min(100vw, calc(100dvh - 165px), 540px)',
-            }}
+            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-visible w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] h-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] md:h-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] lg:h-[min(calc(100vw-26rem),calc(100dvh-170px),540px)]"
           >
             <ChessBoard
               chess={chess}
@@ -833,11 +839,20 @@ export default function GameRoomPage({ params }: GamePageProps) {
               lastMove={lastMoveHighlight}
               activeClassification={null}
               disabled={Boolean(gameResult)}
+              defeatedColor={
+                resultDetails && currentMoveIndex === moveHistory.length - 1
+                  ? resultDetails.winner === 'w'
+                    ? 'b'
+                    : resultDetails.winner === 'b'
+                    ? 'w'
+                    : null
+                  : null
+              }
             />
 
-            {/* Floating Re-Open Result Button when reviewing final board */}
-            {resultDetails && !isGameOverModalOpen && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2 pointer-events-auto">
+            {/* Floating Re-Open Result Button when reviewing final board (only after modal has been shown once) */}
+            {resultDetails && !isGameOverModalOpen && hasSeenGameOverModal && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 pointer-events-auto">
                 <button
                   onClick={() => setIsGameOverModalOpen(true)}
                   className="shadow-2xl border border-white/20 px-4 py-1.5 rounded-xl font-black text-xs flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white cursor-pointer transition-transform hover:scale-105"
@@ -851,8 +866,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
 
           {/* Bottom Player Bar (User) */}
           <div
-            className="w-full px-1 sm:px-0"
-            style={{ width: 'min(100vw, calc(100dvh - 165px), 540px)' }}
+            className="w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
           >
             <PlayerCard
               player={bottomPlayer}
@@ -865,10 +879,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
             />
           </div>
 
-          {/* Mobile Bottom Controls Bar (< lg screens) */}
+          {/* Mobile Bottom Controls Bar (< md screens) */}
           <div
-            className="w-full lg:hidden px-1 sm:px-0"
-            style={{ width: 'min(100vw, calc(100dvh - 165px), 540px)' }}
+            className="w-full md:hidden px-1 sm:px-0 max-w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)]"
           >
             <MobileBottomBar
               onToggleMoves={() => setActiveTab('moves')}
@@ -895,22 +908,25 @@ export default function GameRoomPage({ params }: GamePageProps) {
           </div>
         </div>
 
-        {/* 3. Right Side Console (Desktop >= lg, strictly fits inside single viewport) */}
+        {/* 3. Right Side Console (Laptop/Desktop >= md, strictly fits inside single viewport) */}
         <div
-          className="hidden lg:flex w-[380px] xl:w-[400px] flex-col gap-2 shrink-0"
-          style={{ height: 'min(calc(100dvh - 120px), 580px)' }}
+          className="hidden md:flex w-[300px] md:w-[320px] lg:w-[360px] xl:w-[400px] flex-col gap-2 shrink-0"
+          style={{ height: 'min(calc(100dvh - 100px), 580px)' }}
         >
           {/* Top Console Tabs: Moves vs Bot Chat */}
           <div className="p-1 bg-[#1a1815] rounded-xl border border-[#2d2a25] flex items-center gap-1 shrink-0">
             <button
-              onClick={() => setActiveTab('moves')}
+              onClick={() => {
+                soundService.playTactilePop();
+                setActiveTab('moves');
+              }}
               className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'moves'
                   ? 'bg-[#282521] text-white shadow-sm border border-[#3a3731]'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#201e1a]'
               }`}
             >
-              <ListOrdered className="w-3.5 h-3.5 text-[#81b64c]" />
+              <ListOrdered className="w-3.5 h-3.5 text-emerald-400" />
               <span>Moves</span>
               <span className="text-[10px] font-mono font-bold px-1.5 rounded-full bg-black/40 text-zinc-300">
                 {moveHistory.length}
@@ -920,6 +936,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
             {botPlayer && (
               <button
                 onClick={() => {
+                  soundService.playTactilePop();
                   setActiveTab('chat');
                   setHasUnreadChat(false);
                 }}
@@ -929,10 +946,10 @@ export default function GameRoomPage({ params }: GamePageProps) {
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#201e1a]'
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5 text-[#81b64c]" />
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="truncate">Chat with {botPlayer.name}</span>
                 {hasUnreadChat && (
-                  <span className="w-2 h-2 rounded-full bg-[#81b64c] animate-ping" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 )}
               </button>
             )}
@@ -958,7 +975,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
                     </div>
                     <div>
                       <h4 className="text-xs font-black text-white">{botPlayer?.name}</h4>
-                      <span className="text-[10px] text-[#81b64c] font-bold">● Playing</span>
+                      <span className="text-[10px] text-emerald-400 font-bold">● Playing</span>
                     </div>
                   </div>
                   <span className="text-[10px] font-mono font-bold text-zinc-400 bg-black/30 px-2 py-0.5 rounded border border-[#33302b]">
@@ -971,7 +988,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
                     <div
                       key={i}
                       className={`flex flex-col ${
-                        msg.isBot ? 'items-start text-zinc-300' : 'items-end text-[#81b64c]'
+                        msg.isBot ? 'items-start text-zinc-300' : 'items-end text-emerald-400'
                       }`}
                     >
                       <span className="text-[9px] text-zinc-500 font-bold px-1">{msg.sender}</span>
@@ -979,7 +996,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
                         className={`px-2.5 py-1 rounded-xl text-xs max-w-[85%] leading-relaxed ${
                           msg.isBot
                             ? 'bg-[#282521] border border-[#383530] text-zinc-200'
-                            : 'bg-[#81b64c]/20 border border-[#81b64c]/40 text-white font-medium'
+                            : 'bg-emerald-500/20 border border-emerald-500/40 text-white font-medium'
                         }`}
                       >
                         {msg.text}
@@ -993,7 +1010,10 @@ export default function GameRoomPage({ params }: GamePageProps) {
                     {['Good luck!', 'Nice move!', 'Oops!', 'Rematch?'].map((chip) => (
                       <button
                         key={chip}
-                        onClick={() => handleSendChat(chip)}
+                        onClick={() => {
+                          soundService.playTactilePop();
+                          handleSendChat(chip);
+                        }}
                         className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-[#282521] hover:bg-[#33302a] text-zinc-300 border border-[#383530] transition-colors cursor-pointer"
                       >
                         {chip}
@@ -1008,11 +1028,14 @@ export default function GameRoomPage({ params }: GamePageProps) {
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSendChat(chatInput)}
                       placeholder={`Message ${botPlayer?.name || 'opponent'}...`}
-                      className="flex-1 bg-[#141311] border border-[#35322b] rounded-lg px-2.5 py-1 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#81b64c]"
+                      className="flex-1 bg-[#141311] border border-[#35322b] rounded-lg px-2.5 py-1 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                     />
                     <button
-                      onClick={() => handleSendChat(chatInput)}
-                      className="p-1.5 rounded-lg bg-[#81b64c] hover:bg-[#72a342] text-white transition-colors cursor-pointer"
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        handleSendChat(chatInput);
+                      }}
+                      className="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors cursor-pointer shadow-[0_2px_0_0_#065f46] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#065f46]"
                     >
                       <Send className="w-3.5 h-3.5" />
                     </button>
@@ -1082,13 +1105,15 @@ export default function GameRoomPage({ params }: GamePageProps) {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 w-full pt-1">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => setIsResignModalOpen(false)}
-                className="py-2 px-3 rounded-lg bg-[#282521] hover:bg-[#322f2a] text-zinc-200 text-xs font-black uppercase tracking-wider border border-[#3d3a34] transition-colors cursor-pointer"
+                className="uppercase tracking-wider text-xs font-black"
               >
                 Keep Playing
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
                 onClick={() => {
                   setIsResignModalOpen(false);
                   const opponentColor = userColor === 'w' ? 'b' : 'w';
@@ -1098,10 +1123,10 @@ export default function GameRoomPage({ params }: GamePageProps) {
                     `${userColor === 'w' ? whitePlayer.name : blackPlayer.name} Resigned (${opponentColor === 'w' ? '1-0' : '0-1'})`
                   );
                 }}
-                className="py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider border border-rose-700 transition-colors cursor-pointer"
+                className="uppercase tracking-wider text-xs font-black"
               >
                 Yes, Resign
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -23,7 +23,7 @@ export const BotChatBubble: React.FC<BotChatBubbleProps> = ({
       <div className="flex-1">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-bold text-white">{bot.name}</span>
-          <MessageSquare className="w-3 h-3 text-[#81b64c]" />
+          <MessageSquare className="w-3 h-3 text-emerald-400" />
         </div>
         <p className="text-xs text-zinc-300 mt-0.5 italic leading-relaxed">
           &ldquo;{message}&rdquo;

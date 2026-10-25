@@ -3,6 +3,7 @@
 import React from 'react';
 import { MembershipTier } from '@/types/chess';
 import { X, Check, Crown, Sparkles, Shield, Star } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface MembershipModalProps {
   isOpen: boolean;
@@ -98,12 +99,14 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
               Upgrade Your Check.mate Experience
             </span>
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="icon-sm"
+            rounded="full"
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-full text-zinc-400 hover:text-white hover:bg-[#383530] transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
-          </button>
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* Tiers Grid */}
@@ -137,28 +140,28 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                   <ul className="mt-4 space-y-2 text-xs text-zinc-300">
                     {tier.features.map((feat, idx) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-[#81b64c] shrink-0 mt-0.5" />
+                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                         <span className="leading-tight font-medium">{feat}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <button
-                  onClick={() => {
-                    onSelectTier(tier.id);
-                    onClose();
-                  }}
-                  className={`mt-5 sm:mt-6 w-full py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
-                    isCurrent
-                      ? 'bg-[#211f1c] border-[#383530] text-zinc-500 cursor-default shadow-none'
-                      : tier.popular
-                      ? 'bg-cyan-500 hover:bg-cyan-400 border-cyan-400 text-black shadow-[0_3px_0_0_#0891b2] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#0891b2]'
-                      : 'bg-[#81b64c] hover:bg-[#72a342] border-[#5d8b32] text-white shadow-[0_3px_0_0_#4d7a24] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#4d7a24]'
-                  }`}
-                >
-                  {isCurrent ? 'Current Plan' : 'Select Plan'}
-                </button>
+                <div className="mt-5 sm:mt-6">
+                  <Button
+                    variant={isCurrent ? 'secondary' : tier.popular ? 'blue' : 'primary'}
+                    size="md"
+                    rounded="full"
+                    fullWidth
+                    disabled={isCurrent}
+                    onClick={() => {
+                      onSelectTier(tier.id);
+                      onClose();
+                    }}
+                  >
+                    <span>{isCurrent ? 'Current Plan' : 'Select Plan'}</span>
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -167,7 +170,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         {/* Guarantee Footer */}
         <div className="px-4 sm:px-6 py-3 bg-[#181614] border-t-2 border-[#35322b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-zinc-400 font-medium">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-[#81b64c] shrink-0" />
+            <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Switch or cancel membership anytime. 100% money-back guarantee.</span>
           </div>
           <span className="text-[10px] sm:text-[11px] text-zinc-500 font-bold uppercase tracking-wider">Official Check.mate VIP Tiers</span>

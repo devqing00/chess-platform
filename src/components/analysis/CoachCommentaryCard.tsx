@@ -206,7 +206,7 @@ export const CoachCommentaryCard: React.FC<CoachCommentaryCardProps> = ({
         {move.bestMoveSan && move.bestMoveSan !== move.san && (
           <div className="mt-2 text-[11px] text-zinc-400 bg-[#161512] px-2.5 py-1.5 rounded-lg border border-[#2d2a26] flex items-center justify-between gap-2">
             <span className="shrink-0 text-zinc-400 font-medium">Better move was:</span>
-            <span className="text-[#81b64c] font-bold text-right font-sans">
+            <span className="text-emerald-400 font-bold text-right font-sans">
               {explainChessMove(move.bestMoveSan, move.fenBefore)}
             </span>
           </div>

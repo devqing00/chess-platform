@@ -20,8 +20,29 @@ interface PieceIconProps {
 export const PieceIcon: React.FC<PieceIconProps> = ({
   type,
   color,
+  theme = 'neo',
   className = 'w-full h-full drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.22)]',
 }) => {
+  if (
+    theme === 'neo' ||
+    theme === '8bit' ||
+    theme === 'vinyl' ||
+    theme === 'glass' ||
+    theme === 'staunton' ||
+    theme === 'alpha'
+  ) {
+    return (
+      <img
+        src={`/pieces/${theme}/${color}_${type}.png`}
+        alt={`${color === 'w' ? 'White' : 'Black'} ${type}`}
+        className={`object-contain pointer-events-none select-none ${
+          theme === '8bit' ? '[image-rendering:pixelated]' : ''
+        } ${className}`}
+        draggable={false}
+      />
+    );
+  }
+
   const isWhite = color === 'w';
 
   // White pieces: Pure, luminous white with crisp dark charcoal contour
