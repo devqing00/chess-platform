@@ -65,9 +65,10 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncTimestampRef = useRef<number>(Date.now());
 
-  // Board flipping & move scroll refs
+  // Board flipping & horizontal move scroll refs
   const [userFlippedBoard, setUserFlippedBoard] = useState(false);
-  const movesEndRef = useRef<HTMLDivElement | null>(null);
+  const mobileNotationScrollRef = useRef<HTMLDivElement | null>(null);
+  const desktopNotationScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Result modal & Versus Intro states
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
@@ -345,9 +346,42 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     }
   }, [game?.status, game?.winner, game?.whitePlayer, game?.blackPlayer, playerColor]);
 
-  // Auto-scroll move notation to latest move
+  // Memoized two-row turn pairs (Row 1: White, Row 2: Black)
+  const turnPairs = useMemo(() => {
+    const history = chess.history();
+    const pairs: Array<{
+      turn: number;
+      white: string;
+      whiteIdx: number;
+      black?: string;
+      blackIdx?: number;
+    }> = [];
+    for (let i = 0; i < history.length; i += 2) {
+      pairs.push({
+        turn: Math.floor(i / 2) + 1,
+        white: history[i],
+        whiteIdx: i,
+        black: history[i + 1],
+        blackIdx: i + 1 < history.length ? i + 1 : undefined,
+      });
+    }
+    return pairs;
+  }, [chess.history().length]);
+
+  // Auto-scroll horizontal move notation without ANY whole-page window jumping
   useEffect(() => {
-    movesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (mobileNotationScrollRef.current) {
+      mobileNotationScrollRef.current.scrollTo({
+        left: mobileNotationScrollRef.current.scrollWidth,
+        behavior: 'smooth',
+      });
+    }
+    if (desktopNotationScrollRef.current) {
+      desktopNotationScrollRef.current.scrollTo({
+        left: desktopNotationScrollRef.current.scrollWidth,
+        behavior: 'smooth',
+      });
+    }
   }, [chess.history().length]);
 
   const handleConfirmLeave = async () => {
@@ -606,11 +640,11 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       };
 
   return (
-    <div className="w-full h-full max-w-6xl mx-auto flex flex-col xl:flex-row items-center xl:items-start justify-center p-2 sm:p-4 xl:p-6 gap-4 xl:gap-6 select-none overflow-y-auto xl:overflow-hidden pb-24 xl:pb-6">
+    <div className="w-full h-[100dvh] max-h-[100dvh] max-w-6xl mx-auto flex flex-col xl:flex-row items-center justify-between xl:justify-center p-1.5 sm:p-2.5 xl:p-6 gap-1 sm:gap-2 xl:gap-6 select-none overflow-hidden">
       {/* ========================================================================= */}
       {/* 1. CHESSBOARD & PLAYER HUD COLUMN                                         */}
       {/* ========================================================================= */}
-      <div className="flex flex-col items-center justify-start min-h-0 w-full max-w-[min(calc(100vw-2rem),calc(100dvh-180px),520px)] xl:w-[min(calc(100vw-24rem),calc(100dvh-180px),520px)] shrink-0">
+      <div className="flex flex-col items-center justify-between xl:justify-start h-full max-h-[100dvh] w-full max-w-[min(calc(100vw-1rem),calc(100dvh-175px),520px)] xl:w-[min(calc(100vw-24rem),calc(100dvh-120px),520px)] shrink-0 py-0.5 xl:py-0">
         {/* Top Player Card & Clock */}
         <div className="w-full px-3 py-1.5 mb-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0 shadow-md">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -681,7 +715,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         </div>
 
         {/* Viewport-scaling Chessboard */}
-        <div className="w-full aspect-square relative rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
+        <div className="w-full aspect-square relative rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0 max-h-[calc(100dvh-175px)]">
           <ChessBoard
             chess={chess}
             orientation={effectiveOrientation}
@@ -972,12 +1006,188 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             </div>
           </div>
         </div>
+
+        {/* Mobile/Tablet Compact Action Bar & 2-Row Move Notation Strip (Strictly locked inside 100dvh without page scroll) */}
+        <div className="xl:hidden w-full flex flex-col gap-1 mt-1 shrink-0">
+          {/* Incoming Draw Offer Alert */}
+          {game?.drawOfferFrom && game.drawOfferFrom !== playerColor && game?.status === 'active' && (
+            <div className="w-full px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between text-xs animate-in fade-in">
+              <span className="text-amber-300 font-bold flex items-center gap-1.5 truncate">
+                <Handshake className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">Opponent offered a draw</span>
+              </span>
+              <div className="flex gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => GameSyncService.respondToDrawOffer(gameId, true)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500 text-black font-black text-xs hover:bg-emerald-400 active:scale-95 transition-all cursor-pointer"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  onClick={() => GameSyncService.respondToDrawOffer(gameId, false)}
+                  className="px-2.5 py-1 rounded-lg bg-[#282521] border border-white/10 text-zinc-300 font-bold text-xs hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Incoming Rematch Offer Alert */}
+          {game?.rematchRequestedBy && game.rematchRequestedBy !== playerColor && game?.status === 'completed' && (
+            <div className="w-full px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-between text-xs animate-in zoom-in-95">
+              <div className="flex items-center gap-1.5 truncate">
+                <RotateCcw className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />
+                <span className="text-emerald-300 font-bold truncate">Opponent wants rematch!</span>
+                <span className="text-[10px] text-emerald-400/80 font-mono hidden sm:inline">(Swaps colors)</span>
+              </div>
+              <div className="flex gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => GameSyncService.acceptRematch(gameId, true)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500 text-black font-black text-xs hover:bg-emerald-400 active:scale-95 transition-all cursor-pointer"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  onClick={() => GameSyncService.declineRematch(gameId)}
+                  className="px-2.5 py-1 rounded-lg bg-[#282521] border border-white/10 text-zinc-300 font-bold text-xs hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Rematch Offer Sent (Waiting for Opponent) */}
+          {game?.rematchRequestedBy === playerColor && game?.status === 'completed' && (
+            <div className="w-full px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between text-xs animate-in fade-in">
+              <span className="text-amber-300 font-bold flex items-center gap-1.5 truncate">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <span className="truncate">Rematch offered • Waiting for opponent...</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => GameSyncService.declineRematch(gameId)}
+                className="text-[11px] text-zinc-400 hover:text-white underline cursor-pointer shrink-0 ml-2"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Compact Control Buttons & 2-Row Horizontal Notation Strip */}
+          <div className="w-full flex items-center gap-1.5">
+            {/* Quick in-game actions (< xl screens) */}
+            {game?.status === 'active' ? (
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setUserFlippedBoard((prev) => !prev)}
+                  className="p-1.5 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-zinc-300 text-xs font-bold transition-colors cursor-pointer active:scale-95"
+                  title={userFlippedBoard ? 'Reset Board View' : 'Flip Board View'}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => GameSyncService.offerDraw(gameId, playerColor)}
+                  disabled={game?.status !== 'active' || !!game.drawOfferFrom}
+                  className="px-2 py-1.5 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-amber-400 text-xs font-black transition-colors cursor-pointer disabled:opacity-40 active:scale-95"
+                  title="Offer Draw"
+                >
+                  <Handshake className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAbortOrResign}
+                  disabled={game?.status !== 'active'}
+                  className="px-2 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-black transition-colors cursor-pointer disabled:opacity-40 active:scale-95"
+                  title={game && game.moves.length < 2 ? 'Abort Match' : 'Resign Match'}
+                >
+                  {game && game.moves.length < 2 ? (
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Flag className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            ) : game?.status === 'completed' && !game?.rematchRequestedBy ? (
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => GameSyncService.requestRematch(gameId, playerColor)}
+                  className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-black text-xs flex items-center gap-1 shadow-sm active:translate-y-[1px] cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Rematch</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/game/review/${gameId}`)}
+                  className="px-2 py-1.5 rounded-xl bg-[#282521] border border-white/10 text-amber-400 font-bold text-xs flex items-center gap-1 cursor-pointer active:scale-95"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>Review</span>
+                </button>
+              </div>
+            ) : null}
+
+            {/* 2-Row Horizontal Move Notation (Row 1: White, Row 2: Black) */}
+            <div className="flex-1 min-w-0 bg-[#181614] border border-white/5 rounded-xl px-2 py-1 shadow-md flex items-center gap-1.5">
+              <div className="flex flex-col justify-around py-0.5 pr-1.5 border-r border-white/10 text-[9px] font-mono font-black shrink-0 text-zinc-400 select-none">
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white inline-block shadow-sm" />
+                  <span className="text-zinc-300 font-bold">W</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 border border-zinc-400 inline-block shadow-sm" />
+                  <span className="text-zinc-400 font-bold">B</span>
+                </div>
+              </div>
+
+              <div
+                ref={mobileNotationScrollRef}
+                className="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5"
+              >
+                {turnPairs.length === 0 ? (
+                  <span className="text-[10px] text-zinc-500 italic font-mono px-1">Game starting • Awaiting Move 1</span>
+                ) : (
+                  turnPairs.map((pair) => (
+                    <div key={pair.turn} className="flex flex-col gap-0.5 shrink-0 font-mono text-[11px]">
+                      {/* Row 1: White Move */}
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/5 min-w-[48px]">
+                        <span className="text-[9px] font-bold text-zinc-500">{pair.turn}.</span>
+                        <span className="font-bold text-zinc-200">{pair.white}</span>
+                      </div>
+
+                      {/* Row 2: Black Move */}
+                      <div
+                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded min-w-[48px] ${
+                          pair.black
+                            ? 'bg-black/30 border border-white/5'
+                            : 'bg-transparent border border-dashed border-white/10'
+                        }`}
+                      >
+                        <span className="text-[9px] font-bold text-zinc-600">{pair.turn}...</span>
+                        <span className="font-bold text-zinc-300">{pair.black || '—'}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. MATCH ACTIONS & NOTATION COLUMN                                        */}
+      {/* 2. MATCH ACTIONS & NOTATION COLUMN (Desktop xl:+)                          */}
       {/* ========================================================================= */}
-      <div className="w-full max-w-[min(calc(100vw-2rem),calc(100dvh-180px),520px)] lg:max-w-none lg:w-80 xl:w-88 flex flex-col gap-3 shrink-0">
+      <div className="hidden xl:flex xl:w-88 flex-col gap-3 shrink-0">
         {/* Match Action Hub */}
         <div className="p-4 bg-[#1c1a17] border border-white/5 rounded-2xl flex flex-col gap-3 shadow-xl">
           <div className="flex items-center justify-between border-b border-white/5 pb-2">
@@ -1224,28 +1434,57 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           )}
         </div>
 
-        {/* Real-time Move Notation */}
-        <div className="p-3 bg-[#1c1a17] border border-white/5 rounded-2xl flex flex-col gap-2 flex-1 min-h-[140px] max-h-56 overflow-hidden shadow-xl">
-          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-            Move Notation ({chess.history().length} Plies)
-          </span>
-          <div className="flex-1 min-h-0 overflow-y-auto p-2 bg-[#141311] rounded-xl border border-white/5 flex flex-wrap gap-1 text-xs font-mono">
-            {chess.history().length === 0 ? (
-              <span className="text-zinc-600 italic text-[11px]">Match starting...</span>
-            ) : (
-              chess.history().map((m, idx) => (
-                <span
-                  key={idx}
-                  className={`px-1.5 py-0.5 rounded ${
-                    idx % 2 === 0 ? 'bg-white/5 text-zinc-200' : 'text-zinc-400'
-                  }`}
-                >
-                  {idx % 2 === 0 ? `${Math.floor(idx / 2) + 1}. ` : ''}
-                  {m}
-                </span>
-              ))
-            )}
-            <div ref={movesEndRef} />
+        {/* Real-time Move Notation (Two Rows: White & Black) */}
+        <div className="p-3 bg-[#1c1a17] border border-white/5 rounded-2xl flex flex-col gap-2 shadow-xl shrink-0">
+          <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+              Move Notation ({chess.history().length} Plies)
+            </span>
+            <span className="text-[10px] font-mono text-zinc-500 font-bold">2 Rows (W / B)</span>
+          </div>
+
+          <div className="bg-[#141311] border border-white/5 rounded-xl px-2.5 py-2 flex items-center gap-2">
+            <div className="flex flex-col justify-around py-0.5 pr-2 border-r border-white/10 text-[10px] font-mono font-black shrink-0 text-zinc-400 select-none">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-white inline-block shadow-sm" />
+                <span className="text-zinc-300 font-bold">W</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-zinc-600 border border-zinc-400 inline-block shadow-sm" />
+                <span className="text-zinc-400 font-bold">B</span>
+              </div>
+            </div>
+
+            <div
+              ref={desktopNotationScrollRef}
+              className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-0.5"
+            >
+              {turnPairs.length === 0 ? (
+                <span className="text-[11px] text-zinc-500 italic font-mono px-1">Game starting • Awaiting Move 1</span>
+              ) : (
+                turnPairs.map((pair) => (
+                  <div key={pair.turn} className="flex flex-col gap-1 shrink-0 font-mono text-xs">
+                    {/* Row 1: White Move */}
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/5 min-w-[56px]">
+                      <span className="text-[10px] font-bold text-zinc-500">{pair.turn}.</span>
+                      <span className="font-bold text-zinc-200">{pair.white}</span>
+                    </div>
+
+                    {/* Row 2: Black Move */}
+                    <div
+                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded min-w-[56px] ${
+                        pair.black
+                          ? 'bg-black/30 border border-white/5'
+                          : 'bg-transparent border border-dashed border-white/10'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold text-zinc-600">{pair.turn}...</span>
+                      <span className="font-bold text-zinc-300">{pair.black || '—'}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1348,13 +1587,10 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           }}
           userColor={playerColor}
           onReviewGame={() => router.push(`/game/review/${gameId}`)}
-          onRematch={() => {
-            if (game?.rematchRequestedBy && game.rematchRequestedBy !== playerColor) {
-              GameSyncService.acceptRematch(gameId, true);
-            } else {
-              GameSyncService.requestRematch(gameId, playerColor);
-            }
-          }}
+          rematchRequestedBy={game?.rematchRequestedBy}
+          onRematch={() => GameSyncService.requestRematch(gameId, playerColor)}
+          onAcceptRematch={() => GameSyncService.acceptRematch(gameId, true)}
+          onDeclineRematch={() => GameSyncService.declineRematch(gameId)}
           onNewGame={() => router.push('/play')}
         />
       )}

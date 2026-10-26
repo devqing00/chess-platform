@@ -18,6 +18,9 @@ interface GameOverModalProps {
   onReviewGame: () => void;
   onRematch: () => void;
   onNewGame: () => void;
+  rematchRequestedBy?: 'w' | 'b' | null;
+  onAcceptRematch?: () => void;
+  onDeclineRematch?: () => void;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -32,6 +35,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   onReviewGame,
   onRematch,
   onNewGame,
+  rematchRequestedBy,
+  onAcceptRematch,
+  onDeclineRematch,
 }) => {
   if (!isOpen) return null;
 
@@ -262,27 +268,88 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             </Button>
           </div>
 
-          {/* Bottom Secondary Action Buttons */}
-          <div className="mt-3.5 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 w-full">
-            <Button
-              variant="secondary"
-              size="sm"
-              rounded="full"
-              onClick={onRematch}
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Rematch</span>
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              rounded="full"
-              onClick={onNewGame}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Game</span>
-            </Button>
-          </div>
+          {/* Bottom Secondary Action Buttons with Rematch Consent Handling */}
+          {rematchRequestedBy ? (
+            rematchRequestedBy === resolvedUserColor ? (
+              <div className="mt-3.5 sm:mt-4 flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold animate-in fade-in">
+                  <span className="flex items-center gap-2 truncate">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                    <span className="truncate">Rematch offered • Waiting for opponent...</span>
+                  </span>
+                  {onDeclineRematch && (
+                    <button
+                      type="button"
+                      onClick={onDeclineRematch}
+                      className="ml-2 text-[11px] text-zinc-400 hover:text-white underline cursor-pointer shrink-0"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  rounded="full"
+                  fullWidth
+                  onClick={onNewGame}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Game</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-3.5 sm:mt-4 flex flex-col gap-2 w-full p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 animate-in zoom-in-95">
+                <div className="flex items-center justify-between text-xs font-black">
+                  <span className="flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                    Opponent Offered a Rematch!
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400">Swaps colors</span>
+                </div>
+                <p className="text-[11px] text-zinc-300">Play again with the same opponent with swapped colors.</p>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    rounded="full"
+                    onClick={onAcceptRematch || onRematch}
+                  >
+                    Accept Rematch
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    rounded="full"
+                    onClick={onDeclineRematch}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="mt-3.5 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 w-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="full"
+                onClick={onRematch}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Rematch</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="full"
+                onClick={onNewGame}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Game</span>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

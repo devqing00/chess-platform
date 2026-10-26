@@ -248,8 +248,8 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         </header>
       )}
 
-      {/* 2. Floating Tactile Navigation Action Button (Bottom Right on < md screens, hidden on active game/review screens where board actions occupy the bottom) */}
-      {!pathname?.startsWith('/game/') && (
+      {/* 2. Floating Tactile Navigation Action Button (Bottom Right on < md screens, hidden on active game/review/live arena screens where board actions occupy the bottom) */}
+      {!pathname?.startsWith('/game/') && !pathname?.startsWith('/play/live') && (
         <div className="md:hidden fixed bottom-5 right-5 z-50 select-none">
           <button
             type="button"

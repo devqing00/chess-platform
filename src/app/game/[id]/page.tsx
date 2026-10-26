@@ -715,9 +715,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
   }, [currentMoveIndex, moveHistory]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:max-h-[100dvh] overflow-y-auto xl:overflow-hidden bg-[#161512] text-zinc-100 select-none justify-start min-w-0 pb-16 xl:pb-0">
-      {/* 1. Header with comfortable vertical padding */}
-      <header className="min-h-[52px] sm:min-h-[56px] py-2 sm:py-2.5 px-3 sm:px-5 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none z-30">
+    <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#161512] text-zinc-100 select-none justify-between min-w-0">
+      {/* 1. Header with compact vertical padding */}
+      <header className="h-12 sm:h-14 py-1.5 sm:py-2 px-3 sm:px-5 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none z-30">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={() => router.push('/play')}
@@ -844,14 +844,14 @@ export default function GameRoomPage({ params }: GamePageProps) {
       </header>
 
       {/* 2. Main Workspace: Top-Aligned Responsive Container (Side-by-side on laptop/desktop md:+) */}
-      <main className="flex-1 flex flex-col md:flex-row items-center md:items-start justify-center p-1 sm:p-2 md:p-3 xl:p-4 gap-2 md:gap-4 xl:gap-6 w-full max-w-6xl mx-auto overflow-visible md:overflow-hidden min-h-0">
+      <main className="flex-1 flex flex-col md:flex-row items-center md:items-start justify-center p-1 sm:p-2 md:p-3 xl:p-4 gap-1 sm:gap-2 md:gap-4 xl:gap-6 w-full max-w-6xl mx-auto overflow-hidden min-h-0">
         
         {/* Center Column: Opponent Bar + Board + User Bar + Mobile Controls */}
         <div className="w-full max-w-full md:w-auto flex flex-col items-center justify-start shrink-0 px-0 sm:px-1 gap-1">
           
           {/* Top Opponent Player Bar */}
           <div
-            className="w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
+            className="w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
           >
             <PlayerCard
               player={topPlayer}
@@ -866,7 +866,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
 
           {/* Edge-to-Edge Chessboard (Strictly bounded by 100dvh) */}
           <div
-            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-visible w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] h-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] md:h-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] lg:h-[min(calc(100vw-26rem),calc(100dvh-170px),540px)]"
+            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-hidden w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] h-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] md:h-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] lg:h-[min(calc(100vw-26rem),calc(100dvh-170px),540px)]"
           >
             <ChessBoard
               chess={chess}
@@ -906,7 +906,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
 
           {/* Bottom Player Bar (User) */}
           <div
-            className="w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
+            className="w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
           >
             <PlayerCard
               player={bottomPlayer}
@@ -921,7 +921,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
 
           {/* Mobile Bottom Controls Bar (< md screens) */}
           <div
-            className="w-full md:hidden px-1 sm:px-0 max-w-[min(calc(100vw-1rem),calc(100dvh-175px),500px)]"
+            className="w-full md:hidden px-1 sm:px-0 max-w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)]"
           >
             <MobileBottomBar
               onToggleMoves={() => setActiveTab('moves')}
