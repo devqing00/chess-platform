@@ -248,25 +248,27 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         </header>
       )}
 
-      {/* 2. Floating Tactile Navigation Action Button (Bottom Right on < md screens) */}
-      <div className="md:hidden fixed bottom-5 right-5 z-50 select-none">
-        <button
-          type="button"
-          onClick={() => {
-            soundService.playTactilePop();
-            setIsModalOpen((open) => !open);
-          }}
-          className="tactile-btn flex items-center justify-center w-13 h-13 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_8px_20px_rgba(0,0,0,0.55)] hover:shadow-[0_5px_0_0_#385a16] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16] transition-all cursor-pointer"
-          title="Navigation Menu"
-          aria-label="Open Navigation Menu"
-        >
-          {isModalOpen ? (
-            <X className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
-          ) : (
-            <Menu className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
-          )}
-        </button>
-      </div>
+      {/* 2. Floating Tactile Navigation Action Button (Bottom Right on < md screens, hidden on active game/review screens where board actions occupy the bottom) */}
+      {!pathname?.startsWith('/game/') && (
+        <div className="md:hidden fixed bottom-5 right-5 z-50 select-none">
+          <button
+            type="button"
+            onClick={() => {
+              soundService.playTactilePop();
+              setIsModalOpen((open) => !open);
+            }}
+            className="tactile-btn flex items-center justify-center w-13 h-13 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_8px_20px_rgba(0,0,0,0.55)] hover:shadow-[0_5px_0_0_#385a16] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16] transition-all cursor-pointer"
+            title="Navigation Menu"
+            aria-label="Open Navigation Menu"
+          >
+            {isModalOpen ? (
+              <X className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
+            ) : (
+              <Menu className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* 3. Comprehensive Mobile Navigation Modal */}
       {isModalOpen && (

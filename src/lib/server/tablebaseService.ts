@@ -204,10 +204,17 @@ export async function queryTablebase(fen: string): Promise<TablebaseResult | nul
     return cached.result;
   }
 
+  // 1. Instant local theoretical endgame engine (0ms local evaluation)
+  const localRes = evaluateLocalEndgame(fen);
+  if (localRes && localRes.category) {
+    tablebaseCache.set(fen, { result: localRes, timestamp: Date.now() });
+    return localRes;
+  }
+
   try {
     const url = `https://tablebase.lichess.ovh/standard?fen=${encodeURIComponent(fen)}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 400);
 
     const response = await fetch(url, {
       signal: controller.signal,

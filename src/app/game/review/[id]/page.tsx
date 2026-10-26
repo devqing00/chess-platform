@@ -291,8 +291,12 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           if (isMounted) {
             setLoadingStep('Evaluating moves and game turning points...');
           }
+          const controller = new AbortController();
+          const timeoutTimer = setTimeout(() => controller.abort(), 8000);
+
           const res = await fetch('/api/engine/review', {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               gameId,
@@ -303,6 +307,7 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
               engineMode: analysisEngine || 'torch_human',
             }),
           });
+          clearTimeout(timeoutTimer);
 
           if (res.ok) {
             const data = await res.json();

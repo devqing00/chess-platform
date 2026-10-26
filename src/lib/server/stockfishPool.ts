@@ -376,6 +376,8 @@ class StockfishWorker {
         }
       };
 
+      const timeCap = Math.max(40, timeoutMs || 1500);
+
       timer = setTimeout(() => {
         if (searchFinished) return;
         // Stop current engine search; it will emit bestmove momentarily
@@ -438,8 +440,8 @@ class StockfishWorker {
               },
             ],
           });
-        }, 800);
-      }, timeoutMs || 3500);
+        }, 500);
+      }, timeCap + 400);
 
       // Branch 1: In-process Stockfish engine (Fastest, 0 IPC latency, 100% reliable)
       if (this.engine) {
@@ -447,7 +449,7 @@ class StockfishWorker {
         try {
           this.engine.processCommand(`setoption name MultiPV value ${Math.min(5, Math.max(1, multiPv))}`);
           this.engine.processCommand(`position fen ${fen}`);
-          this.engine.processCommand(`go depth ${depth}`);
+          this.engine.processCommand(`go depth ${depth} movetime ${timeCap}`);
         } catch (err) {
           cleanup();
           reject(err);
@@ -464,7 +466,7 @@ class StockfishWorker {
         try {
           this.process.stdin.write(`setoption name MultiPV value ${Math.min(5, Math.max(1, multiPv))}\n`);
           this.process.stdin.write(`position fen ${fen}\n`);
-          this.process.stdin.write(`go depth ${depth}\n`);
+          this.process.stdin.write(`go depth ${depth} movetime ${timeCap}\n`);
         } catch (err) {
           cleanup();
           reject(err);

@@ -23,17 +23,60 @@ export interface UsePwaInstallReturn {
   isModalOpen: boolean;
   openInstallModal: () => void;
   closeInstallModal: () => void;
+  isUpdating: boolean;
+  updateAvailable: boolean;
+  applyUpdate: () => void;
+  checkForUpdates: () => Promise<boolean>;
+}
+
+function getInitialPwaEnvironment() {
+  if (typeof window === 'undefined') {
+    return {
+      isInstalled: false,
+      platform: 'unknown' as PwaPlatform,
+      isIos: false,
+      isAndroid: false,
+      canInstall: false,
+    };
+  }
+
+  const isStandaloneMedia = window.matchMedia('(display-mode: standalone)').matches;
+  const isWindowControlsOverlay = window.matchMedia('(display-mode: window-controls-overlay)').matches;
+  const isIosStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+  const isAndroidTwa = document.referrer.startsWith('android-app://');
+  const installed = Boolean(isStandaloneMedia || isWindowControlsOverlay || isIosStandalone || isAndroidTwa);
+
+  const ua = window.navigator.userAgent.toLowerCase();
+  const ios = /iphone|ipad|ipod/.test(ua) && !('MSStream' in window);
+  const android = /android/.test(ua);
+  const windows = /windows nt/.test(ua);
+  const mac = /macintosh|mac os x/.test(ua);
+  const platform: PwaPlatform = ios ? 'ios' : android ? 'android' : windows ? 'windows' : mac ? 'mac' : 'desktop';
+
+  return {
+    isInstalled: installed,
+    platform,
+    isIos: ios,
+    isAndroid: android,
+    canInstall: ios && !installed,
+  };
 }
 
 export function usePwaInstall(): UsePwaInstallReturn {
-  const [canInstall, setCanInstall] = useState<boolean>(false);
-  const [isInstalled, setIsInstalled] = useState<boolean>(false);
+  const [initialEnv] = useState(getInitialPwaEnvironment);
+  const [canInstall, setCanInstall] = useState<boolean>(initialEnv.canInstall);
+  const [isInstalled, setIsInstalled] = useState<boolean>(initialEnv.isInstalled);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [platform, setPlatform] = useState<PwaPlatform>('unknown');
-  const [isIos, setIsIos] = useState<boolean>(false);
-  const [isAndroid, setIsAndroid] = useState<boolean>(false);
+  const [platform] = useState<PwaPlatform>(initialEnv.platform);
+  const [isIos] = useState<boolean>(initialEnv.isIos);
+  const [isAndroid] = useState<boolean>(initialEnv.isAndroid);
+
+  // Auto-update states
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
 
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   // Check display-mode standalone and device platform
   useEffect(() => {
@@ -45,34 +88,12 @@ export function usePwaInstall(): UsePwaInstallReturn {
       const isWindowControlsOverlay = window.matchMedia('(display-mode: window-controls-overlay)').matches;
       const isIosStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
       const isAndroidTwa = document.referrer.startsWith('android-app://');
-
       const installed = Boolean(isStandaloneMedia || isWindowControlsOverlay || isIosStandalone || isAndroidTwa);
       setIsInstalled(installed);
       return installed;
     };
 
-    const isAlreadyInstalled = checkStandalone();
-
-    // Detect platform
-    const ua = window.navigator.userAgent.toLowerCase();
-    const ios = /iphone|ipad|ipod/.test(ua) && !('MSStream' in window);
-    const android = /android/.test(ua);
-    const windows = /windows nt/.test(ua);
-    const mac = /macintosh|mac os x/.test(ua);
-
-    setIsIos(ios);
-    setIsAndroid(android);
-
-    if (ios) setPlatform('ios');
-    else if (android) setPlatform('android');
-    else if (windows) setPlatform('windows');
-    else if (mac) setPlatform('mac');
-    else setPlatform('desktop');
-
-    // On iOS Safari, beforeinstallprompt is NOT supported, but the app can still be installed
-    if (ios && !isAlreadyInstalled) {
-      setCanInstall(true);
-    }
+    checkStandalone();
 
     // Capture standard Chromium / Edge / Android install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -91,23 +112,73 @@ export function usePwaInstall(): UsePwaInstallReturn {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Register Service Worker in production / supported environments
+    // Register Service Worker in production / supported environments & manage auto-updates
+    let intervalId: NodeJS.Timeout | null = null;
+    let refreshing = false;
+
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker
+        .register('/sw.js')
         .then((reg) => {
-          // If there is an update waiting, trigger it
+          registrationRef.current = reg;
+
+          // 1. If an updated worker is already waiting, trigger SKIP_WAITING immediately
           if (reg.waiting) {
             reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            setUpdateAvailable(true);
           }
+
+          // 2. Listen for new service worker installation lifecycle
+          reg.addEventListener('updatefound', () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.addEventListener('statechange', () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New update is installed! Auto-trigger activation
+                  setUpdateAvailable(true);
+                  installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            }
+          });
+
+          // 3. Check for updates periodically (every 10 minutes)
+          intervalId = setInterval(() => {
+            reg.update().catch(() => {});
+          }, 10 * 60 * 1000);
+
+          // 4. Check for update when user re-focuses or un-minimizes the PWA
+          const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+              reg.update().catch(() => {});
+            }
+          };
+          document.addEventListener('visibilitychange', onVisibilityChange);
+          window.addEventListener('focus', () => reg.update().catch(() => {}));
         })
         .catch((err) => {
           console.warn('[PWA] Service worker registration failed:', err);
         });
+
+      // 5. When the new service worker activates and claims clients (controllerchange), auto-reload seamlessly!
+      const onControllerChange = () => {
+        if (!refreshing) {
+          refreshing = true;
+          setIsUpdating(true);
+          // Allow subtle UI indicator to show, then reload with latest application bundle
+          setTimeout(() => {
+            window.location.reload();
+          }, 700);
+        }
+      };
+
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      if (intervalId) clearInterval(intervalId);
     };
   }, []);
 
@@ -117,6 +188,25 @@ export function usePwaInstall(): UsePwaInstallReturn {
 
   const closeInstallModal = useCallback(() => {
     setIsModalOpen(false);
+  }, []);
+
+  const applyUpdate = useCallback(() => {
+    setIsUpdating(true);
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  }, []);
+
+  const checkForUpdates = useCallback(async (): Promise<boolean> => {
+    if (registrationRef.current) {
+      try {
+        await registrationRef.current.update();
+        return Boolean(registrationRef.current.waiting || registrationRef.current.installing);
+      } catch {
+        return false;
+      }
+    }
+    return false;
   }, []);
 
   const installApp = useCallback(async (): Promise<'accepted' | 'dismissed' | 'unsupported'> => {
@@ -150,5 +240,9 @@ export function usePwaInstall(): UsePwaInstallReturn {
     isModalOpen,
     openInstallModal,
     closeInstallModal,
+    isUpdating,
+    updateAvailable,
+    applyUpdate,
+    checkForUpdates,
   };
 }

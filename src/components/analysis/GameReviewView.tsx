@@ -246,23 +246,23 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   const pipDesktopRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const pipMobileRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Auto-scroll the active move into view inside the notation list and pip timeline
+  // Auto-scroll the active move into view inside the notation list and pip timeline (instant auto behavior to prevent animation queuing lag)
   useEffect(() => {
     if (activeNotationItemRef.current) {
       activeNotationItemRef.current.scrollIntoView({
         block: 'nearest',
         inline: 'nearest',
-        behavior: 'smooth',
+        behavior: 'auto',
       });
     }
     if (activeMoveIndex >= 0) {
       pipDesktopRefs.current[activeMoveIndex]?.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         inline: 'center',
         block: 'nearest',
       });
       pipMobileRefs.current[activeMoveIndex]?.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         inline: 'center',
         block: 'nearest',
       });
@@ -467,8 +467,10 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   };
 
   // Best move executed from fenBefore on the board (Chess.com "Best" mode)
+  // Computed lazily ONLY when user clicks "Best" so regular move navigation is 100% lag-free
   const bestMoveVariation = useMemo<{ chess: Chess; san: string; from: Square; to: Square } | null>(() => {
     if (!activeMove || !activeMove.fenBefore) return null;
+    if (!showBestMove) return null;
 
     const cls = getCleanClassification(activeMove.classification);
     const isSuboptimal = ['blunder', 'mistake', 'miss', 'inaccuracy'].includes(cls);
@@ -597,9 +599,8 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
     }
 
     if (activeMove.bestMoveSan && activeMove.bestMoveSan === activeMove.san) return true;
-    if (bestMoveVariation && bestMoveVariation.san === activeMove.san) return true;
     return false;
-  }, [activeMove, bestMoveVariation]);
+  }, [activeMove]);
 
   // Condition under which "Show" button is disabled:
   // - Game is over after this move (checkmate, stalemate, or draw)
@@ -1678,9 +1679,24 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                 </div>
               </div>
 
-              {/* Mobile Review Navigation Row (Line 1: Prev, Play/Pause, Next & Move Info) */}
-              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-3 py-1.5 bg-[#181614] border-t border-[#2d2a26] flex items-center justify-between gap-2 shrink-0">
-                <div className="flex items-center gap-1.5">
+              {/* Mobile Review Navigation Row (Line 1: Prev Highlight, Prev, Play/Pause, Next, Next Highlight & Move Info) */}
+              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2.5 py-1.5 bg-[#181614] border-t border-[#2d2a26] flex items-center justify-between gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  {/* Speed Rewind to Prev Highlight */}
+                  <button
+                    onClick={() => {
+                      setIsPlaying(false);
+                      handlePrevKeyMoment();
+                    }}
+                    disabled={activeMoveIndex <= 0 || isFastForwarding}
+                    className="w-8 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-emerald-400 flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition shrink-0"
+                    title="Speed Rewind to Previous Highlight (Arrow Up)"
+                    aria-label="Previous Highlight"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* Previous Move */}
                   <button
                     onClick={() => {
                       setIsPlaying(false);
@@ -1688,25 +1704,31 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       handlePrevMove();
                     }}
                     disabled={activeMoveIndex <= 0 || isFastForwarding}
-                    className="w-9 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition"
-                    title="Previous Move"
+                    className="w-8 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition shrink-0"
+                    title="Previous Move (Arrow Left)"
+                    aria-label="Previous Move"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
+
+                  {/* Play / Pause */}
                   <button
                     onClick={() => {
                       stopFastForward();
                       setIsPlaying((p) => !p);
                     }}
-                    className={`w-9 h-8 rounded-lg flex items-center justify-center cursor-pointer transition active:scale-95 ${
+                    className={`w-9 h-8 rounded-lg flex items-center justify-center cursor-pointer transition active:scale-95 shrink-0 ${
                       isPlaying
                         ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] border-t border-white/35 shadow-[0_2px_0_0_#385a16] text-white'
                         : 'bg-[#282622] border border-[#35322b] text-white hover:bg-[#34312b]'
                     }`}
-                    title="Play/Pause"
+                    title={isPlaying ? 'Pause Auto-Play (Space)' : 'Start Auto-Play (Space)'}
+                    aria-label="Play/Pause"
                   >
                     {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
                   </button>
+
+                  {/* Next Move */}
                   <button
                     onClick={() => {
                       setIsPlaying(false);
@@ -1714,21 +1736,37 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       handleNextMove();
                     }}
                     disabled={activeMoveIndex >= moves.length - 1 || isFastForwarding}
-                    className="w-9 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition"
-                    title="Next Move"
+                    className="w-8 h-8 rounded-lg bg-[#282622] hover:bg-[#34312b] disabled:opacity-30 disabled:pointer-events-none text-white flex items-center justify-center border border-[#35322b] cursor-pointer active:scale-95 transition shrink-0"
+                    title="Next Move (Arrow Right)"
+                    aria-label="Next Move"
                   >
                     <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {/* Speed Fast-Forward to Next Highlight */}
+                  <button
+                    onClick={() => {
+                      soundService.playTactilePop();
+                      setIsPlaying(false);
+                      handleNextKeyMoment();
+                    }}
+                    disabled={activeMoveIndex >= moves.length - 1 || isFastForwarding}
+                    className="w-8 h-8 rounded-lg bg-gradient-to-b from-[#8fd649] to-[#699c30] hover:brightness-105 disabled:opacity-30 disabled:pointer-events-none text-white border-t border-white/35 shadow-[0_2px_0_0_#385a16] flex items-center justify-center cursor-pointer active:scale-95 transition shrink-0"
+                    title="Speed Fast-Forward to Next Highlight (Arrow Down)"
+                    aria-label="Next Highlight"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
                   </button>
                 </div>
 
                 {/* Move Indicator and Progress */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono font-bold text-zinc-300">
-                    Move {Math.floor(activeMoveIndex / 2) + 1}
-                    <span className="text-zinc-500 font-normal"> / {Math.ceil(moves.length / 2)}</span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] font-mono font-bold text-zinc-300 shrink-0">
+                    {Math.floor(activeMoveIndex / 2) + 1}
+                    <span className="text-zinc-500 font-normal">/{Math.ceil(moves.length / 2)}</span>
                   </span>
                   {activeMove && (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#25221d] border border-[#38342c] text-emerald-400">
+                    <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-[#25221d] border border-[#38342c] text-emerald-400 truncate max-w-[55px]">
                       {activeMove.san}
                     </span>
                   )}

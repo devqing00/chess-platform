@@ -508,7 +508,7 @@ export default function PlayLobbyPage() {
         {/* SCREEN 1: ARENA / MATCH LAUNCH */}
         {/* ========================================================================= */}
         {activeScreen === 'arena' && (
-          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-center my-auto min-h-0 py-1">
+          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-center my-auto min-h-0 py-1 pb-24 sm:pb-4">
             {/* Left Column (7 Cols): Mode Switcher, Tempo Selector, Color & P1 Action */}
             <div className="lg:col-span-7 p-4 sm:p-5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-4">
               <div className="flex flex-col gap-4">
@@ -863,7 +863,7 @@ export default function PlayLobbyPage() {
         {/* SCREEN 2: BOTS SPARRIING ROSTER */}
         {/* ========================================================================= */}
         {activeScreen === 'bots' && (
-          <div className="w-full max-w-5xl mx-auto flex flex-col gap-3 my-auto min-h-0 h-full py-1">
+          <div className="w-full max-w-5xl mx-auto flex flex-col gap-3 my-auto min-h-0 h-full py-1 pb-24 sm:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
@@ -981,7 +981,7 @@ export default function PlayLobbyPage() {
         {/* SCREEN 3: CLOCKS & TIMERS */}
         {/* ========================================================================= */}
         {activeScreen === 'clocks' && (
-          <div className="w-full max-w-4xl mx-auto flex flex-col gap-4 my-auto min-h-0 py-2">
+          <div className="w-full max-w-4xl mx-auto flex flex-col gap-4 my-auto min-h-0 py-2 pb-24 sm:pb-8">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
@@ -1045,58 +1045,71 @@ export default function PlayLobbyPage() {
             </div>
 
             {/* Custom Time Control Builder */}
-            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex flex-col gap-1 w-full sm:w-auto">
+            <div className="p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex flex-col gap-1 w-full md:w-auto">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                   <Sliders className="w-3.5 h-3.5" />
                   <span>Custom Clock Builder</span>
                 </span>
-                <h3 className="text-xs font-bold text-white">Custom Match Clock</h3>
-                <p className="text-[11px] text-zinc-400">Set arbitrary base minutes and increment per move</p>
+                <h3 className="text-sm font-bold text-white">Custom Match Clock</h3>
+                <p className="text-xs text-zinc-400">Set arbitrary base minutes and increment per move</p>
               </div>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                {/* Base Minutes */}
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] text-zinc-500 uppercase font-mono">Minutes</span>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <button
-                      onClick={() => setCustomMinutes((m) => Math.max(1, m - 1))}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer"
-                    >
-                      -
-                    </button>
-                    <span className="w-9 text-center font-mono font-extrabold text-sm text-white">
-                      {customMinutes}m
-                    </span>
-                    <button
-                      onClick={() => setCustomMinutes((m) => Math.min(120, m + 1))}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer"
-                    >
-                      +
-                    </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto justify-end">
+                {/* Steppers Group */}
+                <div className="flex items-center justify-between sm:justify-start gap-2.5 bg-[#141311] p-2 rounded-xl border border-white/5">
+                  {/* Base Minutes */}
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-zinc-400 uppercase font-mono font-semibold">Minutes</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => setCustomMinutes((m) => Math.max(1, m - 1))}
+                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer transition"
+                        aria-label="Decrease minutes"
+                      >
+                        -
+                      </button>
+                      <span className="w-9 text-center font-mono font-extrabold text-sm text-white">
+                        {customMinutes}m
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCustomMinutes((m) => Math.min(120, m + 1))}
+                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer transition"
+                        aria-label="Increase minutes"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Increment Seconds */}
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] text-zinc-500 uppercase font-mono">Increment</span>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <button
-                      onClick={() => setCustomIncSeconds((s) => Math.max(0, s - 1))}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer"
-                    >
-                      -
-                    </button>
-                    <span className="w-9 text-center font-mono font-extrabold text-sm text-white">
-                      +{customIncSeconds}s
-                    </span>
-                    <button
-                      onClick={() => setCustomIncSeconds((s) => Math.min(60, s + 1))}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer"
-                    >
-                      +
-                    </button>
+                  <div className="h-8 w-px bg-white/10" />
+
+                  {/* Increment Seconds */}
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-zinc-400 uppercase font-mono font-semibold">Increment</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => setCustomIncSeconds((s) => Math.max(0, s - 1))}
+                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer transition"
+                        aria-label="Decrease increment"
+                      >
+                        -
+                      </button>
+                      <span className="w-9 text-center font-mono font-extrabold text-sm text-white">
+                        +{customIncSeconds}s
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCustomIncSeconds((s) => Math.min(60, s + 1))}
+                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 flex items-center justify-center text-xs font-bold text-zinc-300 cursor-pointer transition"
+                        aria-label="Increase increment"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1106,7 +1119,7 @@ export default function PlayLobbyPage() {
                   size="md"
                   rounded="xl"
                   onClick={handleApplyCustomClock}
-                  className="mt-3.5 sm:mt-0"
+                  className="w-full sm:w-auto h-11 sm:h-10 shrink-0 font-bold justify-center"
                 >
                   <span>Apply &amp; Play</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -1120,7 +1133,7 @@ export default function PlayLobbyPage() {
         {/* SCREEN 4: MATCH HISTORY & REVIEW */}
         {/* ========================================================================= */}
         {activeScreen === 'history' && (
-          <div className="w-full max-w-4xl mx-auto flex flex-col gap-3 my-auto min-h-0 h-full py-1">
+          <div className="w-full max-w-4xl mx-auto flex flex-col gap-3 my-auto min-h-0 h-full py-1 pb-24 sm:pb-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-white/5 pb-2 shrink-0">
               <div>
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">

@@ -339,8 +339,45 @@ export default function GameRoomPage({ params }: GamePageProps) {
       }, 1400);
 
       GameSessionStore.completeGame(gameId, moveHistoryRef.current, resultString, details);
+
+      // Preload / background-calculate deep engine review immediately
+      // By the time the user views the victory celebration and clicks "Review Game",
+      // the review is already computed and cached, loading in 0ms!
+      if (typeof window !== 'undefined' && moveHistoryRef.current.length > 0) {
+        const movesSnapshot = moveHistoryRef.current;
+        fetch('/api/engine/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId,
+            moves: movesSnapshot.map((m) => m.san),
+            whitePlayer,
+            blackPlayer,
+            strengthTier: 'fast',
+            engineMode: 'torch_human',
+          }),
+        })
+          .then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.report) {
+                data.report.isDeepReview = true;
+                data.report.reviewVersion = 'v3.0';
+                data.report.gameResult = resultString;
+                data.report.resultDetails = details;
+                const session = GameSessionStore.getSession(gameId);
+                if (session) {
+                  session.reviewReport = data.report;
+                  session.engineMode = 'torch_human';
+                  GameSessionStore.saveSession(session);
+                }
+              }
+            }
+          })
+          .catch(() => {});
+      }
     },
-    [botPlayer, userColor, undosUsed, user?.uid, whitePlayer.rating, blackPlayer.rating, gameId]
+    [botPlayer, userColor, undosUsed, user?.uid, whitePlayer, blackPlayer, gameId]
   );
 
   // Takeback / Undo Move (0ms instant restore)
