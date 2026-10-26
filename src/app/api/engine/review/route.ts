@@ -61,14 +61,6 @@ function createEmptyTallies(): ClassificationTallies {
   };
 }
 
-const COMMON_BOOK_MOVES = new Set([
-  'e4', 'd4', 'c4', 'Nf3', 'g3', 'f4', 'b3', 'Nc3',
-  'e5', 'c5', 'e6', 'c6', 'd5', 'Nf6', 'g6', 'd6',
-  'd4', 'exd5', 'Qxd5', 'Nc3', 'Qd8', 'Qd6', 'Qd7', 'Qa5',
-  'Nf3', 'Nc6', 'Bb5', 'Bc4', 'd3', 'd4', 'c3', 'a6', 'Nf6', 'd6', 'Be7',
-  'cxd4', 'Nxd4', 'e6', 'a6', 'Nc6', 'g6', 'Bg7', 'O-O',
-]);
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -83,6 +75,9 @@ export async function POST(req: NextRequest) {
       depth,
       strengthTier = 'standard' as EngineStrengthTier,
       engineMode = 'torch_human',
+      gameResult,
+      resultDetails,
+      termination,
     } = body;
 
     const strengthConfig = ENGINE_STRENGTH_CONFIGS[strengthTier as EngineStrengthTier] || ENGINE_STRENGTH_CONFIGS.standard;
@@ -184,44 +179,26 @@ export async function POST(req: NextRequest) {
 
       const fenAfter = runner.fen();
 
+      // Authentically check opening theory against master opening database
       let isBookMove = false;
-      if (inBook && ply <= 12 && COMMON_BOOK_MOVES.has(san)) {
-        isBookMove = true;
+      if (inBook && ply <= 16) {
+        const currentPrefix = sanMoves.slice(0, ply + 1);
+        const matchesBook = OPENINGS_DATABASE.some((op) => {
+          const tokens = op.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
+          if (tokens.length < currentPrefix.length) return false;
+          return currentPrefix.every((t, i) => t === tokens[i]);
+        });
+        if (matchesBook) {
+          isBookMove = true;
+        } else {
+          inBook = false;
+        }
       } else {
         inBook = false;
       }
 
-      // Fast instant evaluation for standard opening book moves, avoiding engine delays
-      let currentEval: any;
-      if (isBookMove) {
-        currentEval = {
-          fen: fenAfter,
-          depth: targetDepth,
-          seldepth: targetDepth,
-          nodes: 1000,
-          nps: 1000000,
-          scoreCp: isWhite ? 20 : 15,
-          scoreFormatted: '+0.20',
-          bestMoveSan: san,
-          bestMoveUci: '',
-          pvSan: [san],
-          pvUci: [],
-          lines: [
-            {
-              rank: 1,
-              scoreCp: isWhite ? 20 : 15,
-              scoreFormatted: '+0.20',
-              bestMoveSan: san,
-              bestMoveUci: '',
-              pvSan: [san],
-              pvUci: [],
-            },
-          ],
-        };
-      } else {
-        // Evaluate position with Stockfish configured for current strength tier
-        currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
-      }
+      // Evaluate position with Stockfish configured for current strength tier without compromising engine quality
+      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
 
       // Check tablebase for endgame only when 7 or fewer pieces remain on board
       const pieceCount = (fenAfter.split(' ')[0].match(/[pnbrqkPNBRQK]/g) || []).length;
@@ -636,6 +613,12 @@ export async function POST(req: NextRequest) {
       summaryComment,
       isDeepReview: true,
       reviewVersion: 'v3.0',
+      gameResult: gameResult || (isCheckmateLast ? (whiteWonByMate ? '1-0' : '0-1') : undefined),
+      resultDetails: resultDetails || {
+        winner: isCheckmateLast ? (whiteWonByMate ? 'w' : 'b') : 'draw',
+        reason: isCheckmateLast ? 'checkmate' : 'normal',
+      },
+      termination: termination || (isCheckmateLast ? 'Checkmate' : undefined),
     };
 
     report.advancedStats = calculateGameAdvancedStats(report);

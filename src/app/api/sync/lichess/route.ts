@@ -69,30 +69,28 @@ export async function GET(request: NextRequest) {
       url: `https://lichess.org/@/${rawData.username || username}`,
     };
 
-    const stats = {
-      rapid: {
-        rating: rawData.perfs?.rapid?.rating || 1500,
-        games: rawData.perfs?.rapid?.games || 0,
-      },
-      blitz: {
-        rating: rawData.perfs?.blitz?.rating || 1500,
-        games: rawData.perfs?.blitz?.games || 0,
-      },
-      bullet: {
-        rating: rawData.perfs?.bullet?.rating || 1500,
-        games: rawData.perfs?.bullet?.games || 0,
-      },
-      puzzles: {
-        rating: rawData.perfs?.puzzle?.rating || 1500,
-        games: rawData.perfs?.puzzle?.games || 0,
-      },
+    const getLichessPerf = (perf?: any) => {
+      if (!perf || typeof perf.rating !== 'number') return null;
+      return {
+        rating: perf.rating,
+        games: perf.games || 0,
+        provisional: !!perf.prov,
+      };
     };
 
-    // 2. Fetch up to 10 recent games from Lichess
+    const stats = {
+      rapid: getLichessPerf(rawData.perfs?.rapid),
+      blitz: getLichessPerf(rawData.perfs?.blitz),
+      bullet: getLichessPerf(rawData.perfs?.bullet),
+      daily: getLichessPerf(rawData.perfs?.correspondence),
+      puzzles: getLichessPerf(rawData.perfs?.puzzle),
+    };
+
+    // 2. Fetch up to 35 recent games from Lichess for deep scouting analysis
     let games: any[] = [];
     try {
       const gamesRes = await fetch(
-        `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=10&pgnInJson=true&clocks=false&evals=false`,
+        `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=35&pgnInJson=true&clocks=false&evals=false`,
         {
           headers: {
             ...customHeaders,

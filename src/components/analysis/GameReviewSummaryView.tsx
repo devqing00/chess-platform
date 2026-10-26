@@ -83,24 +83,68 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   const { whitePlayer, blackPlayer, whiteAccuracy, blackAccuracy, tallies, evalTimeline, moves } = report;
 
   const isUserWhite = React.useMemo(() => {
-    return isSessionUserWhite(report as any);
+    let username = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const storedProfile = localStorage.getItem('chess_com_profile');
+        if (storedProfile) username = JSON.parse(storedProfile)?.username || '';
+        if (!username) {
+          const authUser = localStorage.getItem('chess_platform_user');
+          if (authUser) username = JSON.parse(authUser)?.displayName || '';
+        }
+      } catch {}
+    }
+    return isSessionUserWhite(report as any, username);
   }, [report]);
 
   // Authoritative Game Outcome details
   const gameOutcome = React.useMemo(() => {
-    let winner = report.resultDetails?.winner;
-    const res = (report.gameResult || '').trim().toLowerCase();
-    if (res.includes('white win') || res.includes('white won') || res.includes('1-0')) {
-      winner = 'w';
-    } else if (res.includes('black win') || res.includes('black won') || res.includes('0-1')) {
-      winner = 'b';
-    } else if (!winner) {
-      if (report.gameResult === '1-0') winner = 'w';
-      else if (report.gameResult === '0-1') winner = 'b';
-      else if (report.gameResult?.includes('1/2') || report.gameResult?.includes('0.5')) winner = 'draw';
-      else winner = isUserWhite ? 'w' : 'b';
+    const lastMove = moves && moves.length > 0 ? moves[moves.length - 1] : undefined;
+    const isCheckmateLast = Boolean(lastMove?.san?.includes('#'));
+
+    let winner: 'w' | 'b' | 'draw';
+    let reason: string;
+
+    if (isCheckmateLast) {
+      // Move odd (1, 3, 5...) is White; Move even (2, 4, 6...) is Black
+      winner = moves.length % 2 === 1 ? 'w' : 'b';
+      reason = 'checkmate';
+    } else {
+      const termLower = (report.termination || '').toLowerCase();
+      const res = (report.gameResult || '').trim().toLowerCase();
+      const whiteNameLower = (whitePlayer.name || '').toLowerCase();
+      const blackNameLower = (blackPlayer.name || '').toLowerCase();
+
+      // Check explicit winner in resultDetails first
+      if (report.resultDetails?.winner && ['w', 'b', 'draw'].includes(report.resultDetails.winner)) {
+        winner = report.resultDetails.winner;
+      } else if (res.includes('1-0') || res.includes('white won') || res.includes('white win')) {
+        winner = 'w';
+      } else if (res.includes('0-1') || res.includes('black won') || res.includes('black win')) {
+        winner = 'b';
+      } else if (res.includes('1/2') || res.includes('0.5') || res.includes('draw')) {
+        winner = 'draw';
+      } else if (termLower.includes(whiteNameLower + ' won') || termLower.includes('white won')) {
+        winner = 'w';
+      } else if (termLower.includes(blackNameLower + ' won') || termLower.includes('black won')) {
+        winner = 'b';
+      } else if (termLower.includes('draw') || termLower.includes('stalemate')) {
+        winner = 'draw';
+      } else {
+        const lastEval = evalTimeline && evalTimeline.length > 0 ? evalTimeline[evalTimeline.length - 1].score : 0;
+        if (lastEval >= 700) winner = 'w';
+        else if (lastEval <= -700) winner = 'b';
+        else winner = 'draw';
+      }
+
+      reason =
+        report.resultDetails?.reason && report.resultDetails.reason !== 'concluded'
+          ? report.resultDetails.reason
+          : report.termination
+          ? extractTerminationReason({ pgn: `[Termination "${report.termination}"]`, gameResult: report.gameResult, moves })
+          : extractTerminationReason(report);
     }
-    const reason = report.resultDetails?.reason || (report.termination ? extractTerminationReason({ pgn: `[Termination "${report.termination}"]` }) : 'resignation');
+
     return formatGameOutcomeDescription({
       winner,
       reason,
@@ -108,7 +152,7 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
       blackName: blackPlayer.name,
       isUserWhite,
     });
-  }, [report, whitePlayer.name, blackPlayer.name, isUserWhite]);
+  }, [report, whitePlayer.name, blackPlayer.name, isUserWhite, moves, evalTimeline]);
 
   // Mobile sub-tab state for zero-scroll viewport
   const [mobileTab, setMobileTab] = useState<'stats' | 'board'>('stats');

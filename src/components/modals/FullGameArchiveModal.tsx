@@ -191,10 +191,10 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
         <div className="p-3 sm:p-4 bg-[#1c1a17] border-b-2 border-[#35322b] flex flex-col gap-2.5 sm:gap-3 shrink-0">
           {/* Source Tabs & Search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-1 bg-[#141311] p-1 rounded-full border-2 border-[#35322b] shadow-[0_2px_0_0_#0f0e0c] overflow-x-auto scrollbar-none shrink-0">
+            <div className="flex items-center gap-1 bg-[#141311] p-1 rounded-full border-2 border-[#35322b] shadow-[0_2px_0_0_#0f0e0c] max-w-full overflow-x-auto no-scrollbar scrollbar-none shrink-0">
               <button
                 onClick={() => setActiveSourceTab('all')}
-                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                   activeSourceTab === 'all'
                     ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                     : 'text-zinc-400 hover:text-white'
@@ -206,7 +206,7 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
 
               <button
                 onClick={() => setActiveSourceTab('checkmate')}
-                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                   activeSourceTab === 'checkmate'
                     ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                     : 'text-zinc-400 hover:text-white'
@@ -218,7 +218,7 @@ export const FullGameArchiveModal: React.FC<FullGameArchiveModalProps> = ({
 
               <button
                 onClick={() => setActiveSourceTab('chesscom')}
-                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                className={`tactile-btn px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                   activeSourceTab === 'chesscom'
                     ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
                     : 'text-zinc-400 hover:text-white'

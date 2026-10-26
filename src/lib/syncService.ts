@@ -1,4 +1,4 @@
-import { GameSessionStore, parsePgnToMoveRecords } from '@/lib/gameSessionStore';
+import { GameSessionStore, parsePgnToMoveRecords, extractTerminationReason } from '@/lib/gameSessionStore';
 
 export interface SyncResult {
   success: boolean;
@@ -92,24 +92,19 @@ export async function syncExternalAccountGames(
                 ? '0-1'
                 : '1-0'
               : '1/2-1/2'),
+          termination: g.termination || '',
           resultDetails: {
             winner:
               g.userResult === 'win'
                 ? isUserWhite
-                  ? 'w' as const
-                  : 'b' as const
+                  ? ('w' as const)
+                  : ('b' as const)
                 : g.userResult === 'loss'
                 ? isUserWhite
-                  ? 'b' as const
-                  : 'w' as const
-                : 'draw' as const,
-            reason:
-              g.reason ||
-              (g.userResult === 'win'
-                ? 'resignation'
-                : g.userResult === 'loss'
-                ? 'resignation'
-                : 'agreement'),
+                  ? ('b' as const)
+                  : ('w' as const)
+                : ('draw' as const),
+            reason: g.reason || extractTerminationReason(g),
             ratingDelta: g.userResult === 'win' ? 10 : g.userResult === 'loss' ? -10 : 0,
             newRating: userRating,
             league: 'External Sync',

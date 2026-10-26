@@ -15,7 +15,7 @@ import {
   Shield,
   HelpCircle,
 } from 'lucide-react';
-import { GameSessionStore, parsePgnToMoveRecords } from '@/lib/gameSessionStore';
+import { GameSessionStore, parsePgnToMoveRecords, extractTerminationReason } from '@/lib/gameSessionStore';
 import { soundService } from '@/lib/audioService';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -126,10 +126,11 @@ export const ChessComSyncModal: React.FC<ChessComSyncModalProps> = ({
               pgn: g.pgn || '',
               fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
               isGameOver: true,
-              gameResult: g.userResult === 'win' ? (g.isUserWhite ? '1-0' : '0-1') : g.userResult === 'loss' ? (g.isUserWhite ? '0-1' : '1-0') : '1/2-1/2',
+              gameResult: g.gameResult || (g.userResult === 'win' ? (g.isUserWhite ? '1-0' : '0-1') : g.userResult === 'loss' ? (g.isUserWhite ? '0-1' : '1-0') : '1/2-1/2'),
+              termination: g.termination || '',
               resultDetails: {
                 winner: g.userResult === 'win' ? (g.isUserWhite ? 'w' : 'b') : g.userResult === 'loss' ? (g.isUserWhite ? 'b' : 'w') : 'draw',
-                reason: 'resignation',
+                reason: g.reason || extractTerminationReason(g),
                 ratingDelta: 0,
                 newRating: g.userPlayer?.rating || 800,
                 league: 'External Sync',

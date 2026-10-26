@@ -96,8 +96,25 @@ function extractOpeningSignature(pgn?: string): { name: string; moves: string; e
     .slice(0, 8)
     .join(' ');
 
-  let name = openingMatch ? openingMatch[1] : 'Modern Setup';
+  let name = openingMatch ? openingMatch[1] : '';
   const eco = ecoMatch ? ecoMatch[1] : undefined;
+
+  // Chess.com ECOUrl header support e.g. [ECOUrl "https://www.chess.com/openings/Sicilian-Defense-Bowdler-Attack"]
+  if (!name) {
+    const ecoUrlMatch = pgn.match(/\[ECOUrl\s+"https?:\/\/[^/]+\/openings\/([^"]+)"\]/);
+    if (ecoUrlMatch) {
+      const rawSlug = ecoUrlMatch[1].split('?')[0].split('#')[0];
+      const parts = rawSlug.split('---');
+      name = parts[0].replace(/-/g, ' ');
+      if (parts[1]) {
+        name += `: ${parts[1].replace(/-/g, ' ')}`;
+      }
+    }
+  }
+
+  if (!name) {
+    name = 'Modern Setup';
+  }
 
   // Simple heuristics if name is generic
   if (name === 'Modern Setup') {
@@ -125,9 +142,9 @@ export function buildPlayerScoutDna(
 ): PlayerScoutDna {
   const username = playerProfile?.username || 'Player';
 
-  const rapid = playerStats?.rapid?.rating || 800;
-  const blitz = playerStats?.blitz?.rating || 800;
-  const bullet = playerStats?.bullet?.rating || 800;
+  const rapid = playerStats?.rapid?.rating || playerStats?.blitz?.rating || 1500;
+  const blitz = playerStats?.blitz?.rating || 1500;
+  const bullet = playerStats?.bullet?.rating || 1500;
 
   let totalWins = 0;
   let totalLosses = 0;
@@ -196,59 +213,38 @@ export function buildPlayerScoutDna(
   const openingsAsWhite = mapToDnaItems(whiteOpeningsMap, 'white');
   const openingsAsBlack = mapToDnaItems(blackOpeningsMap, 'black');
 
-  // If few or no games analyzed, supply realistic benchmark opening profiles based on ELO
-  if (openingsAsWhite.length === 0) {
-    openingsAsWhite.push(
-      {
-        name: rapid > 1500 ? "Queen's Gambit" : 'Italian Game',
-        moves: '1. e4 e5 2. Nf3 Nc6 3. Bc4',
-        playedCount: 14,
-        winCount: 8,
-        lossCount: 4,
-        drawCount: 2,
-        winRatePct: 57,
-        color: 'white',
-        verdict: 'strong',
-      },
-      {
-        name: 'London System',
-        moves: '1. d4 d5 2. Bf4',
-        playedCount: 9,
-        winCount: 3,
-        lossCount: 5,
-        drawCount: 1,
-        winRatePct: 33,
-        color: 'white',
-        verdict: 'vulnerable',
-      }
-    );
-  }
-
-  if (openingsAsBlack.length === 0) {
-    openingsAsBlack.push(
-      {
-        name: 'Sicilian Defense',
-        moves: '1. e4 c5',
-        playedCount: 12,
-        winCount: 7,
-        lossCount: 4,
-        drawCount: 1,
-        winRatePct: 58,
-        color: 'black',
-        verdict: 'strong',
-      },
-      {
-        name: "King's Indian Defense",
-        moves: '1. d4 Nf6 2. c4 g6',
-        playedCount: 8,
-        winCount: 2,
-        lossCount: 5,
-        drawCount: 1,
-        winRatePct: 25,
-        color: 'black',
-        verdict: 'vulnerable',
-      }
-    );
+  // ONLY if zero games were fetched from the API archives at all, supply benchmark profiles
+  if (games.length === 0) {
+    if (openingsAsWhite.length === 0) {
+      openingsAsWhite.push(
+        {
+          name: rapid > 1500 ? "Queen's Gambit" : 'Italian Game',
+          moves: '1. e4 e5 2. Nf3 Nc6 3. Bc4',
+          playedCount: 0,
+          winCount: 0,
+          lossCount: 0,
+          drawCount: 0,
+          winRatePct: 50,
+          color: 'white',
+          verdict: 'neutral',
+        }
+      );
+    }
+    if (openingsAsBlack.length === 0) {
+      openingsAsBlack.push(
+        {
+          name: 'Sicilian Defense',
+          moves: '1. e4 c5',
+          playedCount: 0,
+          winCount: 0,
+          lossCount: 0,
+          drawCount: 0,
+          winRatePct: 50,
+          color: 'black',
+          verdict: 'neutral',
+        }
+      );
+    }
   }
 
   const totalPlayed = totalWins + totalLosses + totalDraws || 1;

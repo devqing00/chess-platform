@@ -70,6 +70,7 @@ const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
 interface BoardSquareProps {
+  layer?: 'background' | 'foreground' | 'all';
   sq: Square;
   piece: { type: PieceSymbol; color: PieceColor } | null | undefined;
   isLight: boolean;
@@ -109,6 +110,7 @@ interface BoardSquareProps {
 }
 
 const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
+  layer = 'all',
   sq,
   piece,
   isLight,
@@ -156,6 +158,101 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
   // Badges are positioned strictly at standard top-right corner of each square
   const badgePositionClass = '-top-1.5 sm:-top-2 -right-1.5 sm:-right-2';
 
+  // 1. Background layer (Tiles, Highlights, Coordinates, Glows)
+  if (layer === 'background') {
+    return (
+      <div
+        style={{
+          backgroundColor: bgSquareColor,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
+        className={`relative w-full h-full pointer-events-none select-none ${cornerRoundedClass || ''}`}
+      >
+        {/* Move Type Classification Highlight Overlay */}
+        {moveHighlightOverlayColor && (
+          <div
+            className={`absolute inset-0 pointer-events-none z-10 transition-colors duration-150 ${cornerRoundedClass || ''}`}
+            style={{ backgroundColor: moveHighlightOverlayColor }}
+          />
+        )}
+
+        {/* Premove Highlight Overlay (Ruby-Coral with Glowing Ring) */}
+        {isPremoveSquare && (
+          <div
+            className={`absolute inset-0 pointer-events-none z-10 ring-2 sm:ring-[3px] ring-inset ring-rose-500 bg-rose-500/35 transition-all duration-100 ${cornerRoundedClass || ''}`}
+          />
+        )}
+
+        {/* Custom Highlights */}
+        {customHighlight && (
+          <div
+            className={`absolute inset-0 pointer-events-none z-10 ${customHighlight.border || ''}`}
+            style={{ backgroundColor: customHighlight.color }}
+          >
+            {customHighlight.label && (
+              <div className="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white/90">
+                {customHighlight.label}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Defeated King or King in Check Red Glow */}
+        {isDefeatedKing ? (
+          <div
+            className={`absolute inset-0 pointer-events-none z-10 animate-in fade-in duration-300 ${cornerRoundedClass || ''}`}
+            style={{
+              background:
+                'radial-gradient(circle at center, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.75) 45%, rgba(127, 29, 29, 0.4) 75%, transparent 100%)',
+              boxShadow: 'inset 0 0 16px 4px rgba(185, 28, 28, 0.85)',
+            }}
+          />
+        ) : isCheckSquare ? (
+          <div
+            className={`absolute inset-0 pointer-events-none z-10 animate-pulse ${cornerRoundedClass || ''}`}
+            style={{
+              background:
+                'radial-gradient(circle at center, rgba(239, 68, 68, 0.88) 0%, rgba(220, 38, 38, 0.55) 35%, rgba(185, 28, 28, 0.22) 65%, transparent 85%)',
+              boxShadow: 'inset 0 0 14px 2px rgba(239, 68, 68, 0.65)',
+            }}
+          />
+        ) : null}
+
+        {/* Coordinate Labels */}
+        {showRank && (
+          <span
+            className={`absolute top-0.5 left-1 text-[11px] font-black leading-none select-none pointer-events-none ${
+              isLight ? 'text-[#769656]' : 'text-[#eeeed2]'
+            }`}
+          >
+            {rank}
+          </span>
+        )}
+        {showFile && (
+          <span
+            className={`absolute bottom-0.5 right-1 text-[11px] font-black leading-none select-none pointer-events-none ${
+              isLight ? 'text-[#769656]' : 'text-[#eeeed2]'
+            }`}
+          >
+            {file}
+          </span>
+        )}
+
+        {/* Move Arrival Shutter Flash Overlay */}
+        {isAnimating && (
+          <div className="absolute inset-0 pointer-events-none z-10 animate-tile-flash" />
+        )}
+
+        {/* Drag source tile highlight: indicates where piece was lifted from */}
+        {isPieceBeingDragged && (
+          <div className="absolute inset-0 bg-[#f7f789]/60 border-2 border-[#baca2b] pointer-events-none z-10" />
+        )}
+      </div>
+    );
+  }
+
+  // 2. Foreground / Interactive layer (Pieces, Badges, Legal Move Dots, Drag Over)
   return (
     <div
       role="gridcell"
@@ -165,69 +262,91 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
       onMouseDown={(e) => onMouseDownSquare(e, sq)}
       onMouseUp={(e) => onMouseUpSquare(e, sq)}
       style={{
-        backgroundColor: bgSquareColor,
+        backgroundColor: layer === 'foreground' ? 'transparent' : bgSquareColor,
         touchAction: 'none',
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
       className={`relative w-full h-full flex items-center justify-center cursor-pointer focus:outline-none select-none ${cornerRoundedClass || ''}`}
     >
-      {/* Move Type Classification Highlight Overlay */}
-      {moveHighlightOverlayColor && (
-        <div
-          className={`absolute inset-0 pointer-events-none z-10 transition-colors duration-150 ${cornerRoundedClass || ''}`}
-          style={{ backgroundColor: moveHighlightOverlayColor }}
-        />
-      )}
-
-      {/* Premove Highlight Overlay (Ruby-Coral with Glowing Ring) */}
-      {isPremoveSquare && (
-        <div
-          className={`absolute inset-0 pointer-events-none z-10 ring-2 sm:ring-[3px] ring-inset ring-rose-500 bg-rose-500/35 transition-all duration-100 ${cornerRoundedClass || ''}`}
-        />
-      )}
-
-      {/* Custom Highlights */}
-      {customHighlight && (
-        <div
-          className={`absolute inset-0 pointer-events-none z-10 ${customHighlight.border || ''}`}
-          style={{ backgroundColor: customHighlight.color }}
-        >
-          {customHighlight.label && (
-            <div className="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white/90">
-              {customHighlight.label}
+      {/* If layer === 'all', also render background components */}
+      {layer === 'all' && (
+        <>
+          {moveHighlightOverlayColor && (
+            <div
+              className={`absolute inset-0 pointer-events-none z-10 transition-colors duration-150 ${cornerRoundedClass || ''}`}
+              style={{ backgroundColor: moveHighlightOverlayColor }}
+            />
+          )}
+          {isPremoveSquare && (
+            <div
+              className={`absolute inset-0 pointer-events-none z-10 ring-2 sm:ring-[3px] ring-inset ring-rose-500 bg-rose-500/35 transition-all duration-100 ${cornerRoundedClass || ''}`}
+            />
+          )}
+          {customHighlight && (
+            <div
+              className={`absolute inset-0 pointer-events-none z-10 ${customHighlight.border || ''}`}
+              style={{ backgroundColor: customHighlight.color }}
+            >
+              {customHighlight.label && (
+                <div className="absolute inset-0 flex items-center justify-center font-black text-[10px] text-white/90">
+                  {customHighlight.label}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Defeated King or King in Check Red Glow */}
-      {isDefeatedKing ? (
-        <>
-          <div
-            className={`absolute inset-0 pointer-events-none z-10 animate-in fade-in duration-300 ${cornerRoundedClass || ''}`}
-            style={{
-              background:
-                'radial-gradient(circle at center, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.75) 45%, rgba(127, 29, 29, 0.4) 75%, transparent 100%)',
-              boxShadow: 'inset 0 0 16px 4px rgba(185, 28, 28, 0.85)',
-            }}
-          />
-          {isCheckmate && (
-            <div className={`absolute ${badgePositionClass} z-30 pointer-events-none animate-in zoom-in-75 duration-200`}>
-              <CheckmateBadge size="board" />
-            </div>
+          {isDefeatedKing ? (
+            <div
+              className={`absolute inset-0 pointer-events-none z-10 animate-in fade-in duration-300 ${cornerRoundedClass || ''}`}
+              style={{
+                background:
+                  'radial-gradient(circle at center, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.75) 45%, rgba(127, 29, 29, 0.4) 75%, transparent 100%)',
+                boxShadow: 'inset 0 0 16px 4px rgba(185, 28, 28, 0.85)',
+              }}
+            />
+          ) : isCheckSquare ? (
+            <div
+              className={`absolute inset-0 pointer-events-none z-10 animate-pulse ${cornerRoundedClass || ''}`}
+              style={{
+                background:
+                  'radial-gradient(circle at center, rgba(239, 68, 68, 0.88) 0%, rgba(220, 38, 38, 0.55) 35%, rgba(185, 28, 28, 0.22) 65%, transparent 85%)',
+                boxShadow: 'inset 0 0 14px 2px rgba(239, 68, 68, 0.65)',
+              }}
+            />
+          ) : null}
+          {showRank && (
+            <span
+              className={`absolute top-0.5 left-1 text-[11px] font-black leading-none select-none pointer-events-none ${
+                isLight ? 'text-[#769656]' : 'text-[#eeeed2]'
+              }`}
+            >
+              {rank}
+            </span>
+          )}
+          {showFile && (
+            <span
+              className={`absolute bottom-0.5 right-1 text-[11px] font-black leading-none select-none pointer-events-none ${
+                isLight ? 'text-[#769656]' : 'text-[#eeeed2]'
+              }`}
+            >
+              {file}
+            </span>
+          )}
+          {isAnimating && (
+            <div className="absolute inset-0 pointer-events-none z-10 animate-tile-flash" />
+          )}
+          {isPieceBeingDragged && (
+            <div className="absolute inset-0 bg-[#f7f789]/60 border-2 border-[#baca2b] pointer-events-none z-10" />
           )}
         </>
-      ) : isCheckSquare ? (
-        <div
-          className={`absolute inset-0 pointer-events-none z-10 animate-pulse ${cornerRoundedClass || ''}`}
-          style={{
-            background:
-              'radial-gradient(circle at center, rgba(239, 68, 68, 0.88) 0%, rgba(220, 38, 38, 0.55) 35%, rgba(185, 28, 28, 0.22) 65%, transparent 85%)',
-            boxShadow: 'inset 0 0 14px 2px rgba(239, 68, 68, 0.65)',
-          }}
-        />
-      ) : null}
+      )}
+
+      {/* Defeated King Checkmate Badge */}
+      {isDefeatedKing && isCheckmate && (
+        <div className={`absolute ${badgePositionClass} z-30 pointer-events-none animate-in zoom-in-75 duration-200`}>
+          <CheckmateBadge size="board" />
+        </div>
+      )}
 
       {/* Winning King Crown Badge */}
       {isWinningKing && (
@@ -236,7 +355,7 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
         </div>
       )}
 
-      {/* Classification Badge on Top-Right */}
+      {/* Classification Badge on Top-Right (z-30: always rendered above pieces and arrows) */}
       {classificationOnSquare && (
         <div className={`absolute ${badgePositionClass} z-30 pointer-events-none animate-in zoom-in-75 duration-200`}>
           <ClassificationBadge classification={classificationOnSquare} size="board" />
@@ -254,37 +373,7 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
         />
       )}
 
-      {/* Coordinate Labels */}
-      {showRank && (
-        <span
-          className={`absolute top-0.5 left-1 text-[11px] font-black leading-none select-none pointer-events-none ${
-            isLight ? 'text-[#769656]' : 'text-[#eeeed2]'
-          }`}
-        >
-          {rank}
-        </span>
-      )}
-      {showFile && (
-        <span
-          className={`absolute bottom-0.5 right-1 text-[11px] font-black leading-none select-none pointer-events-none ${
-            isLight ? 'text-[#769656]' : 'text-[#eeeed2]'
-          }`}
-        >
-          {file}
-        </span>
-      )}
-
-      {/* Move Arrival Shutter Flash Overlay */}
-      {isAnimating && (
-        <div className="absolute inset-0 pointer-events-none z-10 animate-tile-flash" />
-      )}
-
-      {/* Drag source tile highlight: indicates where piece was lifted from */}
-      {isPieceBeingDragged && (
-        <div className="absolute inset-0 bg-[#f7f789]/60 border-2 border-[#baca2b] pointer-events-none z-10" />
-      )}
-
-      {/* Piece Rendering */}
+      {/* Piece Rendering (z-20: rendered above arrows) */}
       {piece && !blindfold && (
         <div
           key={`piece-${sq}-${piece.type}-${piece.color}`}
@@ -1024,10 +1113,11 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
       }}
       className="relative w-full h-full aspect-square rounded-none sm:rounded-xl shadow-2xl overflow-visible select-none"
     >
-      {/* 8x8 Board Grid */}
-      <div className="grid grid-cols-8 grid-rows-8 w-full h-full select-none" style={{ touchAction: 'none' }}>
-        {ranksLayout.map((rank, rankIdx) =>
-          filesLayout.map((file, fileIdx) => {
+      {/* Compute squares list once for both background and foreground layers */}
+      {(() => {
+        const squaresList: BoardSquareProps[] = [];
+        ranksLayout.forEach((rank, rankIdx) => {
+          filesLayout.forEach((file, fileIdx) => {
             const sq = `${file}${rank}` as Square;
             const isLight = (rankIdx + fileIdx) % 2 === 0;
             const piece = chess.get(sq);
@@ -1084,50 +1174,197 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 ? 'sm:rounded-br-xl'
                 : '';
 
-            return (
-              <BoardSquare
-                key={sq}
-                sq={sq}
-                piece={piece}
-                isLight={isLight}
-                isSelected={isSelected}
-                isLegalDestination={isLegalDestination}
-                isCapture={isCapture}
-                isPremoveSquare={isPremoveSquare}
-                isPremoveCandidate={isPremoveCandidate}
-                isLastMoveFrom={isLastMoveFrom}
-                isLastMoveTo={isLastMoveTo}
-                isCheckSquare={isCheckSquare}
-                isDefeatedKing={isDefeatedKing}
-                isCheckmate={chess.isCheckmate()}
-                isWinningKing={isWinningKing}
-                classificationOnSquare={classificationOnSquare}
-                customHighlight={customHighlight}
-                moveHighlightOverlayColor={moveHighlightOverlayColor}
-                showRank={showRank}
-                showFile={showFile}
-                rank={rank}
-                file={file}
-                fileIdx={fileIdx}
-                rankIdx={rankIdx}
-                pieceTheme={pieceTheme}
-                blindfold={blindfold}
-                isFastForward={isFastForward}
-                moveDelta={moveDelta}
-                isAnimating={animatingSquare === sq}
-                isPieceBeingDragged={isPieceBeingDragged}
-                isDragOver={dragOverSquare === sq && activeDrag?.square !== sq}
-                bgSquareColor={bgSquareColor}
-                cornerRoundedClass={cornerRoundedClass}
-                onSquareClick={handleSquareClick}
-                onPointerDownSquare={handlePointerDown}
-                onMouseDownSquare={handleMouseDown}
-                onMouseUpSquare={handleMouseUp}
-              />
-            );
-          })
-        )}
-      </div>
+            squaresList.push({
+              sq,
+              piece,
+              isLight,
+              isSelected,
+              isLegalDestination,
+              isCapture,
+              isPremoveSquare,
+              isPremoveCandidate,
+              isLastMoveFrom,
+              isLastMoveTo,
+              isCheckSquare,
+              isDefeatedKing,
+              isCheckmate: chess.isCheckmate(),
+              isWinningKing,
+              classificationOnSquare,
+              customHighlight,
+              moveHighlightOverlayColor,
+              showRank,
+              showFile,
+              rank,
+              file,
+              fileIdx,
+              rankIdx,
+              pieceTheme,
+              blindfold,
+              isFastForward,
+              moveDelta,
+              isAnimating: animatingSquare === sq,
+              isPieceBeingDragged,
+              isDragOver: dragOverSquare === sq && activeDrag?.square !== sq,
+              bgSquareColor,
+              cornerRoundedClass,
+              onSquareClick: handleSquareClick,
+              onPointerDownSquare: handlePointerDown,
+              onMouseDownSquare: handleMouseDown,
+              onMouseUpSquare: handleMouseUp,
+            });
+          });
+        });
+
+        return (
+          <>
+            {/* Layer 1: Board Tile Backgrounds & Highlights (z-0) */}
+            <div className="absolute inset-0 grid grid-cols-8 grid-rows-8 w-full h-full select-none pointer-events-none z-0">
+              {squaresList.map((sqProps) => (
+                <BoardSquare key={`bg-${sqProps.sq}`} layer="background" {...sqProps} />
+              ))}
+            </div>
+
+            {/* Layer 2: SVG Arrow Annotations Overlay (Rendered BELOW pieces & badges at z-10) */}
+            {arrowsToRender.length > 0 && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none z-10"
+                viewBox="0 0 100 100"
+              >
+                {arrowsToRender.map((arrow, idx) => {
+                  const start = getSquareCenterPercent(arrow.from);
+                  const end = getSquareCenterPercent(arrow.to);
+                  if (!start || !end) return null;
+
+                  const arrowColor = arrow.color || '#10b981';
+
+                  if (arrow.from === arrow.to) {
+                    return (
+                      <circle
+                        key={idx}
+                        cx={start.x}
+                        cy={start.y}
+                        r={5}
+                        fill={arrowColor}
+                        opacity={0.75}
+                      />
+                    );
+                  }
+
+                  const headLength = 4.0;
+                  const headHalfWidth = 2.4;
+                  const shaftHalfWidth = 1.05;
+                  const notchDepth = 0.8;
+
+                  const isKnightL =
+                    (Math.abs(start.x - end.x) === 12.5 && Math.abs(start.y - end.y) === 25) ||
+                    (Math.abs(start.x - end.x) === 25 && Math.abs(start.y - end.y) === 12.5);
+
+                  if (isKnightL) {
+                    const cornerX = Math.abs(start.x - end.x) === 12.5 ? start.x : end.x;
+                    const cornerY = Math.abs(start.x - end.x) === 12.5 ? end.y : start.y;
+
+                    const dx2 = end.x - cornerX;
+                    const dy2 = end.y - cornerY;
+                    const len2 = Math.hypot(dx2, dy2);
+                    if (len2 < 1) return null;
+
+                    const u2x = dx2 / len2;
+                    const u2y = dy2 / len2;
+                    const n2x = -u2y;
+                    const n2y = u2x;
+
+                    const tipX = end.x - u2x * 0.9;
+                    const tipY = end.y - u2y * 0.9;
+
+                    const baseX = tipX - u2x * headLength;
+                    const baseY = tipY - u2y * headLength;
+                    const notchX = baseX + u2x * notchDepth;
+                    const notchY = baseY + u2y * notchDepth;
+
+                    const wingLeftX = baseX + n2x * headHalfWidth;
+                    const wingLeftY = baseY + n2y * headHalfWidth;
+                    const wingRightX = baseX - n2x * headHalfWidth;
+                    const wingRightY = baseY - n2y * headHalfWidth;
+
+                    return (
+                      <g key={idx} opacity={0.80}>
+                        <path
+                          d={`M ${start.x.toFixed(2)} ${start.y.toFixed(2)} L ${cornerX.toFixed(2)} ${cornerY.toFixed(2)} L ${notchX.toFixed(2)} ${notchY.toFixed(2)}`}
+                          stroke={arrowColor}
+                          strokeWidth={shaftHalfWidth * 2}
+                          strokeLinecap="round"
+                          fill="none"
+                        />
+                        <polygon
+                          points={`${tipX.toFixed(2)},${tipY.toFixed(2)} ${wingLeftX.toFixed(2)},${wingLeftY.toFixed(2)} ${notchX.toFixed(2)},${notchY.toFixed(2)} ${wingRightX.toFixed(2)},${wingRightY.toFixed(2)}`}
+                          fill={arrowColor}
+                        />
+                      </g>
+                    );
+                  }
+
+                  const dx = end.x - start.x;
+                  const dy = end.y - start.y;
+                  const len = Math.sqrt(dx * dx + dy * dy);
+                  if (len < 1) return null;
+
+                  const ux = dx / len;
+                  const uy = dy / len;
+                  const nx = -uy;
+                  const ny = ux;
+
+                  const sX = start.x + ux * 1.5;
+                  const sY = start.y + uy * 1.5;
+
+                  const tipX = end.x - ux * 0.9;
+                  const tipY = end.y - uy * 0.9;
+
+                  const baseX = tipX - ux * headLength;
+                  const baseY = tipY - uy * headLength;
+                  const notchX = baseX + ux * notchDepth;
+                  const notchY = baseY + uy * notchDepth;
+
+                  const wingLeftX = baseX + nx * headHalfWidth;
+                  const wingLeftY = baseY + ny * headHalfWidth;
+                  const wingRightX = baseX - nx * headHalfWidth;
+                  const wingRightY = baseY - ny * headHalfWidth;
+
+                  const shaftLeftEndX = notchX + nx * shaftHalfWidth;
+                  const shaftLeftEndY = notchY + ny * shaftHalfWidth;
+                  const shaftRightEndX = notchX - nx * shaftHalfWidth;
+                  const shaftRightEndY = notchY - ny * shaftHalfWidth;
+
+                  const startLeftX = sX + nx * shaftHalfWidth;
+                  const startLeftY = sY + ny * shaftHalfWidth;
+                  const startRightX = sX - nx * shaftHalfWidth;
+                  const startRightY = sY - ny * shaftHalfWidth;
+
+                  const chevronPath = `M ${startLeftX.toFixed(2)} ${startLeftY.toFixed(2)} L ${shaftLeftEndX.toFixed(2)} ${shaftLeftEndY.toFixed(2)} L ${wingLeftX.toFixed(2)} ${wingLeftY.toFixed(2)} L ${tipX.toFixed(2)} ${tipY.toFixed(2)} L ${wingRightX.toFixed(2)} ${wingRightY.toFixed(2)} L ${shaftRightEndX.toFixed(2)} ${shaftRightEndY.toFixed(2)} L ${startRightX.toFixed(2)} ${startRightY.toFixed(2)} Z`;
+
+                  return (
+                    <g key={idx} opacity={0.80}>
+                      <path
+                        d={chevronPath}
+                        fill={arrowColor}
+                        stroke={arrowColor}
+                        strokeWidth={0.2}
+                        strokeLinejoin="round"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+
+            {/* Layer 3: Interactive Pieces, Badges, Legal Move Indicators (Rendered ABOVE arrows at z-20) */}
+            <div className="relative grid grid-cols-8 grid-rows-8 w-full h-full select-none z-20" style={{ touchAction: 'none' }}>
+              {squaresList.map((sqProps) => (
+                <BoardSquare key={`fg-${sqProps.sq}`} layer="foreground" {...sqProps} />
+              ))}
+            </div>
+          </>
+        );
+      })()}
 
       {/* Hardware-accelerated floating piece element centered on drag point in Portal */}
       {activeDrag &&
@@ -1159,138 +1396,6 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
           </div>,
           document.body
         )}
-
-      {/* SVG Arrow Annotations Overlay */}
-      {arrowsToRender.length > 0 && (
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-30"
-          viewBox="0 0 100 100"
-        >
-          {arrowsToRender.map((arrow, idx) => {
-            const start = getSquareCenterPercent(arrow.from);
-            const end = getSquareCenterPercent(arrow.to);
-            if (!start || !end) return null;
-
-            const arrowColor = arrow.color || '#10b981';
-
-            if (arrow.from === arrow.to) {
-              return (
-                <circle
-                  key={idx}
-                  cx={start.x}
-                  cy={start.y}
-                  r={5}
-                  fill={arrowColor}
-                  opacity={0.75}
-                />
-              );
-            }
-
-            const headLength = 4.0;
-            const headHalfWidth = 2.4;
-            const shaftHalfWidth = 1.05;
-            const notchDepth = 0.8;
-
-            const isKnightL =
-              (Math.abs(start.x - end.x) === 12.5 && Math.abs(start.y - end.y) === 25) ||
-              (Math.abs(start.x - end.x) === 25 && Math.abs(start.y - end.y) === 12.5);
-
-            if (isKnightL) {
-              const cornerX = Math.abs(start.x - end.x) === 12.5 ? start.x : end.x;
-              const cornerY = Math.abs(start.x - end.x) === 12.5 ? end.y : start.y;
-
-              const dx2 = end.x - cornerX;
-              const dy2 = end.y - cornerY;
-              const len2 = Math.hypot(dx2, dy2);
-              if (len2 < 1) return null;
-
-              const u2x = dx2 / len2;
-              const u2y = dy2 / len2;
-              const n2x = -u2y;
-              const n2y = u2x;
-
-              const tipX = end.x - u2x * 0.9;
-              const tipY = end.y - u2y * 0.9;
-
-              const baseX = tipX - u2x * headLength;
-              const baseY = tipY - u2y * headLength;
-              const notchX = baseX + u2x * notchDepth;
-              const notchY = baseY + u2y * notchDepth;
-
-              const wingLeftX = baseX + n2x * headHalfWidth;
-              const wingLeftY = baseY + n2y * headHalfWidth;
-              const wingRightX = baseX - n2x * headHalfWidth;
-              const wingRightY = baseY - n2y * headHalfWidth;
-
-              return (
-                <g key={idx} opacity={0.80}>
-                  <path
-                    d={`M ${start.x.toFixed(2)} ${start.y.toFixed(2)} L ${cornerX.toFixed(2)} ${cornerY.toFixed(2)} L ${notchX.toFixed(2)} ${notchY.toFixed(2)}`}
-                    stroke={arrowColor}
-                    strokeWidth={shaftHalfWidth * 2}
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <polygon
-                    points={`${tipX.toFixed(2)},${tipY.toFixed(2)} ${wingLeftX.toFixed(2)},${wingLeftY.toFixed(2)} ${notchX.toFixed(2)},${notchY.toFixed(2)} ${wingRightX.toFixed(2)},${wingRightY.toFixed(2)}`}
-                    fill={arrowColor}
-                  />
-                </g>
-              );
-            }
-
-            const dx = end.x - start.x;
-            const dy = end.y - start.y;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            if (len < 1) return null;
-
-            const ux = dx / len;
-            const uy = dy / len;
-            const nx = -uy;
-            const ny = ux;
-
-            const sX = start.x + ux * 1.5;
-            const sY = start.y + uy * 1.5;
-
-            const tipX = end.x - ux * 0.9;
-            const tipY = end.y - uy * 0.9;
-
-            const baseX = tipX - ux * headLength;
-            const baseY = tipY - uy * headLength;
-            const notchX = baseX + ux * notchDepth;
-            const notchY = baseY + uy * notchDepth;
-
-            const wingLeftX = baseX + nx * headHalfWidth;
-            const wingLeftY = baseY + ny * headHalfWidth;
-            const wingRightX = baseX - nx * headHalfWidth;
-            const wingRightY = baseY - ny * headHalfWidth;
-
-            const shaftLeftEndX = notchX + nx * shaftHalfWidth;
-            const shaftLeftEndY = notchY + ny * shaftHalfWidth;
-            const shaftRightEndX = notchX - nx * shaftHalfWidth;
-            const shaftRightEndY = notchY - ny * shaftHalfWidth;
-
-            const startLeftX = sX + nx * shaftHalfWidth;
-            const startLeftY = sY + ny * shaftHalfWidth;
-            const startRightX = sX - nx * shaftHalfWidth;
-            const startRightY = sY - ny * shaftHalfWidth;
-
-            const chevronPath = `M ${startLeftX.toFixed(2)} ${startLeftY.toFixed(2)} L ${shaftLeftEndX.toFixed(2)} ${shaftLeftEndY.toFixed(2)} L ${wingLeftX.toFixed(2)} ${wingLeftY.toFixed(2)} L ${tipX.toFixed(2)} ${tipY.toFixed(2)} L ${wingRightX.toFixed(2)} ${wingRightY.toFixed(2)} L ${shaftRightEndX.toFixed(2)} ${shaftRightEndY.toFixed(2)} L ${startRightX.toFixed(2)} ${startRightY.toFixed(2)} Z`;
-
-            return (
-              <g key={idx} opacity={0.80}>
-                <path
-                  d={chevronPath}
-                  fill={arrowColor}
-                  stroke={arrowColor}
-                  strokeWidth={0.2}
-                  strokeLinejoin="round"
-                />
-              </g>
-            );
-          })}
-        </svg>
-      )}
 
       {/* Pawn Promotion Modal Overlay */}
       {pendingPromotion && (

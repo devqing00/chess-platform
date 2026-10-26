@@ -982,13 +982,13 @@ export default function PlayLobbyPage() {
         {/* ========================================================================= */}
         {activeScreen === 'clocks' && (
           <div className="w-full max-w-4xl mx-auto flex flex-col gap-4 my-auto min-h-0 py-2 pb-24 sm:pb-8">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+              <div className="min-w-0">
                 <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-emerald-400" />
-                  <span>Clock Tempos &amp; Custom Timers</span>
+                  <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate">Clock Tempos &amp; Custom Timers</span>
                 </h2>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Select an official time control or configure custom minutes and increment
                 </p>
               </div>
@@ -997,6 +997,7 @@ export default function PlayLobbyPage() {
                 size="sm"
                 rounded="xl"
                 onClick={() => setActiveScreen('arena')}
+                className="self-start sm:self-auto shrink-0 font-bold"
               >
                 &larr; Back to Play
               </Button>
@@ -1146,24 +1147,24 @@ export default function PlayLobbyPage() {
               </div>
 
               {/* Controls: Live Sync & Provider Switcher Pills */}
-              <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap justify-between sm:justify-end">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
                 <Button
                   variant="secondary"
                   size="xs"
                   rounded="lg"
                   onClick={() => handleRefreshExternalGames(true)}
                   disabled={isSyncingExternal}
-                  className="font-bold flex items-center gap-1.5"
+                  className="font-bold flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
                   title="Fetch fresh games from Chess.com & Lichess"
                 >
                   <RotateCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingExternal ? 'animate-spin' : ''}`} />
                   <span>{isSyncingExternal ? 'Syncing...' : 'Sync Live'}</span>
                 </Button>
 
-                <div className="flex items-center gap-1 p-1 bg-[#141311] rounded-xl border border-white/5 text-xs font-bold shrink-0 overflow-x-auto scrollbar-none">
+                <div className="w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar scrollbar-none flex items-center gap-1 p-1 bg-[#141311] rounded-xl border border-white/5 text-xs font-bold shrink-0">
                   <button
                     onClick={() => setHistoryProvider('all')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                       historyProvider === 'all'
                         ? 'bg-white/10 text-white'
                         : 'text-zinc-400 hover:text-zinc-200'
@@ -1173,7 +1174,7 @@ export default function PlayLobbyPage() {
                   </button>
                   <button
                     onClick={() => setHistoryProvider('checkmate')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                       historyProvider === 'checkmate'
                         ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
                         : 'text-zinc-400 hover:text-zinc-200'
@@ -1183,7 +1184,7 @@ export default function PlayLobbyPage() {
                   </button>
                   <button
                     onClick={() => setHistoryProvider('chesscom')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
                       historyProvider === 'chesscom'
                         ? 'bg-emerald-600 text-white font-black'
                         : 'text-zinc-400 hover:text-zinc-200'
@@ -1193,7 +1194,7 @@ export default function PlayLobbyPage() {
                   </button>
                   <button
                     onClick={() => setHistoryProvider('lichess')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
                       historyProvider === 'lichess'
                         ? 'bg-amber-600 text-white font-black'
                         : 'text-zinc-400 hover:text-zinc-200'

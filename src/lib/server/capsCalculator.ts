@@ -269,11 +269,13 @@ export function isTacticalSacrifice(params: {
               .filter((m) => m.to === dest);
 
             const isUndefended = friendlyDefenders.length === 0;
-            const hasLesserOrEqualAttacker = capturesOnDest.some(
-              (m) => (PIECE_VALS[m.piece] || 3) <= pieceVal
+            // Attacker must have STRICTLY less value (e.g. pawn attacking piece, or minor piece attacking rook/queen)
+            // Equal trades (knight for knight or bishop for bishop) with friendly defenders are NOT piece sacrifices!
+            const hasLesserAttacker = capturesOnDest.some(
+              (m) => (PIECE_VALS[m.piece] || 3) < pieceVal - 0.5
             );
 
-            if (isUndefended || hasLesserOrEqualAttacker) {
+            if (isUndefended || hasLesserAttacker) {
               return true;
             }
           }
@@ -394,7 +396,7 @@ export function classifyMoveEngine(params: {
   }
   if (moveSan.includes('#') || mateAfter === 0 || isCheckmateOnBoard) {
     return {
-      classification: 'great',
+      classification: 'best',
       winProbLoss: 0,
       accuracy: 100,
       coachComment: `Checkmate! A decisive finishing blow.`,
@@ -484,6 +486,7 @@ export function classifyMoveEngine(params: {
 
   const isPromotion = moveSan.includes('=');
   const isBrilliantMove =
+    isStrictBest &&
     isSac &&
     effectiveL <= tier.brilMaxLoss &&
     ePlayed >= tier.brilFloor &&

@@ -355,6 +355,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
             blackPlayer,
             strengthTier: 'fast',
             engineMode: 'torch_human',
+            gameResult: resultString,
+            resultDetails: details,
           }),
         })
           .then(async (res) => {

@@ -10,7 +10,7 @@ export default function HomePage() {
   const { openChessComSync } = useShell();
 
   return (
-    <main className="flex-1 w-full min-h-full xl:h-full xl:max-h-full flex flex-col bg-[#161512] text-zinc-100 overflow-y-auto xl:overflow-hidden">
+    <div className="flex-1 w-full flex flex-col bg-[#161512] text-zinc-100 min-h-0">
       <ChessHomeDashboard
         onStartGame={() => router.push('/play')}
         onOpenBots={(botId) => router.push(botId ? `/bots?id=${botId}` : '/bots')}
@@ -20,6 +20,6 @@ export default function HomePage() {
         onOpenInsights={() => router.push('/insights')}
         onOpenSyncModal={openChessComSync}
       />
-    </main>
+    </div>
   );
 }

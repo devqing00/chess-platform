@@ -487,6 +487,7 @@ export interface GameSession {
   isGameOver: boolean;
   gameResult: string | null;
   resultDetails: GameResultDetails | null;
+  termination?: string;
   reviewReport: GameReviewReport | null;
   createdAt: number;
   updatedAt: number;

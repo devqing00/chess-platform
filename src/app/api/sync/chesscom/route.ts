@@ -275,11 +275,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Country code extraction
-    let countryCode = 'NG';
+    let countryCode: string | null = null;
     if (profileData.country) {
       const cParts = profileData.country.split('/');
-      countryCode = cParts[cParts.length - 1] || 'NG';
+      countryCode = cParts[cParts.length - 1]?.toUpperCase() || null;
     }
+
+    const getPerf = (perfData?: any) => {
+      if (!perfData || !perfData.last || typeof perfData.last.rating !== 'number') return null;
+      const rec = perfData.record || { win: 0, loss: 0, draw: 0 };
+      const games = (rec.win || 0) + (rec.loss || 0) + (rec.draw || 0);
+      return {
+        rating: perfData.last.rating,
+        best: perfData.best?.rating || perfData.last.rating,
+        record: rec,
+        games,
+      };
+    };
 
     const payload = {
       success: true,
@@ -294,25 +306,16 @@ export async function GET(request: NextRequest) {
         profileUrl: profileData.url,
       },
       stats: {
-        rapid: {
-          rating: statsData.chess_rapid?.last?.rating || 429,
-          best: statsData.chess_rapid?.best?.rating || 429,
-          record: statsData.chess_rapid?.record || { win: 79, loss: 58, draw: 6 },
-        },
-        blitz: {
-          rating: statsData.chess_blitz?.last?.rating || 370,
-          best: statsData.chess_blitz?.best?.rating || 378,
-          record: statsData.chess_blitz?.record || { win: 205, loss: 188, draw: 19 },
-        },
-        bullet: {
-          rating: statsData.chess_bullet?.last?.rating || null,
-          best: statsData.chess_bullet?.best?.rating || null,
-          record: statsData.chess_bullet?.record || null,
-        },
-        tactics: {
-          highest: statsData.tactics?.highest?.rating || 1460,
-          lowest: statsData.tactics?.lowest?.rating || 400,
-        },
+        rapid: getPerf(statsData.chess_rapid),
+        blitz: getPerf(statsData.chess_blitz),
+        bullet: getPerf(statsData.chess_bullet),
+        daily: getPerf(statsData.chess_daily),
+        tactics: statsData.tactics?.highest?.rating
+          ? {
+              highest: statsData.tactics.highest.rating,
+              lowest: statsData.tactics.lowest?.rating || null,
+            }
+          : null,
       },
       games: recentGames,
     };

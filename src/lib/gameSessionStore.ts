@@ -264,13 +264,20 @@ export function extractTerminationReason(game: any): GameResultDetails['reason']
     return game.resultDetails.reason as GameResultDetails['reason'];
   }
 
-  // 1. Check PGN [Termination "..."] header
+  // 1. Check moves list directly for checkmate (# in last move SAN)
+  if (Array.isArray(game.moves) && game.moves.length > 0) {
+    const last = game.moves[game.moves.length - 1];
+    const san = typeof last === 'string' ? last : last?.san;
+    if (san && san.includes('#')) return 'checkmate';
+  }
+
+  // 2. Check PGN [Termination "..."] header or move text ending in #
   if (game.pgn) {
     const termMatch = game.pgn.match(/\[Termination\s+"([^"]+)"\]/i);
     if (termMatch) {
       const t = termMatch[1].toLowerCase();
+      if (t.includes('checkmate') || t.includes('mate')) return 'checkmate';
       if (t.includes('resignation') || t.includes('resigned')) return 'resignation';
-      if (t.includes('checkmate')) return 'checkmate';
       if (t.includes('time') || t.includes('timeout')) return 'timeout';
       if (t.includes('stalemate')) return 'stalemate';
       if (t.includes('repetition')) return 'repetition';
@@ -279,26 +286,19 @@ export function extractTerminationReason(game: any): GameResultDetails['reason']
       if (t.includes('50-move') || t.includes('50 move')) return '50move';
       if (t.includes('abandoned')) return 'abandonment';
     }
+    // Check if move notation in PGN contains checkmate symbol #
+    if (/\b\d+\.?\s*[^\s]+\#/.test(game.pgn) || game.pgn.includes('#')) {
+      return 'checkmate';
+    }
   }
-
-  // 2. Check gameResult string e.g. "White won by resignation (1-0)"
-  const resStr = (game.gameResult || '').toLowerCase();
-  if (resStr.includes('resignation') || resStr.includes('resigned')) return 'resignation';
-  if (resStr.includes('checkmate')) return 'checkmate';
-  if (resStr.includes('time') || resStr.includes('timeout')) return 'timeout';
-  if (resStr.includes('stalemate')) return 'stalemate';
-  if (resStr.includes('repetition')) return 'repetition';
-  if (resStr.includes('agreement')) return 'agreement';
-  if (resStr.includes('insufficient')) return 'insufficient';
-  if (resStr.includes('abandoned')) return 'abandonment';
 
   // 3. Check opponent and userPlayer result flags from Chess.com API
   const oppRes = (game.opponent?.result || '').toLowerCase();
   const userRes = (game.userPlayer?.result || '').toLowerCase();
 
-  if (oppRes === 'resigned' || userRes === 'resigned') return 'resignation';
   if (oppRes === 'checkmated' || userRes === 'checkmated') return 'checkmate';
   if (oppRes === 'timeout' || userRes === 'timeout') return 'timeout';
+  if (oppRes === 'resigned' || userRes === 'resigned') return 'resignation';
   if (oppRes === 'abandoned' || userRes === 'abandoned') return 'abandonment';
   if (oppRes === 'stalemate' || userRes === 'stalemate') return 'stalemate';
   if (oppRes === 'repetition' || userRes === 'repetition') return 'repetition';
@@ -306,11 +306,22 @@ export function extractTerminationReason(game: any): GameResultDetails['reason']
   if (oppRes.includes('insufficient') || userRes.includes('insufficient') || oppRes.includes('timevsinsufficient') || userRes.includes('timevsinsufficient')) return 'insufficient';
   if (oppRes === '50move' || userRes === '50move') return '50move';
 
-  if (game.userResult === 'win' || game.userResult === 'loss' || game.gameResult === '1-0' || game.gameResult === '0-1') {
-    return 'resignation';
+  // 4. Check gameResult string e.g. "White won by resignation (1-0)"
+  const resStr = (game.gameResult || '').toLowerCase();
+  if (resStr.includes('checkmate')) return 'checkmate';
+  if (resStr.includes('resignation') || resStr.includes('resigned')) return 'resignation';
+  if (resStr.includes('time') || resStr.includes('timeout')) return 'timeout';
+  if (resStr.includes('stalemate')) return 'stalemate';
+  if (resStr.includes('repetition')) return 'repetition';
+  if (resStr.includes('agreement')) return 'agreement';
+  if (resStr.includes('insufficient')) return 'insufficient';
+  if (resStr.includes('abandoned')) return 'abandonment';
+
+  if (game.userResult === 'draw' || resStr.includes('1/2') || resStr.includes('0.5')) {
+    return 'agreement';
   }
 
-  return 'agreement';
+  return 'concluded';
 }
 
 /**
@@ -381,7 +392,7 @@ export function formatGameOutcomeDescription(params: {
     fullSentence,
     winnerName: winningPlayer,
     loserName: losingPlayer,
-    badgeType: userWon ? 'win' : userLost ? 'loss' : 'win',
+    badgeType: userWon ? 'win' : userLost ? 'loss' : 'draw',
   };
 }
 
@@ -766,9 +777,10 @@ export class GameSessionStore {
       session = this.createSession(defaultWhite, defaultBlack, 600);
     }
 
-    // Do not run synchronous heavy multi-ply minimax analysis on the main UI thread during game-over!
-    // Full engine evaluation is done asynchronously and lazily when the user visits Game Review.
     const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves, true);
+    report.gameResult = gameResult;
+    report.resultDetails = resultDetails;
+    report.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
 
     session.moves = moves;
     session.isGameOver = true;

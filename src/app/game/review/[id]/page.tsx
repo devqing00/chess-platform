@@ -63,6 +63,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
   const [notFound, setNotFound] = useState(false);
   const [loadingStep, setLoadingStep] = useState('Evaluating game moves...');
   const [loadingProgress, setLoadingProgress] = useState(18);
+  const [gamePgn, setGamePgn] = useState<string>('');
 
   // Rotating random facts (never repeated until entire pool is shown)
   const [shuffledFacts, setShuffledFacts] = useState<string[]>([]);
@@ -155,6 +156,9 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         session.moves = parsePgnToMoveRecords(session.pgn);
         session.movesCount = Math.ceil(session.moves.length / 2);
         GameSessionStore.saveSession(session);
+      }
+      if (session?.pgn) {
+        setGamePgn(session.pgn);
       }
 
       // 2. If not found locally, query Chess.com Sync API for the game
@@ -305,6 +309,9 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
               blackPlayer: session.blackPlayer,
               strengthTier: engineStrength || 'fast',
               engineMode: analysisEngine || 'torch_human',
+              gameResult: session.gameResult,
+              resultDetails: session.resultDetails,
+              pgn: session.pgn,
             }),
           });
           clearTimeout(timeoutTimer);
@@ -498,6 +505,7 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           keyMoments={report.keyMoments}
           boardTheme={boardTheme}
           pieceTheme={pieceTheme}
+          pgn={gamePgn}
           gameResult={report.gameResult}
           resultDetails={report.resultDetails}
           termination={report.termination}

@@ -153,6 +153,7 @@ function getMaterialBreakdown(chess: Chess): MaterialBreakdown {
 interface GameReviewViewProps {
   gameId?: string;
   moves: MoveRecord[];
+  pgn?: string;
   whitePlayer: GamePlayer;
   blackPlayer: GamePlayer;
   boardTheme: BoardTheme;
@@ -174,6 +175,7 @@ interface GameReviewViewProps {
 export const GameReviewView: React.FC<GameReviewViewProps> = ({
   gameId,
   moves,
+  pgn,
   whitePlayer,
   blackPlayer,
   boardTheme,
@@ -199,29 +201,68 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   const isUserWhite = useMemo(() => {
+    let username = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const storedProfile = localStorage.getItem('chess_com_profile');
+        if (storedProfile) username = JSON.parse(storedProfile)?.username || '';
+        if (!username) {
+          const authUser = localStorage.getItem('chess_platform_user');
+          if (authUser) username = JSON.parse(authUser)?.displayName || '';
+        }
+      } catch {}
+    }
     return isSessionUserWhite({
       whitePlayer,
       blackPlayer,
       gameResult: gameResult || undefined,
       resultDetails: resultDetails || undefined,
-      pgn: '',
-    } as any);
-  }, [whitePlayer, blackPlayer, gameResult, resultDetails]);
+      pgn: pgn || '',
+    } as any, username);
+  }, [whitePlayer, blackPlayer, gameResult, resultDetails, pgn]);
 
   const gameOutcome = useMemo(() => {
-    let winner = resultDetails?.winner;
-    const res = (gameResult || '').trim().toLowerCase();
-    if (res.includes('white win') || res.includes('white won') || res.includes('1-0')) {
-      winner = 'w';
-    } else if (res.includes('black win') || res.includes('black won') || res.includes('0-1')) {
-      winner = 'b';
-    } else if (!winner) {
-      if (gameResult === '1-0') winner = 'w';
-      else if (gameResult === '0-1') winner = 'b';
-      else if (gameResult?.includes('1/2') || gameResult?.includes('0.5')) winner = 'draw';
-      else winner = isUserWhite ? 'w' : 'b';
+    const lastMove = moves && moves.length > 0 ? moves[moves.length - 1] : undefined;
+    const isCheckmateLast = Boolean(lastMove?.san?.includes('#'));
+
+    let winner: 'w' | 'b' | 'draw';
+    let reason: string;
+
+    if (isCheckmateLast) {
+      winner = moves.length % 2 === 1 ? 'w' : 'b';
+      reason = 'checkmate';
+    } else {
+      const termLower = (termination || '').toLowerCase();
+      const res = (gameResult || '').trim().toLowerCase();
+      const whiteNameLower = (whitePlayer.name || '').toLowerCase();
+      const blackNameLower = (blackPlayer.name || '').toLowerCase();
+
+      if (resultDetails?.winner && ['w', 'b', 'draw'].includes(resultDetails.winner)) {
+        winner = resultDetails.winner;
+      } else if (res.includes('1-0') || res.includes('white won') || res.includes('white win')) {
+        winner = 'w';
+      } else if (res.includes('0-1') || res.includes('black won') || res.includes('black win')) {
+        winner = 'b';
+      } else if (res.includes('1/2') || res.includes('0.5') || res.includes('draw')) {
+        winner = 'draw';
+      } else if (termLower.includes(whiteNameLower + ' won') || termLower.includes('white won')) {
+        winner = 'w';
+      } else if (termLower.includes(blackNameLower + ' won') || termLower.includes('black won')) {
+        winner = 'b';
+      } else if (termLower.includes('draw') || termLower.includes('stalemate')) {
+        winner = 'draw';
+      } else {
+        winner = 'draw';
+      }
+
+      reason =
+        resultDetails?.reason && resultDetails.reason !== 'concluded'
+          ? resultDetails.reason
+          : termination
+          ? extractTerminationReason({ pgn: `[Termination "${termination}"]`, gameResult, moves })
+          : extractTerminationReason({ gameResult, pgn, moves });
     }
-    const reason = resultDetails?.reason || (termination ? extractTerminationReason({ pgn: `[Termination "${termination}"]` }) : 'resignation');
+
     return formatGameOutcomeDescription({
       winner,
       reason,
@@ -229,7 +270,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
       blackName: blackPlayer.name,
       isUserWhite,
     });
-  }, [resultDetails, gameResult, termination, whitePlayer.name, blackPlayer.name, isUserWhite]);
+  }, [resultDetails, gameResult, termination, whitePlayer.name, blackPlayer.name, isUserWhite, moves]);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -466,123 +507,96 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
     return null;
   };
 
-  // Best move executed from fenBefore on the board (Chess.com "Best" mode)
-  // Computed lazily ONLY when user clicks "Best" so regular move navigation is 100% lag-free
-  const bestMoveVariation = useMemo<{ chess: Chess; san: string; from: Square; to: Square } | null>(() => {
-    if (!activeMove || !activeMove.fenBefore) return null;
-    if (!showBestMove) return null;
+  // Pre-calculated variations cache: eliminates 100% of UI lag on "Best", "Show", and navigation
+  const variationsCache = useMemo(() => {
+    const bestCache = new Map<number, { chess: Chess; san: string; from: Square; to: Square } | null>();
+    const followUpCache = new Map<number, { chess: Chess; san: string; from: Square; to: Square } | null>();
 
-    const cls = getCleanClassification(activeMove.classification);
-    const isSuboptimal = ['blunder', 'mistake', 'miss', 'inaccuracy'].includes(cls);
+    moves.forEach((move, idx) => {
+      // 1. Pre-calculate Best Move Variation
+      if (move.fenBefore) {
+        const cls = getCleanClassification(move.classification);
+        const isSuboptimal = ['blunder', 'mistake', 'miss', 'inaccuracy'].includes(cls);
 
-    let candidateSan = activeMove.bestMoveSan;
-
-    // If activeMove is suboptimal, candidateSan cannot be activeMove.san
-    if (isSuboptimal && candidateSan === activeMove.san) {
-      candidateSan = undefined;
-    }
-
-    // Sanity check: disqualify any candidate move that walks into immediate mate or hangs mate-in-1
-    if (candidateSan) {
-      try {
-        const testChess = new Chess(activeMove.fenBefore);
-        const m = testChess.move(candidateSan);
-        if (!m) {
+        let candidateSan = move.bestMoveSan;
+        if (isSuboptimal && candidateSan === move.san) {
           candidateSan = undefined;
-        } else {
-          const opponentMates = testChess.moves({ verbose: true }).some((oppM: any) => oppM.san.includes('#'));
-          if (opponentMates) {
-            candidateSan = undefined;
+        }
+
+        let exec: { chess: Chess; san: string; from: Square; to: Square } | null = null;
+        if (candidateSan) {
+          exec = tryExecuteMove(move.fenBefore, candidateSan);
+        }
+
+        // Fast refutation check if candidateSan hung mate or failed
+        if (!exec && move.refutations?.accepted?.replySan) {
+          exec = tryExecuteMove(move.fenBefore, move.refutations.accepted.replySan);
+        }
+
+        // Fast legal move fallback that avoids checkmate (zero-latency depth 1)
+        if (!exec && isSuboptimal) {
+          try {
+            const c = new Chess(move.fenBefore);
+            const legalMoves = c.moves({ verbose: true });
+            for (const lm of legalMoves) {
+              if (lm.san === move.san) continue;
+              const clone = new Chess(move.fenBefore);
+              clone.move(lm.san);
+              const hangsMate = clone.moves({ verbose: true }).some((m: any) => m.san.includes('#'));
+              if (!hangsMate) {
+                exec = tryExecuteMove(move.fenBefore, lm.san, lm.from as Square, lm.to as Square);
+                if (exec) break;
+              }
+            }
+          } catch {}
+        }
+
+        if (!exec && move.san && !isSuboptimal) {
+          exec = tryExecuteMove(move.fenBefore, move.san, move.from, move.to);
+        }
+
+        bestCache.set(idx, exec);
+      }
+
+      // 2. Pre-calculate Follow-up Variation
+      if (move.fenAfter) {
+        let exec: { chess: Chess; san: string; from: Square; to: Square } | null = null;
+        const nextMoveRecord = moves[idx + 1];
+
+        if (nextMoveRecord?.bestMoveSan) {
+          exec = tryExecuteMove(move.fenAfter, nextMoveRecord.bestMoveSan, nextMoveRecord.from, nextMoveRecord.to);
+        }
+        if (!exec && nextMoveRecord?.san) {
+          const nextCleanClass = getCleanClassification(nextMoveRecord.classification);
+          if (['best', 'great', 'book', 'excellent', 'good'].includes(nextCleanClass)) {
+            exec = tryExecuteMove(move.fenAfter, nextMoveRecord.san, nextMoveRecord.from, nextMoveRecord.to);
           }
         }
-      } catch {
-        candidateSan = undefined;
-      }
-    }
-
-    // 1. Fast path: recorded bestMoveSan from engine review (instant execution, 0ms latency)
-    if (candidateSan) {
-      const exec = tryExecuteMove(activeMove.fenBefore, candidateSan);
-      if (exec) return exec;
-    }
-
-    // 2. Dynamic engine search if candidateSan was invalid, missing, or hung mate
-    try {
-      const c = new Chess(activeMove.fenBefore);
-      if (!c.isGameOver()) {
-        const res = ChessEvaluator.findBestMoveAndScore(c);
-        if (res.bestMoveSan && (!isSuboptimal || res.bestMoveSan !== activeMove.san)) {
-          const exec = tryExecuteMove(activeMove.fenBefore, res.bestMoveSan);
-          if (exec) return exec;
+        if (!exec && move.refutations?.accepted?.replySan) {
+          exec = tryExecuteMove(move.fenAfter, move.refutations.accepted.replySan);
         }
-      }
-    } catch {}
-
-    // 3. Fallback: Any legal move that avoids immediate checkmate
-    if (isSuboptimal) {
-      try {
-        const c = new Chess(activeMove.fenBefore);
-        const legalMoves = c.moves({ verbose: true });
-        for (const lm of legalMoves) {
-          if (lm.san === activeMove.san) continue;
-          const clone = new Chess(activeMove.fenBefore);
-          clone.move(lm.san);
-          const hangsMate = clone.moves({ verbose: true }).some((m: any) => m.san.includes('#'));
-          if (!hangsMate) {
-            const exec = tryExecuteMove(activeMove.fenBefore, lm.san, lm.from as Square, lm.to as Square);
-            if (exec) return exec;
-          }
+        if (!exec) {
+          exec = tryExecuteMove(move.fenAfter);
         }
-      } catch {}
-    }
 
-    // 4. Fallback: played move itself (only if move was not suboptimal)
-    if (activeMove.san && !isSuboptimal) {
-      const exec = tryExecuteMove(activeMove.fenBefore, activeMove.san, activeMove.from, activeMove.to);
-      if (exec) return exec;
-    }
+        followUpCache.set(idx, exec);
+      }
+    });
 
-    return null;
-  }, [activeMove, showBestMove]);
+    return { bestCache, followUpCache };
+  }, [moves]);
 
-  // Next player's follow-up reply executed from fenAfter on the board (Chess.com "Show" mode)
-  // Computed lazily ONLY when user clicks "Show Response" so navigating moves stays 100% lag-free
+  // Instant 0ms lookup when user clicks "Best"
+  const bestMoveVariation = useMemo<{ chess: Chess; san: string; from: Square; to: Square } | null>(() => {
+    if (!activeMove || !showBestMove) return null;
+    return variationsCache.bestCache.get(activeMoveIndex) ?? null;
+  }, [activeMove, showBestMove, activeMoveIndex, variationsCache]);
+
+  // Instant 0ms lookup when user clicks "Show"
   const followUpVariation = useMemo<{ chess: Chess; san: string; from: Square; to: Square } | null>(() => {
-    if (!activeMove || !activeMove.fenAfter) return null;
-    if (!showFollowUpMove) return null; // Avoid expensive tree searches during regular move navigation
-
-    const nextMoveRecord = moves[activeMoveIndex + 1];
-
-    // 1. Instant path: Try opponent's bestMoveSan from nextMoveRecord
-    if (nextMoveRecord?.bestMoveSan) {
-      const exec = tryExecuteMove(activeMove.fenAfter, nextMoveRecord.bestMoveSan, nextMoveRecord.from, nextMoveRecord.to);
-      if (exec) return exec;
-    }
-
-    // 2. Instant path: If next move in game was best/great/book
-    if (nextMoveRecord?.san) {
-      const nextCleanClass = getCleanClassification(nextMoveRecord.classification);
-      if (['best', 'great', 'book', 'excellent', 'good'].includes(nextCleanClass)) {
-        const exec = tryExecuteMove(activeMove.fenAfter, nextMoveRecord.san, nextMoveRecord.from, nextMoveRecord.to);
-        if (exec) return exec;
-      }
-    }
-
-    // 3. Fallback engine search on activeMove.fenAfter
-    try {
-      const c = new Chess(activeMove.fenAfter);
-      if (!c.isGameOver()) {
-        const res = ChessEvaluator.findBestMoveAndScore(c);
-        if (res.bestMoveSan) {
-          const exec = tryExecuteMove(activeMove.fenAfter, res.bestMoveSan);
-          if (exec) return exec;
-        }
-      }
-    } catch {}
-
-    // 4. Any legal reply from fenAfter
-    return tryExecuteMove(activeMove.fenAfter);
-  }, [activeMove, activeMoveIndex, moves, showFollowUpMove]);
+    if (!activeMove || !showFollowUpMove) return null;
+    return variationsCache.followUpCache.get(activeMoveIndex) ?? null;
+  }, [activeMove, showFollowUpMove, activeMoveIndex, variationsCache]);
 
   // Condition under which "Best" button is disabled:
   // - Book moves should not have a best move
