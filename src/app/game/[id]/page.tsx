@@ -107,6 +107,11 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [showVersusIntro, setShowVersusIntro] = useState(false);
   const versusIntroShownRef = useRef(false);
 
+  // Mobile Drawers
+  const [isMobileMovesOpen, setIsMobileMovesOpen] = useState(false);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+  const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
+
   const [whiteTime, setWhiteTime] = useState<number>(600);
   const [blackTime, setBlackTime] = useState<number>(600);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(false);
@@ -681,17 +686,38 @@ export default function GameRoomPage({ params }: GamePageProps) {
     const userMsg = { sender: 'You', text: text.trim() };
     setChatMessages((prev) => [...prev, userMsg]);
     setChatInput('');
+    soundService.playTactilePop();
 
-    if (currentBotObj?.quotes?.goodMove?.length) {
+    if (currentBotObj) {
       setTimeout(() => {
-        const pool = currentBotObj.quotes.goodMove;
-        const reply = pool[Math.floor(Math.random() * pool.length)];
+        let pool = currentBotObj.quotes.goodMove || [];
+        const lower = text.toLowerCase();
+        if (gameResult) {
+          pool = currentBotObj.quotes.win || currentBotObj.quotes.loss || currentBotObj.quotes.gameStart || pool;
+        } else if (lower.includes('luck') || lower.includes('hello') || lower.includes('hi')) {
+          pool = currentBotObj.quotes.gameStart || pool;
+        } else if (lower.includes('nice') || lower.includes('good') || lower.includes('wow')) {
+          pool = currentBotObj.quotes.goodMove || pool;
+        } else if (lower.includes('oops') || lower.includes('blunder') || lower.includes('mistake')) {
+          pool = currentBotObj.quotes.blunder || currentBotObj.quotes.goodMove || pool;
+        } else if (lower.includes('rematch') || lower.includes('again')) {
+          pool = currentBotObj.quotes.gameStart || pool;
+        }
+
+        const reply =
+          pool.length > 0
+            ? pool[Math.floor(Math.random() * pool.length)]
+            : "Interesting move! Let's see how this develops.";
+
         setBotMessage(reply);
         setChatMessages((prev) => [
           ...prev,
           { sender: currentBotObj.name, text: reply, isBot: true },
         ]);
-        if (activeTab !== 'chat') setHasUnreadChat(true);
+        soundService.playMove();
+        if (activeTab !== 'chat' && !isMobileChatOpen) {
+          setHasUnreadChat(true);
+        }
       }, 700);
     }
   };
@@ -924,9 +950,13 @@ export default function GameRoomPage({ params }: GamePageProps) {
             className="w-full md:hidden px-1 sm:px-0 max-w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)]"
           >
             <MobileBottomBar
-              onToggleMoves={() => setActiveTab('moves')}
+              onToggleMoves={() => {
+                soundService.playTactilePop();
+                setIsMobileMovesOpen(true);
+              }}
               onToggleChat={() => {
-                setActiveTab((t) => (t === 'chat' ? 'moves' : 'chat'));
+                soundService.playTactilePop();
+                setIsMobileChatOpen(true);
                 setHasUnreadChat(false);
               }}
               onOpenAnalysis={() => router.push(`/game/review/${gameId}`)}
@@ -939,11 +969,15 @@ export default function GameRoomPage({ params }: GamePageProps) {
               }
               canPrev={currentMoveIndex > 0}
               canNext={currentMoveIndex < moveHistory.length - 1}
+              hasUnreadChat={hasUnreadChat}
               isGameOver={Boolean(gameResult)}
               onUndo={botPlayer ? handleUndoMove : undefined}
               canUndo={Boolean(botPlayer) && !gameResult && moveHistory.length > 0}
               onResign={handleResign}
-              onOpenMore={() => setIsMoreMenuOpen(true)}
+              onOpenMore={() => {
+                soundService.playTactilePop();
+                setIsMobileActionsOpen(true);
+              }}
             />
           </div>
         </div>
@@ -1198,6 +1232,353 @@ export default function GameRoomPage({ params }: GamePageProps) {
           }}
           onNewGame={() => router.push('/play')}
         />
+      )}
+
+      {/* ========================================================================= */}
+      {/* MOBILE DRAWERS / SHEETS (< md screens)                                    */}
+      {/* ========================================================================= */}
+
+      {/* 1. Mobile Move History Drawer */}
+      {isMobileMovesOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex flex-col justify-end md:hidden animate-in fade-in duration-150">
+          <div className="flex-1 w-full" onClick={() => setIsMobileMovesOpen(false)} />
+          <div className="w-full bg-[#1c1a17] border-t-2 border-[#38342c] rounded-t-[28px] p-4 flex flex-col max-h-[75vh] h-[520px] shadow-2xl animate-in slide-in-from-bottom duration-200 select-none">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <ListOrdered className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Move History</h3>
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    {moveHistory.length} Plies ({Math.ceil(moveHistory.length / 2)} Turns)
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMobileMovesOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Turn List */}
+            <div className="flex-1 overflow-y-auto py-2 space-y-1">
+              {moveHistory.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-xs">
+                  <span>No moves played yet</span>
+                </div>
+              ) : (
+                Array.from({ length: Math.ceil(moveHistory.length / 2) }).map((_, turnIdx) => {
+                  const whiteIdx = turnIdx * 2;
+                  const blackIdx = turnIdx * 2 + 1;
+                  const whiteMove = moveHistory[whiteIdx];
+                  const blackMove = moveHistory[blackIdx];
+
+                  return (
+                    <div
+                      key={turnIdx}
+                      className="grid grid-cols-[36px_1fr_1fr] items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs font-mono"
+                    >
+                      <span className="text-[11px] font-bold text-zinc-500">{turnIdx + 1}.</span>
+
+                      {/* White Move */}
+                      <button
+                        onClick={() => handleSelectHistoricalMove(whiteIdx)}
+                        className={`px-2 py-1 rounded text-left font-bold transition-colors cursor-pointer flex items-center justify-between ${
+                          currentMoveIndex === whiteIdx
+                            ? 'bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-black'
+                            : 'bg-white/5 text-zinc-200 hover:bg-white/10'
+                        }`}
+                      >
+                        <span>{whiteMove.san}</span>
+                        {whiteMove.classification && (
+                          <span className="text-[9px] px-1 py-0.2 rounded font-sans uppercase bg-black/40 text-zinc-400">
+                            {whiteMove.classification}
+                          </span>
+                        )}
+                      </button>
+
+                      {/* Black Move */}
+                      {blackMove ? (
+                        <button
+                          onClick={() => handleSelectHistoricalMove(blackIdx)}
+                          className={`px-2 py-1 rounded text-left font-bold transition-colors cursor-pointer flex items-center justify-between ${
+                            currentMoveIndex === blackIdx
+                              ? 'bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-black'
+                              : 'bg-black/30 border border-white/5 text-zinc-300 hover:bg-black/50'
+                          }`}
+                        >
+                          <span>{blackMove.san}</span>
+                          {blackMove.classification && (
+                            <span className="text-[9px] px-1 py-0.2 rounded font-sans uppercase bg-black/40 text-zinc-400">
+                              {blackMove.classification}
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="px-2 py-1 text-zinc-600">—</div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Stepper Footer */}
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between shrink-0">
+              <button
+                onClick={() => handleSelectHistoricalMove(-1)}
+                disabled={currentMoveIndex < 0}
+                className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-30 text-xs font-bold text-zinc-300 cursor-pointer"
+              >
+                Start
+              </button>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => currentMoveIndex > 0 && handleSelectHistoricalMove(currentMoveIndex - 1)}
+                  disabled={currentMoveIndex <= 0}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-30 text-xs font-bold text-zinc-300 cursor-pointer"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() =>
+                    currentMoveIndex < moveHistory.length - 1 &&
+                    handleSelectHistoricalMove(currentMoveIndex + 1)
+                  }
+                  disabled={currentMoveIndex >= moveHistory.length - 1}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-30 text-xs font-bold text-zinc-300 cursor-pointer"
+                >
+                  Next →
+                </button>
+              </div>
+              <button
+                onClick={() => handleSelectHistoricalMove(moveHistory.length - 1)}
+                disabled={currentMoveIndex >= moveHistory.length - 1}
+                className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black font-black text-xs disabled:opacity-30 cursor-pointer"
+              >
+                Current
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Mobile Bot Chat Drawer */}
+      {isMobileChatOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex flex-col justify-end md:hidden animate-in fade-in duration-150">
+          <div className="flex-1 w-full" onClick={() => setIsMobileChatOpen(false)} />
+          <div className="w-full bg-[#1c1a17] border-t-2 border-[#38342c] rounded-t-[28px] p-4 flex flex-col max-h-[75vh] h-[520px] shadow-2xl animate-in slide-in-from-bottom duration-200 select-none">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-lg overflow-hidden shrink-0">
+                  {botPlayer?.avatar && botPlayer.avatar.startsWith('http') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={botPlayer.avatar} alt={botPlayer.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{botPlayer?.avatar || '🤖'}</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-1.5">
+                    {botPlayer?.name || 'Bot'}
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">
+                      BOT ({botPlayer?.rating || 600})
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-zinc-400 truncate max-w-[200px]">
+                    {currentBotObj?.bio || currentBotObj?.playStyle || 'AI Sparring Partner'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMobileChatOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Chips */}
+            <div className="py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+              {['Good luck! 🍀', 'Nice move! 👏', 'Oops! 😅', 'Checkmate incoming! ♟️', 'Rematch? ⚔️'].map(
+                (chip) => (
+                  <button
+                    key={chip}
+                    onClick={() => handleSendChat(chip)}
+                    className="px-2.5 py-1 rounded-full text-xs font-bold bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 whitespace-nowrap active:scale-95 transition-all cursor-pointer shrink-0"
+                  >
+                    {chip}
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto py-2 space-y-2 flex flex-col">
+              {chatMessages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-zinc-500">
+                  <MessageSquare className="w-8 h-8 mb-2 opacity-30 text-emerald-400" />
+                  <p className="text-xs font-bold text-zinc-400">Chat with {botPlayer?.name || 'Bot'}</p>
+                  <p className="text-[11px] text-zinc-500 max-w-xs mt-0.5">
+                    Send a quick reaction or message to interact!
+                  </p>
+                </div>
+              ) : (
+                chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-col max-w-[85%] ${
+                      msg.isBot ? 'self-start items-start' : 'self-end items-end'
+                    }`}
+                  >
+                    <span className="text-[9px] font-mono text-zinc-500 mb-0.5 px-1 font-bold">
+                      {msg.sender}
+                    </span>
+                    <div
+                      className={`px-3 py-2 rounded-2xl text-xs break-words shadow-sm ${
+                        msg.isBot
+                          ? 'bg-[#262420] border border-white/10 text-zinc-200 rounded-tl-none'
+                          : 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-tr-none'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {isBotThinking && (
+                <div className="self-start flex items-center gap-1.5 px-3 py-2 bg-[#262420] border border-white/10 rounded-2xl rounded-tl-none text-zinc-400 text-xs">
+                  <span className="text-[11px]">{botPlayer?.name} is thinking</span>
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:0.2s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:0.4s]" />
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Input Row */}
+            <div className="pt-2 border-t border-white/5 flex items-center gap-2 shrink-0">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendChat(chatInput)}
+                placeholder={`Message ${botPlayer?.name || 'bot'}...`}
+                className="flex-1 bg-[#141311] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={() => handleSendChat(chatInput)}
+                disabled={!chatInput.trim()}
+                className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-black font-bold transition-all cursor-pointer active:scale-95"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Mobile Game Actions Sheet (Triggered by bottom-left ellipsis button) */}
+      {isMobileActionsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex flex-col justify-end md:hidden animate-in fade-in duration-150">
+          <div className="flex-1 w-full" onClick={() => setIsMobileActionsOpen(false)} />
+          <div className="w-full bg-[#1c1a17] border-t-2 border-[#38342c] rounded-t-[28px] p-4 flex flex-col gap-2 shadow-2xl animate-in slide-in-from-bottom duration-200 select-none">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <h3 className="text-sm font-black text-white">Game Options</h3>
+              <button
+                onClick={() => setIsMobileActionsOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setOrientation((o) => (o === 'w' ? 'b' : 'w'));
+                  setIsMobileActionsOpen(false);
+                }}
+                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center gap-2.5 text-xs font-bold text-zinc-200 text-left transition-colors cursor-pointer"
+              >
+                <ArrowUpDown className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Flip Board View</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSoundEnabled(!soundEnabled);
+                  setIsMobileActionsOpen(false);
+                }}
+                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center gap-2.5 text-xs font-bold text-zinc-200 text-left transition-colors cursor-pointer"
+              >
+                {soundEnabled ? (
+                  <>
+                    <Volume2 className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Mute Sound</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>Unmute Sound</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {!gameResult && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setIsMobileActionsOpen(false);
+                    triggerGameOver('draw', 'agreement', 'Draw by mutual agreement');
+                  }}
+                  disabled={moveHistory.length === 0}
+                  className="p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 flex items-center gap-2.5 text-xs font-bold text-amber-300 text-left transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <Handshake className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Offer Draw</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMobileActionsOpen(false);
+                    handleResign();
+                  }}
+                  disabled={moveHistory.length === 0}
+                  className="p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 flex items-center gap-2.5 text-xs font-bold text-rose-300 text-left transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <Flag className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>Resign Game</span>
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setIsMobileActionsOpen(false);
+                openSettings();
+              }}
+              className="w-full p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between text-xs font-bold text-zinc-300 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Settings className="w-4 h-4 text-zinc-400" />
+                <span>Board & Piece Settings</span>
+              </div>
+              <span className="text-[10px] text-zinc-500 font-mono">Customize</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Cinematic Fighting Game Style Intro Face-off */}

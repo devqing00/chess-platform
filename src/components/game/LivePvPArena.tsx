@@ -11,9 +11,10 @@ import { useAuth } from '@/context/AuthContext';
 import { soundService } from '@/lib/audioService';
 import { Button } from '@/components/ui/button';
 import { GameSessionStore } from '@/lib/gameSessionStore';
-import { GamePlayer, GameResultDetails } from '@/types/chess';
+import { GamePlayer, GameResultDetails, PieceType, PieceColor } from '@/types/chess';
 import { GameOverModal } from '@/components/game/GameOverModal';
 import { MatchVersusIntro } from '@/components/game/MatchVersusIntro';
+import { CapturedPiecesBar, calculateCapturesAndAdvantage } from '@/components/game/CapturedPiecesBar';
 import {
   getPersistentGuestUid,
   getEffectiveUserProfile,
@@ -42,6 +43,8 @@ import {
   Bot,
   Search,
   ArrowUpDown,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 
 interface LivePvPArenaProps {
@@ -69,6 +72,13 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
   const [userFlippedBoard, setUserFlippedBoard] = useState(false);
   const mobileNotationScrollRef = useRef<HTMLDivElement | null>(null);
   const desktopNotationScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Live PvP Real-time Chat states
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const lastChatCountRef = useRef(0);
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Result modal & Versus Intro states
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
@@ -368,21 +378,53 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
     return pairs;
   }, [chess.history().length]);
 
-  // Auto-scroll horizontal move notation without ANY whole-page window jumping
+  // Real-time chat notification sound & unread tracking
   useEffect(() => {
-    if (mobileNotationScrollRef.current) {
-      mobileNotationScrollRef.current.scrollTo({
-        left: mobileNotationScrollRef.current.scrollWidth,
-        behavior: 'smooth',
-      });
+    const messages = game?.chat || [];
+    if (messages.length > lastChatCountRef.current) {
+      const newMessages = messages.slice(lastChatCountRef.current);
+      const incoming = newMessages.some((m) => m.senderUid !== effectiveUid);
+      if (incoming) {
+        soundService.playTactilePop();
+        if (!isChatOpen) {
+          setUnreadChatCount((prev) => prev + (messages.length - lastChatCountRef.current));
+        }
+      }
+      lastChatCountRef.current = messages.length;
     }
-    if (desktopNotationScrollRef.current) {
-      desktopNotationScrollRef.current.scrollTo({
-        left: desktopNotationScrollRef.current.scrollWidth,
-        behavior: 'smooth',
-      });
+  }, [game?.chat?.length, isChatOpen, effectiveUid]);
+
+  useEffect(() => {
+    if (isChatOpen) {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
+  }, [game?.chat?.length, isChatOpen]);
+
+  const handleSendChat = async (text: string) => {
+    if (!text.trim()) return;
+    const myName = user?.displayName || (playerColor === 'w' ? 'White' : 'Black');
+    await GameSyncService.sendChatMessage(
+      gameId,
+      effectiveUid,
+      myName,
+      playerColor,
+      text.trim()
+    );
+    setChatInput('');
+  };
+
+  // Material & captured pieces calculation
+  const { whiteCaptured, blackCaptured, whiteAdvantage, blackAdvantage } = useMemo(() => {
+    return calculateCapturesAndAdvantage(chess);
   }, [chess.history().length]);
+
+  const topCaptured = effectiveOrientation === 'w' ? blackCaptured : whiteCaptured;
+  const topCapturedColor: PieceColor = effectiveOrientation === 'w' ? 'w' : 'b';
+  const topAdvantage = effectiveOrientation === 'w' ? blackAdvantage : whiteAdvantage;
+
+  const bottomCaptured = effectiveOrientation === 'w' ? whiteCaptured : blackCaptured;
+  const bottomCapturedColor: PieceColor = effectiveOrientation === 'w' ? 'b' : 'w';
+  const bottomAdvantage = effectiveOrientation === 'w' ? whiteAdvantage : blackAdvantage;
 
   const handleConfirmLeave = async () => {
     if (!game || game.status !== 'active') {
@@ -676,18 +718,27 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                   ({topPlayerInfo.rating})
                 </span>
               </div>
-              <span className="text-[10px]">
-                {topPlayerInfo.isSearching ? (
-                  <span className="text-amber-400/90 font-medium flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                    Waiting for player...
-                  </span>
-                ) : topPlayerInfo.isDisconnected ? (
-                  <span className="text-rose-400 font-bold">Disconnected ({disconnectCountdown}s)</span>
-                ) : (
-                  <span className="text-zinc-400">{topPlayerInfo.colorLabel}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px]">
+                  {topPlayerInfo.isSearching ? (
+                    <span className="text-amber-400/90 font-medium flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                      Waiting for player...
+                    </span>
+                  ) : topPlayerInfo.isDisconnected ? (
+                    <span className="text-rose-400 font-bold">Disconnected ({disconnectCountdown}s)</span>
+                  ) : (
+                    <span className="text-zinc-400">{topPlayerInfo.colorLabel}</span>
+                  )}
+                </span>
+                {!topPlayerInfo.isSearching && (
+                  <CapturedPiecesBar
+                    capturedPieces={topCaptured}
+                    capturedColor={topCapturedColor}
+                    materialAdvantage={topAdvantage}
+                  />
                 )}
-              </span>
+              </div>
             </div>
           </div>
 
@@ -978,9 +1029,16 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                   ({bottomPlayerInfo.rating})
                 </span>
               </div>
-              <span className="text-[10px] text-zinc-400">
-                Playing as {bottomPlayerInfo.colorLabel}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-400">
+                  {bottomPlayerInfo.colorLabel}
+                </span>
+                <CapturedPiecesBar
+                  capturedPieces={bottomCaptured}
+                  capturedColor={bottomCapturedColor}
+                  materialAdvantage={bottomAdvantage}
+                />
+              </div>
             </div>
           </div>
 
@@ -1079,106 +1137,187 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
             </div>
           )}
 
-          {/* Compact Control Buttons & 2-Row Horizontal Notation Strip */}
-          <div className="w-full flex items-center gap-1.5">
-            {/* Quick in-game actions (< xl screens) */}
+          {/* Row 1: Dedicated In-Play Actions Bar with Icons AND Visible Text Labels */}
+          <div className="w-full grid grid-cols-4 gap-1.5">
             {game?.status === 'active' ? (
-              <div className="flex items-center gap-1 shrink-0">
+              <>
                 <button
                   type="button"
                   onClick={() => setUserFlippedBoard((prev) => !prev)}
-                  className="p-1.5 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-zinc-300 text-xs font-bold transition-colors cursor-pointer active:scale-95"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-zinc-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
                   title={userFlippedBoard ? 'Reset Board View' : 'Flip Board View'}
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                  <span className="truncate">Flip</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => GameSyncService.offerDraw(gameId, playerColor)}
                   disabled={game?.status !== 'active' || !!game.drawOfferFrom}
-                  className="px-2 py-1.5 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-amber-400 text-xs font-black transition-colors cursor-pointer disabled:opacity-40 active:scale-95"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-amber-400 text-xs font-bold transition-all cursor-pointer disabled:opacity-40 active:scale-95 shadow-sm"
                   title="Offer Draw"
                 >
-                  <Handshake className="w-3.5 h-3.5" />
+                  <Handshake className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                  <span className="truncate">Draw</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={handleAbortOrResign}
                   disabled={game?.status !== 'active'}
-                  className="px-2 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-black transition-colors cursor-pointer disabled:opacity-40 active:scale-95"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition-all cursor-pointer disabled:opacity-40 active:scale-95 shadow-sm"
                   title={game && game.moves.length < 2 ? 'Abort Match' : 'Resign Match'}
                 >
                   {game && game.moves.length < 2 ? (
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">Abort</span>
+                    </>
                   ) : (
-                    <Flag className="w-3.5 h-3.5" />
+                    <>
+                      <Flag className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Resign</span>
+                    </>
                   )}
                 </button>
-              </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChatOpen(true);
+                    setUnreadChatCount(0);
+                  }}
+                  className="relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-cyan-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+                  title="Open Match Chat"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 text-cyan-400" />
+                  <span className="truncate">Chat</span>
+                  {unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-black text-[10px] font-black flex items-center justify-center animate-bounce shadow">
+                      {unreadChatCount}
+                    </span>
+                  )}
+                </button>
+              </>
             ) : game?.status === 'completed' && !game?.rematchRequestedBy ? (
-              <div className="flex items-center gap-1 shrink-0">
+              <>
                 <button
                   type="button"
                   onClick={() => GameSyncService.requestRematch(gameId, playerColor)}
-                  className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-black text-xs flex items-center gap-1 shadow-sm active:translate-y-[1px] cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-black text-xs shadow-sm active:translate-y-[1px] cursor-pointer"
                 >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Rematch</span>
+                  <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Rematch</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => router.push(`/game/review/${gameId}`)}
-                  className="px-2 py-1.5 rounded-xl bg-[#282521] border border-white/10 text-amber-400 font-bold text-xs flex items-center gap-1 cursor-pointer active:scale-95"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#282521] border border-white/10 text-amber-400 font-bold text-xs cursor-pointer active:scale-95 shadow-sm"
                 >
-                  <Sparkles className="w-3 h-3" />
-                  <span>Review</span>
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Review</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push('/play')}
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-zinc-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+                >
+                  <Swords className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                  <span className="truncate">New</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChatOpen(true);
+                    setUnreadChatCount(0);
+                  }}
+                  className="relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-cyan-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 text-cyan-400" />
+                  <span className="truncate">Chat</span>
+                  {unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-black text-[10px] font-black flex items-center justify-center animate-bounce shadow">
+                      {unreadChatCount}
+                    </span>
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setUserFlippedBoard((prev) => !prev)}
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-zinc-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm col-span-2"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+                  <span>Flip View</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChatOpen(true);
+                    setUnreadChatCount(0);
+                  }}
+                  className="relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-[#201e1a] hover:bg-[#2b2824] border border-white/10 text-cyan-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm col-span-2"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 text-cyan-400" />
+                  <span>Chat</span>
+                  {unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-black text-[10px] font-black flex items-center justify-center animate-bounce shadow">
+                      {unreadChatCount}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Row 2: Full-Width 2-Row Horizontal Move Notation Strip (Row 1: White, Row 2: Black) */}
+          <div className="w-full bg-[#181614] border border-white/5 rounded-xl px-2 py-1 shadow-md flex items-center gap-1.5">
+            <div className="flex flex-col justify-around py-0.5 pr-1.5 border-r border-white/10 text-[9px] font-mono font-black shrink-0 text-zinc-400 select-none">
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white inline-block shadow-sm" />
+                <span className="text-zinc-300 font-bold">W</span>
               </div>
-            ) : null}
-
-            {/* 2-Row Horizontal Move Notation (Row 1: White, Row 2: Black) */}
-            <div className="flex-1 min-w-0 bg-[#181614] border border-white/5 rounded-xl px-2 py-1 shadow-md flex items-center gap-1.5">
-              <div className="flex flex-col justify-around py-0.5 pr-1.5 border-r border-white/10 text-[9px] font-mono font-black shrink-0 text-zinc-400 select-none">
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white inline-block shadow-sm" />
-                  <span className="text-zinc-300 font-bold">W</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 border border-zinc-400 inline-block shadow-sm" />
-                  <span className="text-zinc-400 font-bold">B</span>
-                </div>
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 border border-zinc-400 inline-block shadow-sm" />
+                <span className="text-zinc-400 font-bold">B</span>
               </div>
+            </div>
 
-              <div
-                ref={mobileNotationScrollRef}
-                className="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5"
-              >
-                {turnPairs.length === 0 ? (
-                  <span className="text-[10px] text-zinc-500 italic font-mono px-1">Game starting • Awaiting Move 1</span>
-                ) : (
-                  turnPairs.map((pair) => (
-                    <div key={pair.turn} className="flex flex-col gap-0.5 shrink-0 font-mono text-[11px]">
-                      {/* Row 1: White Move */}
-                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/5 min-w-[48px]">
-                        <span className="text-[9px] font-bold text-zinc-500">{pair.turn}.</span>
-                        <span className="font-bold text-zinc-200">{pair.white}</span>
-                      </div>
-
-                      {/* Row 2: Black Move */}
-                      <div
-                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded min-w-[48px] ${
-                          pair.black
-                            ? 'bg-black/30 border border-white/5'
-                            : 'bg-transparent border border-dashed border-white/10'
-                        }`}
-                      >
-                        <span className="text-[9px] font-bold text-zinc-600">{pair.turn}...</span>
-                        <span className="font-bold text-zinc-300">{pair.black || '—'}</span>
-                      </div>
+            <div
+              ref={mobileNotationScrollRef}
+              className="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5"
+            >
+              {turnPairs.length === 0 ? (
+                <span className="text-[10px] text-zinc-500 italic font-mono px-1">Game starting • Awaiting Move 1</span>
+              ) : (
+                turnPairs.map((pair) => (
+                  <div key={pair.turn} className="flex flex-col gap-0.5 shrink-0 font-mono text-[11px]">
+                    {/* Row 1: White Move */}
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/5 min-w-[48px]">
+                      <span className="text-[9px] font-bold text-zinc-500">{pair.turn}.</span>
+                      <span className="font-bold text-zinc-200">{pair.white}</span>
                     </div>
-                  ))
-                )}
-              </div>
+
+                    {/* Row 2: Black Move */}
+                    <div
+                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded min-w-[48px] ${
+                        pair.black
+                          ? 'bg-black/30 border border-white/5'
+                          : 'bg-transparent border border-dashed border-white/10'
+                      }`}
+                    >
+                      <span className="text-[9px] font-bold text-zinc-600">{pair.turn}...</span>
+                      <span className="font-bold text-zinc-300">{pair.black || '—'}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1416,6 +1555,26 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
                 <ArrowUpDown className="w-3.5 h-3.5" />
                 <span>{userFlippedBoard ? 'Reset Board View' : 'Flip Board View'}</span>
               </Button>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                rounded="xl"
+                fullWidth
+                onClick={() => {
+                  setIsChatOpen(true);
+                  setUnreadChatCount(0);
+                }}
+                className="relative text-xs text-cyan-300 border-cyan-500/20 hover:border-cyan-500/40"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Match Chat</span>
+                {unreadChatCount > 0 && (
+                  <span className="ml-auto px-1.5 py-0.2 rounded-full bg-cyan-500 text-black text-[10px] font-black">
+                    {unreadChatCount} new
+                  </span>
+                )}
+              </Button>
             </div>
           )}
 
@@ -1593,6 +1752,135 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           onDeclineRematch={() => GameSyncService.declineRematch(gameId)}
           onNewGame={() => router.push('/play')}
         />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. REAL-TIME LIVE MATCH CHAT MODAL / DRAWER                               */}
+      {/* ========================================================================= */}
+      {isChatOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 animate-in fade-in duration-200">
+          {/* Backdrop dismiss */}
+          <div className="flex-1 w-full" onClick={() => setIsChatOpen(false)} />
+
+          <div className="w-full sm:max-w-md bg-[#1a1815] border-t-2 sm:border border-white/10 rounded-t-[28px] sm:rounded-2xl shadow-2xl flex flex-col h-[75vh] sm:h-[500px] max-h-[85vh] overflow-hidden z-10 animate-in slide-in-from-bottom duration-250 select-none">
+            {/* Header */}
+            <div className="p-3.5 bg-[#211f1c] border-b border-white/5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-1.5">
+                    Match Chat
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  </h3>
+                  <p className="text-[10px] text-zinc-400">
+                    Live with {opponent?.name || 'Opponent'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Reactions Carousel */}
+            <div className="px-3 py-2 bg-[#181613] border-b border-white/5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+              {[
+                'Good luck! 🍀',
+                'Nice move! 👏',
+                'Thanks! 🙏',
+                'Oops! 😅',
+                'Well played! 🤝',
+                'Rematch? ⚔️',
+              ].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => handleSendChat(chip)}
+                  className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-zinc-300 hover:text-white whitespace-nowrap active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Chat Messages Log */}
+            <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 flex flex-col">
+              {!game?.chat || game.chat.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-zinc-500">
+                  <MessageSquare className="w-8 h-8 mb-2 opacity-30 text-cyan-400" />
+                  <p className="text-xs font-bold text-zinc-400">No messages yet</p>
+                  <p className="text-[11px] text-zinc-500 max-w-xs mt-0.5">
+                    Send a quick reaction or type a message to your opponent!
+                  </p>
+                </div>
+              ) : (
+                game.chat.map((msg) => {
+                  const isMe = msg.senderUid === effectiveUid || msg.senderColor === playerColor;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] ${
+                        isMe ? 'self-end' : 'self-start'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1 text-[9px] text-zinc-500 mb-0.5 font-mono px-1">
+                        <span>{msg.senderColor === 'w' ? '⚪' : '⚫'}</span>
+                        <span className="font-bold text-zinc-400">{isMe ? 'You' : msg.senderName}</span>
+                        <span>&bull;</span>
+                        <span>
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <div
+                        className={`px-3 py-2 rounded-2xl text-xs break-words shadow-sm ${
+                          isMe
+                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-tr-none'
+                            : 'bg-[#262420] border border-white/10 text-zinc-200 rounded-tl-none'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            {/* Input Row */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendChat(chatInput);
+              }}
+              className="p-3 bg-[#211f1c] border-t border-white/5 flex items-center gap-2 shrink-0"
+            >
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value.slice(0, 140))}
+                placeholder="Type a message (max 140)..."
+                className="flex-1 bg-[#161412] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500/50"
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim()}
+                className="p-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-black font-bold transition-all cursor-pointer disabled:pointer-events-none active:scale-95"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

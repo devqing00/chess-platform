@@ -8,7 +8,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './config';
-import { LiveSyncGame, LiveMoveRecord, UserProfile } from './types';
+import { LiveSyncGame, LiveMoveRecord, UserProfile, LiveChatMessage } from './types';
 import { Square } from 'chess.js';
 
 export class GameSyncService {
@@ -488,4 +488,38 @@ export class GameSyncService {
       console.warn('Failed to finish live room:', e);
     }
   }
+
+  /**
+   * Broadcast a chat message in a live room.
+   */
+  public static async sendChatMessage(
+    gameId: string,
+    senderUid: string,
+    senderName: string,
+    senderColor: 'w' | 'b' | 'system',
+    text: string
+  ): Promise<void> {
+    try {
+      const trimmed = text.trim().slice(0, 140);
+      if (!trimmed) return;
+
+      const message: LiveChatMessage = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        senderUid,
+        senderName,
+        senderColor,
+        text: trimmed,
+        timestamp: Date.now(),
+      };
+
+      const gameDocRef = doc(db, 'live_games', gameId);
+      await updateDoc(gameDocRef, {
+        chat: arrayUnion(message),
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      console.warn('Failed to send live chat message:', e);
+    }
+  }
 }
+

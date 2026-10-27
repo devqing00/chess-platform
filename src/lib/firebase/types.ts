@@ -161,6 +161,16 @@ export interface LiveSyncGame {
   disconnectedPlayer?: 'w' | 'b' | null;
   winner?: 'w' | 'b' | 'draw' | null;
   winReason?: string;
+  chat?: LiveChatMessage[];
   updatedAt: number;
+}
+
+export interface LiveChatMessage {
+  id: string;
+  senderUid: string;
+  senderName: string;
+  senderColor?: 'w' | 'b' | 'system';
+  text: string;
+  timestamp: number;
 }
 

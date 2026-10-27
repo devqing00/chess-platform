@@ -20,6 +20,8 @@ import {
   Target,
   Award,
   X,
+  LogIn,
+  Camera,
 } from 'lucide-react';
 import { GameSessionStore, getSessionUserOutcome, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { syncExternalAccountGames } from '@/lib/syncService';
@@ -114,153 +116,146 @@ export const ChessHomeDashboard: React.FC<ChessHomeDashboardProps> = ({
   return (
     <div className="w-full flex-1 flex flex-col xl:justify-between p-3 sm:p-5 lg:p-6 bg-[#161512] text-zinc-100 select-none pb-32 sm:pb-36 lg:pb-36 xl:pb-6 gap-4 xl:h-full xl:max-h-full xl:overflow-hidden">
       {/* ----------------------------------------------------------------------- */}
-      {/* 1. TOP HEADER & IDENTITY STRIP                                          */}
+      {/* 1. PLAYER SHOWCASE CARD (Registered vs Guest)                           */}
       {/* ----------------------------------------------------------------------- */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5 shrink-0">
-        <div
-          onClick={!user ? openAuthModal : undefined}
-          className={`flex items-center gap-3 ${!user ? 'cursor-pointer group' : ''}`}
-        >
-          <div className="w-11 h-11 rounded-2xl bg-[#1c1a17] border border-white/10 flex items-center justify-center text-xl shrink-0 shadow-sm group-hover:border-emerald-500/50 transition-colors">
-            {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={effectiveAvatar} alt="Avatar" className="w-full h-full rounded-2xl object-cover" />
-            ) : (
-              <span>{effectiveAvatar || '♟️'}</span>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
-                Welcome back, {effectiveDisplayName || 'Grandmaster'}
-              </h1>
-              {effectiveCountry && (
-                <span className="text-xs shrink-0">{effectiveCountry}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <span className="font-mono text-emerald-400 font-black">
-                Level {xpProfile?.level || 1} ({xpProfile?.levelTitle || 'Novice'})
-              </span>
-              <span className="text-zinc-600">|</span>
-              <span className="font-mono text-zinc-300">
-                {effectiveRating || 1200} Rapid
-              </span>
-              {!user && (
-                <span className="text-[10px] text-amber-400 font-bold ml-1 hidden sm:inline">
-                  (Guest • Tap to Sign In)
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+      {user ? (
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1c1a16] via-[#181613] to-[#141210] border border-white/10 p-3.5 sm:p-4 shadow-xl shrink-0">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Rating Quad, Register & Sync Badges */}
-        <div className="flex items-center gap-2">
-          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-xl bg-[#1c1a17] border border-white/5 text-xs font-mono">
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] uppercase font-bold text-zinc-500">Rapid</span>
-              <span className="font-black text-white">{syncedChessCom?.ratings?.rapid || effectiveRating || 1200}</span>
-            </div>
-            <span className="text-zinc-700">|</span>
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] uppercase font-bold text-zinc-500">Blitz</span>
-              <span className="font-black text-amber-400">{syncedChessCom?.ratings?.blitz || (effectiveRating ? effectiveRating - 50 : 1150)}</span>
-            </div>
-            <span className="text-zinc-700">|</span>
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] uppercase font-bold text-zinc-500">Bullet</span>
-              <span className="font-black text-cyan-400">{syncedChessCom?.ratings?.bullet || (effectiveRating ? effectiveRating - 100 : 1100)}</span>
-            </div>
-          </div>
-
-          {!user && (
-            <Button
-              variant="primary"
-              size="xs"
-              rounded="xl"
-              onClick={openAuthModal}
-              className="gap-1 text-xs font-black"
-            >
-              <span>Sign In</span>
-            </Button>
-          )}
-
-          {onOpenSyncModal && (
-            <Button
-              variant="secondary"
-              size="xs"
-              rounded="xl"
-              onClick={onOpenSyncModal}
-              title="Sync External Chess Accounts"
-              className="gap-1.5 text-xs font-bold text-zinc-300"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${isSyncingExternal ? 'animate-spin text-emerald-400' : ''}`} />
-              <span>{isSynced ? 'Synced' : 'Sync Account'}</span>
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* ----------------------------------------------------------------------- */}
-      {/* 1.5 ONBOARDING / ACCOUNT SYNC NUDGE (Dismissible, Minimal, High Conversion) */}
-      {/* ----------------------------------------------------------------------- */}
-      {!user && !isBannerDismissed ? (
-        <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#1a2416] via-[#161a13] to-[#121410] border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 shadow-lg animate-in fade-in duration-200">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-white">Save Progress &amp; Unlock GM Analysis</span>
-                <span className="text-[9px] font-mono font-black bg-emerald-500/20 text-emerald-400 px-2 py-0.2 rounded-full uppercase shrink-0">
-                  Free
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 leading-tight mt-0.5 truncate sm:whitespace-normal">
-                Register or sync your Chess.com / Lichess account to save matches, track rating progression, and review games with Coach Danny.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
-            <Button
-              variant="primary"
-              size="xs"
-              rounded="xl"
-              onClick={openAuthModal}
-              className="px-3.5 py-1.5 font-black flex-1 sm:flex-initial"
-            >
-              <span>Create Account</span>
-            </Button>
-            {onOpenSyncModal && (
-              <Button
-                variant="secondary"
-                size="xs"
-                rounded="xl"
-                onClick={onOpenSyncModal}
-                className="px-3 py-1.5 font-bold flex-1 sm:flex-initial"
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+            {/* Left: Avatar + Identity + Level Progress */}
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div
+                onClick={openAuthModal}
+                className="relative w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-[#22201c] border-2 border-emerald-500/30 overflow-hidden shrink-0 shadow-md flex items-center justify-center text-2xl group cursor-pointer"
+                title="Profile Glance & Avatar"
               >
-                <span>Sync Handle</span>
-              </Button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setIsBannerDismissed(true);
-                try {
-                  localStorage.setItem('hide_onboarding_nudge', 'true');
-                } catch {}
-              }}
-              className="p-1 rounded-lg text-zinc-500 hover:text-white transition cursor-pointer shrink-0"
-              title="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
+                {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={effectiveAvatar} alt={effectiveDisplayName} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                ) : (
+                  <span>{effectiveAvatar || '♟️'}</span>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs">
+                  <Camera className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
+                    Welcome back, {effectiveDisplayName || 'Grandmaster'}
+                  </h1>
+                  {effectiveCountry && (
+                    <span className="text-xs shrink-0">{effectiveCountry}</span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs mt-0.5">
+                  <span className="font-mono text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                    Level {xpProfile?.level || 1} &bull; {xpProfile?.levelTitle || 'Novice'}
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    {xpProfile?.xpInCurrentLevel || 0} / {xpProfile?.xpNeededForNextLevel || 100} XP
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Rating Badges + External Account Sync Pill */}
+            <div className="flex items-center justify-between md:justify-end gap-2.5 pt-2 md:pt-0 border-t md:border-t-0 border-white/5 shrink-0">
+              {/* Rating Trio */}
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/5 text-xs font-mono">
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] uppercase font-bold text-zinc-500">Rapid</span>
+                  <span className="font-black text-white">{syncedChessCom?.ratings?.rapid || effectiveRating || 1200}</span>
+                </div>
+                <span className="text-zinc-700">|</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] uppercase font-bold text-zinc-500">Blitz</span>
+                  <span className="font-black text-amber-400">{syncedChessCom?.ratings?.blitz || (effectiveRating ? effectiveRating - 50 : 1150)}</span>
+                </div>
+                <span className="text-zinc-700">|</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] uppercase font-bold text-zinc-500">Bullet</span>
+                  <span className="font-black text-cyan-400">{syncedChessCom?.ratings?.bullet || (effectiveRating ? effectiveRating - 100 : 1100)}</span>
+                </div>
+              </div>
+
+              {onOpenSyncModal && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  rounded="xl"
+                  onClick={onOpenSyncModal}
+                  title="Sync External Chess Accounts"
+                  className="gap-1.5 text-xs font-bold text-zinc-300 shrink-0"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isSyncingExternal ? 'animate-spin text-emerald-400' : ''}`} />
+                  <span>{isSynced ? 'Synced' : 'Sync'}</span>
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      ) : user && !isSynced && !isBannerDismissed ? (
+        </section>
+      ) : (
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2517] via-[#161a13] to-[#121310] border border-emerald-500/30 p-4 sm:p-5 shadow-2xl shrink-0">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Left: Knight Emblem + Welcome Copy */}
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 text-2xl shrink-0 shadow-lg">
+                <Swords className="w-7 h-7 text-emerald-400 animate-pulse" />
+              </div>
+
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
+                    Welcome to Check.mate
+                  </h1>
+                  <span className="px-2 py-0.2 rounded-full text-[9px] font-mono font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                    Guest Pass
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-300 mt-0.5 leading-snug">
+                  Play live games, challenge 20+ master bots, and analyze moves with deep engine evaluation.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: High-Conversion Action Duo */}
+            <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto justify-end">
+              <Button
+                variant="primary"
+                size="sm"
+                rounded="xl"
+                onClick={openAuthModal}
+                className="gap-2 text-xs font-black px-4 py-2 flex-1 md:flex-initial shadow-md"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In / Register</span>
+              </Button>
+
+              {onOpenSyncModal && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  rounded="xl"
+                  onClick={onOpenSyncModal}
+                  title="Sync external Chess.com or Lichess account"
+                  className="gap-1.5 text-xs font-bold text-zinc-300 flex-1 md:flex-initial"
+                >
+                  <RotateCw className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Sync Account</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {user && !isSynced && !isBannerDismissed ? (
         <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#221c13] via-[#1a1712] to-[#14120f] border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 shadow-lg animate-in fade-in duration-200">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">

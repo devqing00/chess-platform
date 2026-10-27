@@ -22,6 +22,7 @@ import {
   LogOut,
   ChevronRight,
   Download,
+  Camera,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useShell } from '@/context/ShellContext';
@@ -217,22 +218,30 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           <BrandLogo size="sm" onClick={() => router.push('/')} />
 
           <div className="flex items-center gap-2">
-            {/* User Quick Pill */}
-            <div
-              onClick={() => (user ? setIsAvatarModalOpen(true) : openAuthModal())}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-[#211f1c] border border-[#35322b] rounded-full text-xs cursor-pointer active:scale-95 transition-transform"
+            {/* User Profile Glance & Avatar Trigger (Minimal, No Redundant Name Text) */}
+            <button
+              type="button"
+              onClick={() => {
+                soundService.playTactilePop();
+                user ? setIsAvatarModalOpen(true) : openAuthModal();
+              }}
+              className="relative w-9 h-9 rounded-full bg-[#211f1c] border border-white/15 p-0.5 cursor-pointer active:scale-95 transition-all hover:border-emerald-500/50 shadow-sm flex items-center justify-center overflow-visible"
+              title={user ? 'Profile Glance & Change Avatar' : 'Sign In'}
+              aria-label="Profile and Avatar"
             >
-              <div className="w-5 h-5 rounded-full overflow-hidden bg-[#2b2824] flex items-center justify-center text-[10px]">
+              <div className="w-full h-full rounded-full overflow-hidden bg-[#2b2824] flex items-center justify-center text-xs">
                 {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={effectiveAvatar} alt={effectiveDisplayName} className="w-full h-full object-cover" />
                 ) : (
-                  <span>♟️</span>
+                  <span>{effectiveAvatar || '♟️'}</span>
                 )}
               </div>
-              <span className="text-[11px] font-black text-white max-w-[85px] truncate">{effectiveDisplayName}</span>
-              <span className="text-[10px] font-mono font-bold text-emerald-400">({effectiveRating})</span>
-            </div>
+              {/* Minimal Glance & Edit Indicator Badge */}
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#161512] rounded-full border border-white/20 flex items-center justify-center text-emerald-400 shadow-sm">
+                <Camera className="w-2 h-2" />
+              </div>
+            </button>
 
             {/* Quick Settings Cog */}
             <Button
