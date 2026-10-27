@@ -258,9 +258,9 @@ function PuzzlesMasteryContent() {
               <Puzzle className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate">
+              <h1 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5 truncate [text-wrap:balance]">
                 <span>Tactics &amp; Strategy</span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
+                <span className="text-[10px] font-mono tabular-nums font-bold px-1.5 py-0.5 rounded-full bg-white/5 text-zinc-400 hidden xs:inline">
                   Trainer
                 </span>
               </h1>
@@ -270,12 +270,12 @@ function PuzzlesMasteryContent() {
           {/* Mobile & Tablet HUD metrics */}
           <div className="flex lg:hidden items-center gap-1.5 shrink-0">
             {streak > 0 && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono tabular-nums font-bold">
                 <Flame className="w-3 h-3 fill-amber-400" />
                 <span>{streak}x</span>
               </div>
             )}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-bold">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono tabular-nums font-bold">
               <Zap className="w-3 h-3 fill-emerald-400" />
               <span>{xpProfile.totalXp} XP</span>
             </div>
@@ -299,7 +299,7 @@ function PuzzlesMasteryContent() {
             onClick={() => handleScreenChange('strategy')}
             className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'strategy'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-gradient-to-b from-[#fbbf24] to-[#d97706] text-black font-black shadow-[0_2px_0_0_#78350f] border-t border-white/35'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -310,7 +310,7 @@ function PuzzlesMasteryContent() {
             onClick={() => handleScreenChange('endgame')}
             className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'endgame'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-gradient-to-b from-[#6366f1] to-[#4338ca] text-white font-black shadow-[0_2px_0_0_#312e81] border-t border-indigo-400/40'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -321,7 +321,7 @@ function PuzzlesMasteryContent() {
             onClick={() => handleScreenChange('vault')}
             className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
               activeScreen === 'vault'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-gradient-to-b from-[#06b6d4] to-[#0891b2] text-black font-black shadow-[0_2px_0_0_#155e75] border-t border-cyan-300/40'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -333,12 +333,12 @@ function PuzzlesMasteryContent() {
         {/* Large Desktop Quick HUD Metrics */}
         <div className="hidden lg:flex items-center gap-2">
           {streak > 0 && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono tabular-nums font-bold">
               <Flame className="w-3.5 h-3.5 fill-amber-400" />
               <span>{streak}x</span>
             </div>
           )}
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono tabular-nums font-bold">
             <Zap className="w-3.5 h-3.5 fill-emerald-400" />
             <span>{xpProfile.totalXp} XP</span>
           </div>

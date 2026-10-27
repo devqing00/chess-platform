@@ -83,7 +83,7 @@ const VARIANT_DETAILS: Record<ChessVariant, VariantMeta> = {
     description: 'Captured pieces change to your color and enter your reserve pocket! Drop them onto any empty square on your turn.',
     winCondition: 'Deliver checkmate using standard moves and reserve piece drops.',
     proTip: 'Defensive pawn drops plug dangerous diagonals, while knights dropped directly into enemy lines create lethal forks.',
-    badgeColor: 'text-purple-400 bg-purple-500/15 border-purple-500/30',
+    badgeColor: 'text-indigo-400 bg-indigo-500/15 border-indigo-500/30',
   },
   chess960: {
     id: 'chess960',

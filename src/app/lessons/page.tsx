@@ -22,10 +22,10 @@ function LessonsContent() {
               <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
+              <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate [text-wrap:balance]">
                 Interactive Chess Academy
               </h1>
-              <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">
+              <p className="text-[10px] sm:text-xs text-zinc-400 font-medium [text-wrap:pretty]">
                 Structured grandmaster curriculum from fundamentals to master level
               </p>
             </div>
@@ -36,7 +36,7 @@ function LessonsContent() {
             {/* Daily Streak */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#201e1a] border-2 border-[#35322b] rounded-xl text-[11px] font-black text-amber-400 shadow-[0_2px_0_0_#141311]">
               <Flame className="w-3.5 h-3.5 fill-amber-400 shrink-0" />
-              <span className="font-mono" suppressHydrationWarning>
+              <span className="font-mono tabular-nums" suppressHydrationWarning>
                 {xpProfile.streak}d
               </span>
             </div>
@@ -44,7 +44,7 @@ function LessonsContent() {
             {/* Total XP */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#201e1a] border-2 border-[#35322b] rounded-xl text-[11px] font-black text-emerald-400 shadow-[0_2px_0_0_#141311]">
               <Zap className="w-3.5 h-3.5 fill-emerald-400 shrink-0" />
-              <span className="font-mono" suppressHydrationWarning>
+              <span className="font-mono tabular-nums" suppressHydrationWarning>
                 {xpProfile.totalXp} XP
               </span>
             </div>

@@ -86,20 +86,24 @@ function uciToSan(fen: string, uci: string): string {
   }
 }
 
-// In-process Stockfish loader (Prioritize single-threaded asm.js for 100% reliability in Node.js)
+// In-process Stockfish loader: Use single-threaded WASM (never multithreaded which locks Node.js)
 let initStockfishEngine: (() => any) | null = null;
 try {
-  initStockfishEngine = require('stockfish/bin/stockfish-19-asm.js');
+  initStockfishEngine = require('stockfish/bin/stockfish-19-lite-single.js');
 } catch {
   try {
-    initStockfishEngine = require('stockfish');
-  } catch (err) {
-    console.warn('[Stockfish] In-process require failed, will use child process fallback:', err);
+    initStockfishEngine = require('stockfish/bin/stockfish-19-single.js');
+  } catch {
+    try {
+      initStockfishEngine = require('stockfish/bin/stockfish-19-asm.js');
+    } catch (err) {
+      console.warn('[Stockfish] In-process require failed, will use child process fallback:', err);
+    }
   }
 }
 
 /**
- * Single Stockfish worker (supports in-process ASM.JS with child_process fallback)
+ * Single Stockfish worker (supports in-process WASM/ASM with child_process fallback)
  */
 class StockfishWorker {
   public id: number;
@@ -109,9 +113,11 @@ class StockfishWorker {
   public isReady: boolean = false;
   private currentHandler: ((line: string) => void) | null = null;
   private buffer: string = '';
+  private onReadyCallback?: () => void;
 
-  constructor(id: number) {
+  constructor(id: number, onReady?: () => void) {
     this.id = id;
+    this.onReadyCallback = onReady;
     this.initEngine();
   }
 
@@ -121,8 +127,12 @@ class StockfishWorker {
         this.engine = initStockfishEngine();
         this.engine.listener = (line: string) => {
           const trimmed = line.trim();
-          if (!this.isReady && trimmed.startsWith('bestmove')) {
+          if (!this.isReady && (trimmed.startsWith('bestmove') || trimmed.startsWith('uciok') || trimmed.startsWith('readyok'))) {
             this.isReady = true;
+            if (this.onReadyCallback) {
+              const cb = this.onReadyCallback;
+              setTimeout(() => cb(), 0);
+            }
           }
           if (this.currentHandler) {
             this.currentHandler(trimmed);
@@ -132,9 +142,6 @@ class StockfishWorker {
         this.engine.processCommand('setoption name Threads value 1');
         this.engine.processCommand('setoption name Hash value 32');
         this.engine.processCommand('isready');
-        // Warm-up search so neural net loads before any client queries
-        this.engine.processCommand('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-        this.engine.processCommand('go depth 1');
         return;
       } catch (err) {
         console.warn(`[StockfishWorker ${this.id}] In-process init failed, trying child process:`, err);
@@ -349,7 +356,7 @@ class StockfishWorker {
             pvSan: [],
           };
 
-          finishAndResolve({
+          const evalResult: EngineEvaluation = {
             fen,
             depth: maxDepth || depth,
             seldepth,
@@ -363,7 +370,11 @@ class StockfishWorker {
             pvUci: top.pvUci,
             pvSan: top.pvSan,
             lines,
-          });
+          };
+
+          setTimeout(() => {
+            finishAndResolve(evalResult);
+          }, 0);
         }
       };
 
@@ -527,7 +538,7 @@ class StockfishProcessPool {
   constructor(poolSize: number = 1) {
     this.poolSize = poolSize;
     for (let i = 0; i < this.poolSize; i++) {
-      this.workers.push(new StockfishWorker(i + 1));
+      this.workers.push(new StockfishWorker(i + 1, () => this.dispatchNext()));
     }
   }
 
@@ -537,10 +548,28 @@ class StockfishProcessPool {
     multiPv: number = 2,
     timeoutMs: number = 3500
   ): Promise<EngineEvaluation> {
-    const cacheKey = `${fen}|d=${depth}|pv=${multiPv}`;
+    const parts = fen.trim().split(/\s+/);
+    const halfMove = parseInt(parts[4] || '0', 10);
+    // If halfmove is below 40, fullmove counter does not alter tactical evaluation:
+    const normalizedFen = halfMove < 40 && parts.length >= 4
+      ? `${parts[0]} ${parts[1]} ${parts[2]} ${parts[3]}`
+      : fen;
+
+    const cacheKey = `${normalizedFen}|d=${depth}|pv=${multiPv}`;
     const cached = this.cache.get(cacheKey);
     if (cached) {
       return cached;
+    }
+
+    // Check if an equal or deeper evaluation already exists for this exact board configuration
+    for (const [key, entry] of this.cache.entries()) {
+      if (
+        key.startsWith(`${normalizedFen}|`) &&
+        entry.depth >= depth &&
+        (entry.lines?.length || 0) >= multiPv
+      ) {
+        return entry;
+      }
     }
 
     return new Promise<EngineEvaluation>((resolve, reject) => {
@@ -550,12 +579,16 @@ class StockfishProcessPool {
         multiPv,
         timeoutMs,
         resolve: (result: EngineEvaluation) => {
-          // Store in cache
+          // Store in cache with LRU eviction
           if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
             if (firstKey) this.cache.delete(firstKey);
           }
           this.cache.set(cacheKey, result);
+          // Also store under exact FEN for direct hits
+          if (normalizedFen !== fen) {
+            this.cache.set(`${fen}|d=${depth}|pv=${multiPv}`, result);
+          }
           resolve(result);
         },
         reject,

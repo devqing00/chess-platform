@@ -356,35 +356,41 @@ export function classifyMoveEngine(params: {
   const winProbLoss = rawL * 100;
   const cpLoss = Math.max(0, isWhite ? evalBeforeCp - evalAfterCp : evalAfterCp - evalBeforeCp);
 
-  // Scaled loss accounting for sigmoid saturation in lopsided or winning positions
-  const isStillCrushing = playerProbAfter >= 82.0;
-  const wasHopelesslyLost = playerProbBefore <= 15.0;
-
   // Normalization for SAN comparison
   const cleanPlayedSan = (moveSan || '').replace(/[+#?!]/g, '');
   const cleanBestSan = (bestMoveSan || '').replace(/[+#?!]/g, '');
   const isStrictBest = Boolean(bestMoveSan && cleanPlayedSan === cleanBestSan);
   const betterMoveText = bestMoveSan ? explainChessMove(bestMoveSan, fenBefore) : '';
 
-  // Position-aware effective loss:
-  // In crushing positions (e.g. +8 to +6), the game is already decided, so don't penalize playable moves.
-  // In lost positions, reward stubborn defense while penalizing blunders.
-  let effectiveLoss: number;
-  if (isStillCrushing) {
-    effectiveLoss = Math.min(winProbLoss, 3.5);
-  } else if (wasHopelesslyLost) {
-    if (isStrictBest || cpLoss <= 35) {
-      effectiveLoss = Math.min(winProbLoss, 2.5);
-    } else {
-      const normalizedLostPenalty = Math.min(45.0, (cpLoss / 400) * 30.0);
-      effectiveLoss = Math.max(winProbLoss, normalizedLostPenalty);
-    }
-  } else {
-    effectiveLoss = winProbLoss;
+  // Dual-ladder effective loss:
+  // Material blunders (e.g. hanging rooks, minors) must always register as blunders/mistakes,
+  // even if the player already had a huge lead.
+  let effectiveLoss = winProbLoss;
+  if (cpLoss >= 280) {
+    effectiveLoss = Math.max(winProbLoss, 26.0); // Guarantees Blunder
+  } else if (cpLoss >= 160) {
+    effectiveLoss = Math.max(winProbLoss, 16.0); // Guarantees Mistake
+  } else if (cpLoss >= 70) {
+    effectiveLoss = Math.max(winProbLoss, 7.5);  // Guarantees Inaccuracy
   }
 
   const effectiveL = effectiveLoss / 100;
   const accuracy = calculateMoveAccuracy(effectiveLoss, engineMode);
+
+  // Forced Move check: If player only had 1 legal move, never penalize
+  if (fenBefore) {
+    try {
+      const c = new Chess(fenBefore);
+      if (c.moves().length === 1) {
+        return {
+          classification: 'best',
+          winProbLoss: 0,
+          accuracy: 100,
+          coachComment: 'Forced move. You had only one legal option available.',
+        };
+      }
+    } catch {}
+  }
 
   // 1. Checkmate Delivery (Winning the game on the spot)
   let isCheckmateOnBoard = false;
@@ -549,8 +555,8 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 4. Best Move (Strict engine top choice or negligible difference)
-  if (isStrictBest || (engineMode === 'torch_human' && effectiveL <= 0.005 && cpLoss <= 8)) {
+  // 4. Best Move (Strict engine top choice only)
+  if (isStrictBest) {
     return {
       classification: 'best',
       winProbLoss: 0,
@@ -562,8 +568,8 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 5. Excellent Move (L <= 0.02)
-  if (effectiveL <= 0.02 && cpLoss <= 25) {
+  // 5. Excellent Move (Near-best choice: cpLoss <= 25 and loss <= 2.5%)
+  if (effectiveL <= 0.025 && cpLoss <= 25) {
     return {
       classification: 'excellent',
       winProbLoss: effectiveLoss,
@@ -575,12 +581,9 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 6. Good Move (L <= 0.05)
-  if (effectiveL <= 0.05) {
-    const goodComment =
-      isStillCrushing && isCapture
-        ? `Good move. Captures free material and maintains complete control of the game.`
-        : `Good move. A solid and playable continuation.`;
+  // 6. Good Move (Sound and playable: cpLoss <= 65 and loss <= 6.0%)
+  if (effectiveL <= 0.06 && cpLoss <= 65) {
+    const goodComment = `Good move. A solid and playable continuation.`;
     return {
       classification: 'good',
       winProbLoss: effectiveLoss,
@@ -594,11 +597,10 @@ export function classifyMoveEngine(params: {
     mateBefore !== undefined &&
     ((mateBefore > 0 && isWhite) || (mateBefore < 0 && !isWhite)) &&
     (mateAfter === undefined || (mateAfter <= 0 && isWhite) || (mateAfter >= 0 && !isWhite));
-  const opponentJustErred = prevMoveLoss >= 0.10;
+  const opponentJustErred = prevMoveLoss >= 0.12;
   const bestIsTactical =
     (bestMoveSan && (bestMoveSan.includes('x') || bestMoveSan.includes('+'))) || secondBestLoss >= 0.8;
   const isTacticalMiss =
-    !isStillCrushing &&
     effectiveL >= 0.10 &&
     (hadMate || (opponentJustErred && bestIsTactical));
 
@@ -611,8 +613,8 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 8. Inaccuracy (0.05 < L <= 0.10)
-  if (effectiveL <= 0.10) {
+  // 8. Inaccuracy (0.06 < L <= 0.14 or cpLoss <= 160)
+  if (effectiveL <= 0.14 && cpLoss <= 160) {
     return {
       classification: 'inaccuracy',
       winProbLoss: effectiveLoss,
@@ -624,8 +626,8 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 9. Mistake (0.10 < L <= 0.20)
-  if (effectiveL <= 0.20) {
+  // 9. Mistake (0.14 < L <= 0.24 or cpLoss <= 280)
+  if (effectiveL <= 0.24 && cpLoss <= 280) {
     return {
       classification: 'mistake',
       winProbLoss: effectiveLoss,
@@ -634,7 +636,7 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 10. Blunder (L > 0.20 or decisive reversal)
+  // 10. Blunder (L > 0.24 or cpLoss > 280 or decisive material drop)
   return {
     classification: 'blunder',
     winProbLoss: effectiveLoss,

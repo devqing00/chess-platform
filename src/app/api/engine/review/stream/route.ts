@@ -122,7 +122,10 @@ export async function POST(req: NextRequest) {
           const evalAfterCp = currentEval.scoreCp;
           const mateBefore = prevEval.mateIn;
           const mateAfter = currentEval.mateIn;
-          const bestMoveSan = prevEval.bestMoveSan || san;
+          const bestMoveSan =
+            ply === 0 && (san === 'e4' || san === 'd4' || san === 'Nf3' || san === 'c4')
+              ? san
+              : prevEval.bestMoveSan || '';
           const bestMoveUci = prevEval.bestMoveUci || '';
 
           const secondBestLoss =

@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       blackPlayer = { id: 'black', name: 'Black Player', rating: 1500, color: 'b' },
       depth,
       strengthTier = 'standard' as EngineStrengthTier,
-      engineMode = 'torch_human',
+      engineMode = 'stockfish',
       gameResult,
       resultDetails,
       termination,
@@ -210,19 +210,19 @@ export async function POST(req: NextRequest) {
       const mateAfter = currentEval.mateIn;
       let bestMoveSan = prevEval.bestMoveSan;
       let bestMoveUci = prevEval.bestMoveUci || '';
-      if (!bestMoveSan || bestMoveSan === 'Checkmate' || bestMoveSan === 'Draw') {
+
+      // Starting move 1 theoretical parity: e4, d4, c4, Nf3 are all considered best starts
+      if (ply === 0 && (san === 'e4' || san === 'd4' || san === 'Nf3' || san === 'c4')) {
+        bestMoveSan = san;
+      } else if (!bestMoveSan || bestMoveSan === 'Checkmate' || bestMoveSan === 'Draw') {
         try {
           const cBefore = new Chess(fenBefore);
           if (!cBefore.isGameOver()) {
             const fallback = ChessEvaluator.findBestMoveAndScore(cBefore);
-            bestMoveSan = fallback.bestMoveSan || san;
+            bestMoveSan = fallback.bestMoveSan || '';
             bestMoveUci = fallback.bestMoveUci || '';
-          } else {
-            bestMoveSan = san;
           }
-        } catch {
-          bestMoveSan = san;
-        }
+        } catch {}
       }
 
       const secondBestLoss =

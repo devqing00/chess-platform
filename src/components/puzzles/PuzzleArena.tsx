@@ -274,7 +274,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             onClick={() => handlePillarChange('endgame')}
             className={`tactile-btn px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer select-none ${
               activePillar === 'endgame'
-                ? 'bg-gradient-to-b from-[#c084fc] via-[#a855f7] to-[#9333ea] text-white border-t border-white/35 shadow-[0_2px_0_0_#4c1d95] font-black'
+                ? 'bg-gradient-to-b from-[#6366f1] via-[#4f46e5] to-[#4338ca] text-white border-t border-indigo-400/40 shadow-[0_2px_0_0_#312e81] font-black'
                 : 'bg-white/5 text-zinc-400 hover:text-white'
             }`}
           >
@@ -302,7 +302,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
           </div>
 
           {streak > 0 && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono tabular-nums font-bold">
               <Flame className="w-3.5 h-3.5 fill-amber-400" />
               <span>{streak}x</span>
             </div>
@@ -328,7 +328,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
             {statusMessage === 'solved' && (
               <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-emerald-500/90 text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-sm animate-in fade-in">
                 <CheckCircle2 className="w-4 h-4 stroke-[3]" />
-                <span>Solved! +{currentPuzzle.xpReward || 25} XP</span>
+                <span className="font-mono tabular-nums">Solved! +{currentPuzzle.xpReward || 25} XP</span>
               </div>
             )}
             {statusMessage === 'incorrect' && (
@@ -348,14 +348,14 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                 <Target className="w-3.5 h-3.5" />
                 <span>Theme: {currentPuzzle.theme}</span>
               </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/5 text-zinc-300">
+              <span className="text-[10px] font-mono tabular-nums font-bold px-2 py-0.5 rounded-full bg-white/5 text-zinc-300">
                 {(currentPuzzle.tier || selectedTier).toUpperCase()}
               </span>
             </div>
 
             <div>
-              <h3 className="text-base font-extrabold text-white">{currentPuzzle.title}</h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h3 className="text-base font-extrabold text-white [text-wrap:balance]">{currentPuzzle.title}</h3>
+              <p className="text-xs text-zinc-400 mt-0.5 [text-wrap:pretty]">
                 {puzzleTurn === 'w' ? 'White to move' : 'Black to move'} — Find the best move.
               </p>
             </div>
@@ -366,7 +366,7 @@ export const PuzzleArena: React.FC<PuzzleArenaProps> = ({
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Coach Danny Rensch</span>
               </div>
-              <p>
+              <p className="[text-wrap:pretty]">
                 {statusMessage === 'solved'
                   ? currentPuzzle.teachingNotes || currentPuzzle.solutionDescription
                   : hintLevel > 0
