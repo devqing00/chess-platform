@@ -43,6 +43,7 @@ import { useShell } from '@/context/ShellContext';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { syncExternalAccountGames } from '@/lib/syncService';
+import { StockfishWorkerService } from '@/lib/engine/stockfishWorkerService';
 
 interface MultiPvLine {
   rank: number;
@@ -61,6 +62,45 @@ interface TablebaseInfo {
   dtz?: number | null;
   humanDescription: string;
   bestMoveSan?: string;
+}
+
+interface OpeningExplorerData {
+  fen: string;
+  opening?: {
+    eco: string;
+    name: string;
+    variation?: string;
+  };
+  totalGames: number;
+  whiteWins: number;
+  draws: number;
+  blackWins: number;
+  whiteWinPct: number;
+  drawPct: number;
+  blackWinPct: number;
+  averageRating: number;
+  moves: Array<{
+    uci: string;
+    san: string;
+    white: number;
+    draws: number;
+    black: number;
+    total: number;
+    whiteWinPct: number;
+    drawPct: number;
+    blackWinPct: number;
+    averageRating: number;
+  }>;
+  topGames: Array<{
+    id: string;
+    white: { name: string; rating: number; title?: string };
+    black: { name: string; rating: number; title?: string };
+    year: number;
+    event: string;
+    result: '1-0' | '1/2-1/2' | '0-1';
+  }>;
+  isGatedByTier?: boolean;
+  tierLimitReason?: string;
 }
 
 type AnalysisScreen = 'sandbox' | 'theory' | 'tablebase' | 'vault';
@@ -95,6 +135,8 @@ function AnalysisStudioContent() {
   const [engineDepth, setEngineDepth] = useState<number>(0);
   const [nodesCount, setNodesCount] = useState<number>(0);
   const [tablebaseInfo, setTablebaseInfo] = useState<TablebaseInfo | null>(null);
+  const [openingStats, setOpeningStats] = useState<OpeningExplorerData | null>(null);
+  const [isLoadingOpening, setIsLoadingOpening] = useState(false);
 
   // Visual feature states
   const [showBestMoveArrow, setShowBestMoveArrow] = useState(true);
@@ -256,12 +298,58 @@ function AnalysisStudioContent() {
     refreshVaultGames(false);
   }, [refreshVaultGames]);
 
-  // Fetch engine evaluation from backend API
+  // Fetch opening master stats when on Theory screen or when position changes
+  useEffect(() => {
+    if (activeScreen !== 'theory') return;
+    let isCancelled = false;
+    setIsLoadingOpening(true);
+
+    const fen = chess.fen();
+    fetch(`/api/openings/explorer?fen=${encodeURIComponent(fen)}&ply=${historyIndex}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isCancelled && data?.success && data?.data) {
+          setOpeningStats(data.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!isCancelled) setIsLoadingOpening(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeScreen, chess, historyIndex]);
+
+  // Fetch engine evaluation via Client Web Worker (instant 0ms network latency, real Stockfish)
+  // with fallback to backend API if workers are unavailable
   const fetchEngineEval = useCallback(async (fen: string, depth: number) => {
     if (!isEngineActive) return;
     setIsEvaluating(true);
     setThreatInfo(null);
     try {
+      if (StockfishWorkerService.isSupported()) {
+        const localEval = await StockfishWorkerService.evaluatePosition({
+          fen,
+          targetDepth: depth,
+          multiPv: 3,
+          onProgress: (partial) => {
+            setCurrentEvalScore(partial.scoreCp);
+            setCurrentEvalFormatted(partial.scoreFormatted);
+            setPvLines(partial.lines || []);
+            setEngineDepth(partial.depth);
+            setNodesCount(partial.nodes);
+          },
+        });
+        setCurrentEvalScore(localEval.scoreCp);
+        setCurrentEvalFormatted(localEval.scoreFormatted);
+        setPvLines(localEval.lines || []);
+        setEngineDepth(localEval.depth);
+        setNodesCount(localEval.nodes);
+        return;
+      }
+
       const res = await fetch('/api/engine/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -959,24 +1047,33 @@ function AnalysisStudioContent() {
               {/* Matched Opening Details */}
               {currentOpening ? (
                 <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 flex flex-col gap-2 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs font-black">
-                      {currentOpening.eco}
-                    </span>
-                    <span className="text-xs font-extrabold text-white truncate">{currentOpening.name}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs font-black shrink-0">
+                        {currentOpening.eco}
+                      </span>
+                      <span className="text-xs font-extrabold text-white truncate">{currentOpening.name}</span>
+                    </div>
+                    {openingStats && openingStats.totalGames > 0 && (
+                      <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">
+                        {openingStats.totalGames.toLocaleString()} Master Games
+                      </span>
+                    )}
                   </div>
-                  <span className="text-[11px] text-zinc-400 font-medium">{currentOpening.variation}</span>
+                  {currentOpening.variation && (
+                    <span className="text-[11px] text-zinc-400 font-medium">{currentOpening.variation}</span>
+                  )}
 
                   {/* Win Percentage Distribution Bar */}
                   <div className="flex items-center gap-1 text-[10px] font-mono font-bold pt-1">
                     <div className="flex-1 bg-zinc-200 text-zinc-900 rounded px-1 py-0.5 text-center font-black">
-                      White {currentOpening.whiteWinPct}%
+                      White {openingStats?.totalGames ? openingStats.whiteWinPct : currentOpening.whiteWinPct}%
                     </div>
                     <div className="flex-1 bg-zinc-600 text-zinc-200 rounded px-1 py-0.5 text-center">
-                      Draw {currentOpening.drawPct}%
+                      Draw {openingStats?.totalGames ? openingStats.drawPct : currentOpening.drawPct}%
                     </div>
                     <div className="flex-1 bg-zinc-900 text-zinc-300 border border-zinc-700 rounded px-1 py-0.5 text-center">
-                      Black {currentOpening.blackWinPct}%
+                      Black {openingStats?.totalGames ? openingStats.blackWinPct : currentOpening.blackWinPct}%
                     </div>
                   </div>
 
@@ -992,15 +1089,111 @@ function AnalysisStudioContent() {
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 text-xs text-zinc-400 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-zinc-500" />
-                  <span>Position is out-of-book or customized. Play moves to explore theory.</span>
+                  <BookOpen className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span>{openingStats?.opening?.name || 'Position is out-of-book or customized. Play moves to explore theory.'}</span>
                 </div>
               )}
 
+              {/* Master Continuations Tree */}
+              <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-hidden">
+                <div className="flex items-center justify-between border-b border-white/5 pb-1 shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Master Continuations
+                  </span>
+                  {isLoadingOpening && (
+                    <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
+                  )}
+                </div>
+
+                {openingStats && openingStats.moves && openingStats.moves.length > 0 ? (
+                  <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-0.5">
+                    {openingStats.moves.map((m, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          const from = m.uci.slice(0, 2) as Square;
+                          const to = m.uci.slice(2, 4) as Square;
+                          const promotion = (m.uci.length > 4 ? m.uci.slice(4, 5) : undefined) as PieceSymbol;
+                          handleMove(from, to, promotion);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#201e1a] hover:bg-[#282622] border border-white/5 hover:border-emerald-500/40 transition-all cursor-pointer flex items-center justify-between gap-2 active:scale-[0.98]"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs font-mono font-black text-white shrink-0 w-10">
+                            {m.san}
+                          </span>
+                          {m.total > 0 ? (
+                            <span className="text-[10px] font-mono text-zinc-400 tabular-nums shrink-0">
+                              {m.total.toLocaleString()}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-mono text-zinc-500 shrink-0">Legal</span>
+                          )}
+                        </div>
+
+                        {/* Distribution bar */}
+                        {m.total > 0 ? (
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+                            <div className="w-24 sm:w-28 h-2 rounded bg-zinc-800 flex overflow-hidden border border-white/5 shrink-0">
+                              <div
+                                style={{ width: `${m.whiteWinPct}%` }}
+                                className="bg-zinc-200 h-full"
+                                title={`White wins: ${m.whiteWinPct}%`}
+                              />
+                              <div
+                                style={{ width: `${m.drawPct}%` }}
+                                className="bg-zinc-500 h-full"
+                                title={`Draw: ${m.drawPct}%`}
+                              />
+                              <div
+                                style={{ width: `${m.blackWinPct}%` }}
+                                className="bg-zinc-900 h-full"
+                                title={`Black wins: ${m.blackWinPct}%`}
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-400 tabular-nums w-9 text-right shrink-0">
+                              {m.averageRating > 0 ? m.averageRating : ''}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[9px] text-zinc-500 font-sans">0 games</span>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Top Master Games (if available) */}
+                    {openingStats.topGames && openingStats.topGames.length > 0 && (
+                      <div className="pt-2 flex flex-col gap-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 block">
+                          Recent Master Encounters
+                        </span>
+                        {openingStats.topGames.map((g, gi) => (
+                          <div
+                            key={gi}
+                            className="p-1.5 rounded-lg bg-black/20 border border-white/5 text-[10px] flex items-center justify-between"
+                          >
+                            <span className="text-zinc-300 truncate max-w-[200px]">
+                              {g.white.name} vs {g.black.name}
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 shrink-0">
+                              {g.result} ({g.year})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-[#201e1a] border border-white/5 text-xs text-zinc-400 text-center">
+                    No theoretical master moves in this position.
+                  </div>
+                )}
+              </div>
+
               {/* Quick Preset Openings */}
-              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-0.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block pt-1">
-                  Master Continuation Repertoire
+              <div className="h-28 shrink-0 overflow-y-auto flex flex-col gap-1 pr-0.5 border-t border-white/5 pt-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 block">
+                  Quick Opening Presets
                 </span>
                 {[
                   { name: "Scotch Game (Main Line)", eco: "C45", moves: ['e4', 'e5', 'Nf3', 'Nc6', 'd4', 'exd4', 'Nxd4'] },

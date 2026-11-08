@@ -1,10 +1,10 @@
 import { Chess } from 'chess.js';
-import { evaluatePositionStockfish } from '@/lib/server/stockfishPool';
+import { evaluatePositionStockfish } from './stockfishPool';
 import {
   AntiCheatReport,
   AntiCheatMoveAnomaly,
   PieceColor,
-} from '@/types/chess';
+} from '../../types/chess';
 
 /**
  * Expected Average Centipawn Loss (ACPL) based on standard player Elo bands

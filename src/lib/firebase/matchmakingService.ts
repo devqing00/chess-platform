@@ -11,6 +11,7 @@ import {
   limit,
   onSnapshot,
   Unsubscribe,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './config';
 import { UserProfile } from './types';
@@ -79,10 +80,7 @@ export class MatchmakingService {
     }
 
     if (matchedTicket) {
-      // Create live game pairing both players
       const gameId = `live-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-      // Randomize color assignment
       const isUserWhite = Math.random() > 0.5;
 
       const whitePlayer = isUserWhite
@@ -103,37 +101,63 @@ export class MatchmakingService {
           }
         : { uid: user.uid, name: user.displayName, rating: userRating, online: true };
 
-      // Initialize the live game doc
-      await setDoc(doc(db, 'live_games', gameId), {
-        id: gameId,
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-        turn: 'w',
-        whiteTime: timeControlSec,
-        blackTime: timeControlSec,
-        timeControlSec,
-        incrementSec,
-        variant,
-        status: 'active',
-        whitePlayer,
-        blackPlayer,
-        moves: [],
-        firstMoveDeadline: Date.now() + 30000,
-        startedAt: Date.now(),
-        updatedAt: Date.now(),
-      });
+      let transactionSuccess = false;
 
-      // Update opponent's ticket with the created game ID and their assigned color
-      await setDoc(
-        doc(db, 'matchmaking_queue', matchedTicket.id),
-        { matchedGameId: gameId, assignedColor: isUserWhite ? 'b' : 'w' },
-        { merge: true }
-      );
+      // Atomic transaction: prevents race condition where two players claim each other or the same ticket
+      try {
+        await runTransaction(db, async (transaction) => {
+          const opponentTicketRef = doc(db, 'matchmaking_queue', matchedTicket!.id);
+          const opponentSnap = await transaction.get(opponentTicketRef);
 
-      onMatched(gameId, isUserWhite ? 'w' : 'b');
-      return {
-        ticketId,
-        unsubscribe: () => {},
-      };
+          if (!opponentSnap.exists()) {
+            throw new Error('Opponent ticket expired or was claimed');
+          }
+
+          const opponentData = opponentSnap.data() as MatchmakingTicket;
+          if (opponentData.matchedGameId) {
+            throw new Error('Opponent ticket already matched');
+          }
+
+          // Atomically link gameId and assigned color to opponent ticket
+          transaction.update(opponentTicketRef, {
+            matchedGameId: gameId,
+            assignedColor: isUserWhite ? 'b' : 'w',
+          });
+
+          // Initialize the live game doc atomically in the exact same transaction
+          const gameRef = doc(db, 'live_games', gameId);
+          transaction.set(gameRef, {
+            id: gameId,
+            fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            turn: 'w',
+            whiteTime: timeControlSec,
+            blackTime: timeControlSec,
+            timeControlSec,
+            incrementSec,
+            variant,
+            status: 'active',
+            whitePlayer,
+            blackPlayer,
+            moves: [],
+            firstMoveDeadline: Date.now() + 30000,
+            startedAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+        });
+
+        transactionSuccess = true;
+      } catch (err) {
+        // Transaction aborted due to race condition (opponent was claimed in the same millisecond)
+        // Gracefully fall through to enqueueing own ticket
+      }
+
+      if (transactionSuccess) {
+        onMatched(gameId, isUserWhite ? 'w' : 'b');
+        return {
+          ticketId,
+          unsubscribe: () => {},
+        };
+      }
     }
 
     // 2. If no immediate match found, create ticket and listen for another player pairing us

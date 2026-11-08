@@ -1,7 +1,8 @@
-import { Chess, PieceSymbol, Color } from 'chess.js';
+import { Chess, PieceSymbol, Color, Square } from 'chess.js';
 import { MoveClassification, PhaseAccuracyBreakdown } from '@/types/chess';
 import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import { explainChessMove } from '@/lib/chessMoveExplainer';
+import { see } from '@/lib/tacticalMotifDetector';
 
 export interface WinProbDetails {
   winProbBefore: number; // 0 - 100%
@@ -130,14 +131,11 @@ const PIECE_VALS: Record<PieceSymbol, number> = {
 
 /**
  * Calculates Estimated Performance Rating (EPR) / Game Rating
- * Calibrated against Chess.com ground truth:
- * - 95% -> 2200
- * - 85% -> 1300
- * - 75% -> 900
- * - 63.5% -> 650 (Stockfish)
- * - 62.6% -> 600 (Torch Human)
- * - 52.3% - 52.7% -> 200
- * - Rounded to nearest 50 Elo multiples
+ * Calibrated against Chess.com CAPS2 standards:
+ * - Anchors around baselineElo and opponentElo.
+ * - Computes expected accuracy for rating band: E[acc] ≈ 62 + (rating / 80).
+ * - Performance scales with excess accuracy: +30 Elo per 1% above expectation.
+ * - Bounded between 200 and 3150, rounded to nearest 50.
  */
 export function calculateEstimatedPerformanceRating(params: {
   capsAccuracy: number;
@@ -147,25 +145,42 @@ export function calculateEstimatedPerformanceRating(params: {
   engineMode?: 'torch_human' | 'stockfish';
   moveCount?: number;
 }): number {
-  const { capsAccuracy, acpl = 35, baselineElo = 1200, opponentElo = 1200, engineMode = 'stockfish', moveCount = 20 } = params;
+  const {
+    capsAccuracy,
+    acpl = 35,
+    baselineElo = 1200,
+    opponentElo = 1200,
+    engineMode = 'stockfish',
+    moveCount = 20,
+  } = params;
 
-  let est: number;
-  if (capsAccuracy >= 80) {
-    est = 1100 + (capsAccuracy - 80) * 35.0 - Math.max(0, acpl - 25) * 1.5;
-  } else if (capsAccuracy >= 60) {
-    est = 550 + (capsAccuracy - 60) * 30.0 - Math.max(0, acpl - 45) * 1.0;
-    if (engineMode === 'stockfish') {
-      est += 25;
-    }
-  } else if (capsAccuracy >= 50) {
-    est = 150 + (capsAccuracy - 50) * 15.0;
+  // Expected baseline accuracy for nominal player rating
+  const nominalElo = Math.max(600, Math.min(2800, (baselineElo + opponentElo) / 2));
+  // At 800 Elo: expected ~72%; at 1500 Elo: expected ~80%; at 2000 Elo: expected ~86%; at 2500 Elo: expected ~92%
+  const expectedAccuracy = 62 + nominalElo / 80;
+
+  // Accuracy delta relative to expectation
+  const accDiff = capsAccuracy - expectedAccuracy;
+
+  // Scale performance: ~30 Elo per percentage point above/below expectation
+  let est = nominalElo + accDiff * 30.0;
+
+  // ACPL adjustment: Centipawn loss modulates performance rating
+  const expectedAcpl = Math.max(15, 75 - nominalElo / 45);
+  if (acpl > expectedAcpl) {
+    est -= (acpl - expectedAcpl) * 2.5;
   } else {
-    est = 100 + Math.max(0, capsAccuracy - 30) * 5.0;
+    est += (expectedAcpl - acpl) * 1.5;
   }
 
-  // Short miniature games (<= 10 moves) dampening
-  if (moveCount <= 10 && est > 1150) {
-    est = 1150 + (est - 1150) * 0.15;
+  // Short miniature games (<= 10 moves) regression toward baseline to avoid over-inflation
+  if (moveCount <= 10) {
+    est = nominalElo + (est - nominalElo) * 0.45;
+  }
+
+  // Engine mode tolerance
+  if (engineMode === 'torch_human') {
+    est = est * 0.98;
   }
 
   const rounded = Math.round(est / 50) * 50;
@@ -195,7 +210,7 @@ export function calculateMaterialCount(fen: string): { white: number; black: num
 
 /**
  * Checks if a move was a genuine piece sacrifice
- * Supports both executed sacrifices and offered sacrifices (piece en prise).
+ * Supports both executed sacrifices and offered sacrifices (piece en prise) using Static Exchange Evaluation (SEE).
  */
 export function isTacticalSacrifice(params: {
   pieceType: PieceSymbol;
@@ -241,9 +256,9 @@ export function isTacticalSacrifice(params: {
     }
 
     // 3. Offered piece sacrifice (leaving valuable piece en prise):
-    // e.g., 29. Ne7+ placing knight on e7 where opponent knight can capture it,
-    // or unmasking attack on queen/rook.
-    // NOTE: A standard piece recapture or capture of an equal piece (like 22...Nxd5 or 30. Nxd5) is NOT an offered sacrifice!
+    // Authentically verified via Static Exchange Evaluation (SEE):
+    // Checks if the opponent nets at least 2 points (minor piece, rook, or queen) by capturing on the destination square
+    // or if a friendly piece was left unmasked and en prise.
     if (!isCapture && ['n', 'b', 'r', 'q'].includes(pieceType)) {
       try {
         const cBefore = new Chess(fenBefore);
@@ -255,28 +270,26 @@ export function isTacticalSacrifice(params: {
         );
 
         if (played) {
-          const dest = played.to;
-          const oppMoves = cAfter.moves({ verbose: true });
-          const capturesOnDest = oppMoves.filter((m) => m.to === dest && m.captured);
+          const dest = played.to as Square;
+          const opponentColor = isWhite ? 'b' : 'w';
 
-          if (capturesOnDest.length > 0) {
-            const pieceVal = PIECE_VALS[pieceType] || 3;
-            // Check friendly defenders on dest in fenAfter
-            const friendlyFen = fenAfter.replace(/ [wb] /, ` ${isWhite ? 'w' : 'b'} `);
-            const friendlyChess = new Chess(friendlyFen);
-            const friendlyDefenders = friendlyChess
-              .moves({ verbose: true })
-              .filter((m) => m.to === dest);
+          // Direct offer on target square
+          const netOpponentGain = see(cAfter, dest, opponentColor);
+          if (netOpponentGain >= 2) {
+            return true;
+          }
 
-            const isUndefended = friendlyDefenders.length === 0;
-            // Attacker must have STRICTLY less value (e.g. pawn attacking piece, or minor piece attacking rook/queen)
-            // Equal trades (knight for knight or bishop for bishop) with friendly defenders are NOT piece sacrifices!
-            const hasLesserAttacker = capturesOnDest.some(
-              (m) => (PIECE_VALS[m.piece] || 3) < pieceVal - 0.5
-            );
-
-            if (isUndefended || hasLesserAttacker) {
-              return true;
+          // Unmasked / indirect sacrifice on another major/minor piece
+          for (const row of cAfter.board()) {
+            for (const t of row) {
+              if (!t || t.color !== (isWhite ? 'w' : 'b') || t.type === 'k' || t.type === 'p') continue;
+              const gainAfter = see(cAfter, t.square, opponentColor);
+              if (gainAfter >= 2) {
+                const gainBefore = see(cBefore, t.square, opponentColor);
+                if (gainBefore < 2) {
+                  return true;
+                }
+              }
             }
           }
         }
@@ -555,8 +568,8 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 4. Best Move (Strict engine top choice only)
-  if (isStrictBest) {
+  // 4. Best Move (Strict engine top choice or negligible difference <= 0.002)
+  if (isStrictBest || effectiveL <= 0.002) {
     return {
       classification: 'best',
       winProbLoss: 0,
@@ -568,12 +581,12 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 5. Excellent Move (Near-best choice: cpLoss <= 25 and loss <= 2.5%)
-  if (effectiveL <= 0.025 && cpLoss <= 25) {
+  // 5. Excellent Move (Chess.com band: L <= 0.02 and cpLoss <= 30)
+  if (effectiveL <= 0.02 && cpLoss <= 30) {
     return {
       classification: 'excellent',
       winProbLoss: effectiveLoss,
-      accuracy: Math.max(86, Math.min(94, accuracy)),
+      accuracy: Math.max(86, Math.min(96, accuracy)),
       coachComment:
         engineMode === 'torch_human'
           ? `Excellent move! A very strong move that keeps your advantage.`
@@ -581,28 +594,31 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 6. Good Move (Sound and playable: cpLoss <= 65 and loss <= 6.0%)
-  if (effectiveL <= 0.06 && cpLoss <= 65) {
+  // 6. Good Move (Chess.com band: 0.02 < L <= 0.05 and cpLoss <= 65)
+  if (effectiveL <= 0.05 && cpLoss <= 65) {
     const goodComment = `Good move. A solid and playable continuation.`;
     return {
       classification: 'good',
       winProbLoss: effectiveLoss,
-      accuracy: Math.max(68, Math.min(80, accuracy)),
+      accuracy: Math.max(68, Math.min(84, accuracy)),
       coachComment: goodComment,
     };
   }
 
-  // 7. Tactical Miss (Overlooking a winning strike or failing to punish an opponent's blunder)
+  // 7. Tactical Miss (Overlooking checkmate, clear winning blow, or failing to punish an opponent's blunder)
   const hadMate =
     mateBefore !== undefined &&
     ((mateBefore > 0 && isWhite) || (mateBefore < 0 && !isWhite)) &&
     (mateAfter === undefined || (mateAfter <= 0 && isWhite) || (mateAfter >= 0 && !isWhite));
+  const hadSignificantWin = (isWhite ? evalBeforeCp >= 200 : evalBeforeCp <= -200) || eBefore >= 0.72;
+  const lostWin = (isWhite ? evalAfterCp < 80 : evalAfterCp > -80) || ePlayed < 0.52;
   const opponentJustErred = prevMoveLoss >= 0.12;
   const bestIsTactical =
     (bestMoveSan && (bestMoveSan.includes('x') || bestMoveSan.includes('+'))) || secondBestLoss >= 0.8;
+
   const isTacticalMiss =
     effectiveL >= 0.10 &&
-    (hadMate || (opponentJustErred && bestIsTactical));
+    (hadMate || (hadSignificantWin && lostWin && effectiveL >= 0.14) || (opponentJustErred && (bestIsTactical || effectiveL >= 0.12)));
 
   if (isTacticalMiss) {
     return {
@@ -613,12 +629,12 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 8. Inaccuracy (0.06 < L <= 0.14 or cpLoss <= 160)
-  if (effectiveL <= 0.14 && cpLoss <= 160) {
+  // 8. Inaccuracy (Chess.com band: 0.05 < L <= 0.10 or cpLoss <= 150)
+  if (effectiveL <= 0.10 && cpLoss <= 150) {
     return {
       classification: 'inaccuracy',
       winProbLoss: effectiveLoss,
-      accuracy: Math.max(48, Math.min(accuracy, 60)),
+      accuracy: Math.max(48, Math.min(accuracy, 65)),
       coachComment:
         engineMode === 'torch_human'
           ? `Inaccuracy. ${betterMoveText ? `Playing ${betterMoveText} was more natural.` : 'Concedes slight counterplay to your opponent.'}`
@@ -626,17 +642,17 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 9. Mistake (0.14 < L <= 0.24 or cpLoss <= 280)
-  if (effectiveL <= 0.24 && cpLoss <= 280) {
+  // 9. Mistake (Chess.com band: 0.10 < L <= 0.20 or cpLoss <= 280)
+  if (effectiveL <= 0.20 && cpLoss <= 280) {
     return {
       classification: 'mistake',
       winProbLoss: effectiveLoss,
-      accuracy: Math.max(28, Math.min(accuracy, 40)),
+      accuracy: Math.max(26, Math.min(accuracy, 45)),
       coachComment: `Mistake! You gave up the initiative. ${betterMoveText ? `Finding ${betterMoveText} would have kept the upper hand.` : 'A more defensive setup was required.'}`,
     };
   }
 
-  // 10. Blunder (L > 0.24 or cpLoss > 280 or decisive material drop)
+  // 10. Blunder (Chess.com band: L > 0.20 or cpLoss > 280 or decisive material drop)
   return {
     classification: 'blunder',
     winProbLoss: effectiveLoss,

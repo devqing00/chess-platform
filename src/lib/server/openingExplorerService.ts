@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import { MembershipTier } from '@/types/chess';
+import type { MembershipTier } from '@/types/chess';
 import { EntitlementGuard } from './entitlementGuard';
 
 export interface MasterMoveStats {
@@ -731,22 +731,150 @@ const MASTER_POSITIONS_MAP: Record<string, MasterPositionEntry> = {
   },
 };
 
+// Cache for live opening explorer queries
+const openingExplorerCache = new Map<string, { result: OpeningPositionResult; timestamp: number }>();
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+
 export class OpeningExplorerService {
   /**
    * Look up opening statistics and master moves for a given FEN or move sequence.
+   * Leverages Lichess Masters Open Database with local high-master transposition fallback.
    */
-  public static queryPosition(
+  public static async queryPosition(
     fen: string,
     tier: MembershipTier = 'free',
     plyDepth: number = 0
-  ): OpeningPositionResult {
+  ): Promise<OpeningPositionResult> {
     const norm = normalizeFen(fen);
-    const existing = MASTER_POSITIONS_MAP[norm];
+    const cacheKey = `${norm}:${tier}:${plyDepth}`;
 
-    // Check tier entitlement for opening explorer depth
+    const cached = openingExplorerCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.result;
+    }
+
     const maxFreePlies = 4;
     const isFreeTier = tier === 'free';
     const isDepthExceeded = isFreeTier && plyDepth > maxFreePlies;
+
+    // 1. Attempt Live Masters Query from Lichess Masters Open API
+    const token =
+      process.env.LICHESS_API_TOKEN ||
+      process.env.LICHESS_TOKEN ||
+      process.env.NEXT_PUBLIC_LICHESS_TOKEN;
+
+    try {
+      const url = `https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}&moves=12&topGames=5`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'User-Agent': 'ChessPlatform-OpeningExplorer/1.0 (Masters-Database)',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers,
+      });
+
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        const data = await response.json();
+        const totalGames = (data.white || 0) + (data.draws || 0) + (data.black || 0);
+
+        if (totalGames > 0 || (data.moves && data.moves.length > 0)) {
+          const whiteWins = data.white || 0;
+          const draws = data.draws || 0;
+          const blackWins = data.black || 0;
+
+          const moves: MasterMoveStats[] = (data.moves || []).map((m: any) => {
+            const mTotal = (m.white || 0) + (m.draws || 0) + (m.black || 0);
+            return {
+              uci: m.uci,
+              san: m.san,
+              white: m.white || 0,
+              draws: m.draws || 0,
+              black: m.black || 0,
+              total: mTotal,
+              whiteWinPct: mTotal > 0 ? Math.round(((m.white || 0) / mTotal) * 100) : 0,
+              drawPct: mTotal > 0 ? Math.round(((m.draws || 0) / mTotal) * 100) : 0,
+              blackWinPct: mTotal > 0 ? Math.round(((m.black || 0) / mTotal) * 100) : 0,
+              averageRating: m.averageRating || 2500,
+            };
+          });
+
+          const topGames: MasterGameRecord[] = (data.topGames || []).map((g: any) => ({
+            id: g.id || `game-${Math.random().toString(36).substring(2, 8)}`,
+            white: {
+              name: g.white?.name || 'White Master',
+              rating: g.white?.rating || 2600,
+              title: g.white?.title || 'GM',
+            },
+            black: {
+              name: g.black?.name || 'Black Master',
+              rating: g.black?.rating || 2600,
+              title: g.black?.title || 'GM',
+            },
+            year: g.year || new Date().getFullYear(),
+            event: g.month || 'FIDE Master Event',
+            result: g.winner === 'white' ? '1-0' : g.winner === 'black' ? '0-1' : '1/2-1/2',
+          }));
+
+          let filteredMoves = [...moves];
+          let filteredGames = [...topGames];
+          let isGated = false;
+          let reason: string | undefined = undefined;
+
+          if (isDepthExceeded) {
+            isGated = true;
+            reason = `Free tier is limited to ${maxFreePlies} moves of master opening theory. Upgrade to Gold, Platinum, or Diamond for unlimited master repertoire exploration.`;
+            filteredMoves = filteredMoves.slice(0, 2);
+            filteredGames = filteredGames.slice(0, 1);
+          } else if (isFreeTier) {
+            filteredMoves = filteredMoves.slice(0, 4);
+            filteredGames = filteredGames.slice(0, 2);
+          }
+
+          const result: OpeningPositionResult = {
+            fen,
+            normalizedFen: norm,
+            opening: data.opening
+              ? {
+                  eco: data.opening.eco || 'A00',
+                  name: data.opening.name || 'Master Opening',
+                }
+              : undefined,
+            totalGames,
+            whiteWins,
+            draws,
+            blackWins,
+            whiteWinPct: totalGames > 0 ? Math.round((whiteWins / totalGames) * 100) : 0,
+            drawPct: totalGames > 0 ? Math.round((draws / totalGames) * 100) : 0,
+            blackWinPct: totalGames > 0 ? Math.round((blackWins / totalGames) * 100) : 0,
+            averageRating: moves.length > 0
+              ? Math.round(moves.reduce((acc, m) => acc + m.averageRating, 0) / moves.length)
+              : 2600,
+            moves: filteredMoves,
+            topGames: filteredGames,
+            isGatedByTier: isGated,
+            tierLimitReason: reason,
+          };
+
+          openingExplorerCache.set(cacheKey, { result, timestamp: Date.now() });
+          return result;
+        }
+      }
+    } catch {
+      // Live API query failed or timed out, fall through to curated transposition knowledge map
+    }
+
+    // 2. High-Master Curated Transposition Knowledge Map
+    const existing = MASTER_POSITIONS_MAP[norm];
 
     if (existing) {
       let filteredMoves = [...existing.moves];
@@ -760,12 +888,11 @@ export class OpeningExplorerService {
         filteredMoves = filteredMoves.slice(0, 2);
         filteredGames = filteredGames.slice(0, 1);
       } else if (isFreeTier) {
-        // Free tier gets top 3 continuations
         filteredMoves = filteredMoves.slice(0, 3);
         filteredGames = filteredGames.slice(0, 1);
       }
 
-      return {
+      const result: OpeningPositionResult = {
         fen,
         normalizedFen: norm,
         opening: {
@@ -786,9 +913,13 @@ export class OpeningExplorerService {
         isGatedByTier: isGated,
         tierLimitReason: reason,
       };
+
+      openingExplorerCache.set(cacheKey, { result, timestamp: Date.now() });
+      return result;
     }
 
-    // Dynamic fallback using chess.js legal moves so custom/transposed positions never 404
+    // 3. Genuine fallback for novel/out-of-book positions:
+    // Generate valid legal continuations without fabricating false game counts
     const chess = new Chess(fen);
     const legalMoves = chess.moves({ verbose: true });
 
@@ -797,43 +928,41 @@ export class OpeningExplorerService {
       return {
         uci,
         san: m.san,
-        white: 120,
-        draws: 90,
-        black: 70,
-        total: 280,
-        whiteWinPct: 43,
-        drawPct: 32,
-        blackWinPct: 25,
-        averageRating: 2550,
+        white: 0,
+        draws: 0,
+        black: 0,
+        total: 0,
+        whiteWinPct: 0,
+        drawPct: 0,
+        blackWinPct: 0,
+        averageRating: 0,
       };
     });
 
-    const totalDynamic = dynamicMoves.reduce((acc, m) => acc + m.total, 0) || 1;
-    const whiteSum = dynamicMoves.reduce((acc, m) => acc + m.white, 0);
-    const drawSum = dynamicMoves.reduce((acc, m) => acc + m.draws, 0);
-    const blackSum = dynamicMoves.reduce((acc, m) => acc + m.black, 0);
-
-    return {
+    const result: OpeningPositionResult = {
       fen,
       normalizedFen: norm,
       opening: {
         eco: 'Custom',
-        name: 'Transposed / Non-Theoretical Line',
+        name: 'Novelty / Non-Master Repertoire Position',
       },
-      totalGames: totalDynamic,
-      whiteWins: whiteSum,
-      draws: drawSum,
-      blackWins: blackSum,
-      whiteWinPct: Math.round((whiteSum / totalDynamic) * 100),
-      drawPct: Math.round((drawSum / totalDynamic) * 100),
-      blackWinPct: Math.round((blackSum / totalDynamic) * 100),
-      averageRating: 2550,
-      moves: isFreeTier ? dynamicMoves.slice(0, 3) : dynamicMoves,
+      totalGames: 0,
+      whiteWins: 0,
+      draws: 0,
+      blackWins: 0,
+      whiteWinPct: 0,
+      drawPct: 0,
+      blackWinPct: 0,
+      averageRating: 0,
+      moves: isFreeTier ? dynamicMoves.slice(0, 4) : dynamicMoves,
       topGames: [],
       isGatedByTier: isDepthExceeded,
       tierLimitReason: isDepthExceeded
         ? 'Free tier depth limit reached. Upgrade to explore deeper variations.'
         : undefined,
     };
+
+    openingExplorerCache.set(cacheKey, { result, timestamp: Date.now() });
+    return result;
   }
 }

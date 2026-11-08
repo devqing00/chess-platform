@@ -11,7 +11,7 @@ import {
   GameResultDetails,
 } from '@/types/chess';
 import { CHESS_BOTS } from '@/lib/botsData';
-import { generateBotMove, calculateBotThinkingDelayMs } from '@/lib/botEngine';
+import { generateBotMove, generateBotMoveAsync, calculateBotThinkingDelayMs } from '@/lib/botEngine';
 import { ChessEvaluator } from '@/lib/chessEngine';
 import { soundService } from '@/lib/audioService';
 import { GameSessionStore } from '@/lib/gameSessionStore';
@@ -462,7 +462,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
   }, [isClockRunning, chess, gameResult, triggerGameOver]);
 
   // Bot Turn execution with ELO-scaled move generator
-  const handleBotMove = useCallback((
+  const handleBotMove = useCallback(async (
     currentChessInstance: Chess,
     currentMoves: MoveRecord[],
     botColor: 'w' | 'b' = 'b'
@@ -471,7 +471,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
     try {
       const fenBefore = currentChessInstance.fen();
 
-      const botMoveResult = generateBotMove(
+      const botMoveResult = await generateBotMoveAsync(
         currentChessInstance,
         currentBotObj || CHESS_BOTS[0]
       );
@@ -544,9 +544,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
       const activeBot = currentBotObj || CHESS_BOTS[0];
       const botDelay = calculateBotThinkingDelayMs(activeBot, 1, false);
       setIsBotThinking(true);
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         try {
-          handleBotMove(new Chess(), [], 'w');
+          await handleBotMove(new Chess(), [], 'w');
         } finally {
           setIsBotThinking(false);
         }
@@ -641,9 +641,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
           const activeBot = currentBotObj || CHESS_BOTS[0];
           const botDelay = calculateBotThinkingDelayMs(activeBot, nextMoves.length, nextChess.isCheck());
           setIsBotThinking(true);
-          setTimeout(() => {
+          setTimeout(async () => {
             try {
-              handleBotMove(nextChess, nextMoves, nextTurn);
+              await handleBotMove(nextChess, nextMoves, nextTurn);
             } finally {
               setIsBotThinking(false);
             }

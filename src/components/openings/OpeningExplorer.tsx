@@ -7,7 +7,7 @@ import { OpeningCounterEngine, FullOpeningMasteryDossier } from '@/lib/server/op
 import { BoardTheme, PieceTheme, PieceColor } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import { useXpSystem } from '@/hooks/useXpSystem';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Compass,
   Search,
@@ -29,10 +29,69 @@ import {
   BookOpen,
   Zap,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type OpeningScreen = 'study' | 'catalog' | 'counter' | 'traps';
+
+export interface MasterMoveStats {
+  uci: string;
+  san: string;
+  white: number;
+  draws: number;
+  black: number;
+  total: number;
+  whiteWinPct: number;
+  drawPct: number;
+  blackWinPct: number;
+  averageRating: number;
+  eco?: string;
+  openingName?: string;
+}
+
+export interface MasterGameRecord {
+  id: string;
+  white: { name: string; rating: number; title?: string };
+  black: { name: string; rating: number; title?: string };
+  year: number;
+  event: string;
+  result: '1-0' | '1/2-1/2' | '0-1';
+  movesSan?: string;
+}
+
+export interface OpeningPositionResult {
+  fen: string;
+  normalizedFen: string;
+  opening?: {
+    eco: string;
+    name: string;
+    variation?: string;
+  };
+  totalGames: number;
+  whiteWins: number;
+  draws: number;
+  blackWins: number;
+  whiteWinPct: number;
+  drawPct: number;
+  blackWinPct: number;
+  averageRating: number;
+  moves: MasterMoveStats[];
+  topGames: MasterGameRecord[];
+}
+
+const FAMOUS_OPENINGS = [
+  { id: 'sicilian', name: 'Sicilian', moves: '1. e4 c5', eco: 'B20' },
+  { id: 'ruy-lopez', name: 'Ruy Lopez', moves: '1. e4 e5 2. Nf3 Nc6 3. Bb5', eco: 'C60' },
+  { id: 'italian', name: 'Italian Game', moves: '1. e4 e5 2. Nf3 Nc6 3. Bc4', eco: 'C50' },
+  { id: 'london', name: 'London System', moves: '1. d4 d5 2. Bf4 Nf6 3. e3', eco: 'D02' },
+  { id: 'french', name: 'French', moves: '1. e4 e6', eco: 'C00' },
+  { id: 'caro-kann', name: 'Caro-Kann', moves: '1. e4 c6', eco: 'B10' },
+  { id: 'queens-gambit', name: "Queen's Gambit", moves: '1. d4 d5 2. c4', eco: 'D06' },
+  { id: 'kings-indian', name: "King's Indian", moves: '1. d4 Nf6 2. c4 g6', eco: 'E60' },
+  { id: 'english', name: 'English', moves: '1. c4', eco: 'A10' },
+  { id: 'scandinavian', name: 'Scandinavian', moves: '1. e4 d5', eco: 'B01' },
+];
 
 interface OpeningExplorerProps {
   boardTheme: BoardTheme;
@@ -44,14 +103,29 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
   pieceTheme,
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const ecoParam = searchParams.get('eco');
+  const queryParam = searchParams.get('q');
   const { awardXp } = useXpSystem();
   const dossiers = useMemo(() => OpeningCounterEngine.listAllDossiers(), []);
 
   const [activeScreen, setActiveScreen] = useState<OpeningScreen>('study');
-  const [selectedDossier, setSelectedDossier] = useState<FullOpeningMasteryDossier>(dossiers[0]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDossier, setSelectedDossier] = useState<FullOpeningMasteryDossier>(() => {
+    if (ecoParam) {
+      const found = OpeningCounterEngine.getDossierByEco(ecoParam);
+      if (found) return found;
+    }
+    return dossiers[0];
+  });
+  const [searchQuery, setSearchQuery] = useState(queryParam || '');
   const [categoryFilter, setCategoryFilter] = useState<'all' | '1.e4' | '1.d4' | 'flank'>('all');
   const [orientation, setOrientation] = useState<PieceColor>('w');
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+
+  // Sub-tab in Study screen: 'explorer' (Master Table) vs 'plans' (Coach & Drills)
+  const [studySidebarTab, setStudySidebarTab] = useState<'explorer' | 'plans'>('explorer');
+  const [masterResult, setMasterResult] = useState<OpeningPositionResult | null>(null);
+  const [isLoadingMaster, setIsLoadingMaster] = useState(false);
 
   // Continuation drill state
   const [drillIndex, setDrillIndex] = useState(0);
@@ -149,6 +223,18 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
     soundService.playMove();
   }, []);
 
+  useEffect(() => {
+    if (ecoParam) {
+      const found = OpeningCounterEngine.getDossierByEco(ecoParam);
+      if (found) {
+        loadOpeningDossier(found);
+      }
+    } else if (queryParam) {
+      setSearchQuery(queryParam);
+      setActiveScreen('catalog');
+    }
+  }, [ecoParam, queryParam, loadOpeningDossier]);
+
   const filteredDossiers = useMemo(() => {
     return dossiers.filter((d) => {
       const matchesSearch =
@@ -176,6 +262,8 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       if (!move) return;
 
       setChess(copy);
+      setLastMove({ from, to });
+      setCurrentPly((prev) => prev + 1);
       soundService.playMove();
 
       // Check against continuation tree if in practice mode
@@ -245,12 +333,74 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
 
   const handleResetBoard = () => {
     setIsPlayingAutoplay(false);
+    setLastMove(null);
     jumpToPly(historyPositions.length - 1);
     setDrillStatus('idle');
     setDrillIndex(0);
     setCoachFeedback(`Board reset to ${selectedDossier.name} main position.`);
     soundService.playMove();
   };
+
+  const handlePlayMasterMove = (san: string) => {
+    try {
+      const copy = new Chess(chess.fen());
+      const move = copy.move(san);
+      if (move) {
+        setChess(copy);
+        setLastMove({ from: move.from, to: move.to });
+        setCurrentPly((prev) => prev + 1);
+        soundService.playMove();
+      }
+    } catch (err) {
+      console.warn('Could not play master move:', san, err);
+    }
+  };
+
+  const handleSelectFamousOpening = (op: typeof FAMOUS_OPENINGS[0]) => {
+    const c = new Chess();
+    const cleanMoves = op.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
+    let lastM: { from: Square; to: Square } | null = null;
+    cleanMoves.forEach((san) => {
+      try {
+        const m = c.move(san);
+        if (m) lastM = { from: m.from, to: m.to };
+      } catch {}
+    });
+    setChess(c);
+    setLastMove(lastM);
+    setCurrentPly(cleanMoves.length);
+    const matchingDossier =
+      OpeningCounterEngine.getDossierByEco(op.eco) || OpeningCounterEngine.getDossierByEco(op.name);
+    if (matchingDossier) {
+      setSelectedDossier(matchingDossier);
+    }
+    soundService.playMove();
+  };
+
+  useEffect(() => {
+    let active = true;
+    const fen = chess.fen();
+    setIsLoadingMaster(true);
+    fetch(`/api/openings/explorer?fen=${encodeURIComponent(fen)}&ply=${currentPly}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (active && json.success && json.data) {
+          setMasterResult(json.data);
+          if (json.data.opening?.name) {
+            setCoachFeedback(
+              `${json.data.opening.name} (${json.data.opening.eco || 'ECO'}). ${json.data.totalGames.toLocaleString()} master games analyzed.`
+            );
+          }
+        }
+      })
+      .catch((err) => console.warn('Opening explorer fetch error:', err))
+      .finally(() => {
+        if (active) setIsLoadingMaster(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [chess, currentPly]);
 
   return (
     <div className="w-full h-full flex flex-col justify-between gap-2.5 min-h-0 select-none text-zinc-100">
@@ -367,6 +517,7 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
                   boardTheme={boardTheme}
                   pieceTheme={pieceTheme}
                   onMove={handleMove}
+                  lastMove={lastMove}
                 />
               </div>
 
@@ -468,166 +619,328 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
               </div>
             </div>
 
-            {/* Right Column (5 Cols): Coach Danny Strategy & Primary Actions */}
-            <div className="lg:col-span-5 h-full p-4 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-3 min-h-0">
-              {/* Practice Mode Active View */}
-              {drillStatus === 'practicing' && (
-                <div className="flex flex-col gap-3">
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs font-extrabold text-emerald-400">
-                        Practice (Step {drillIndex + 1} of {selectedDossier.continuationTree.length})
+            {/* Right Column (5 Cols): Dual-Tab Master Moves Explorer & Strategy/Drills */}
+            <div className="lg:col-span-5 h-full p-3.5 rounded-2xl bg-[#1c1a17] border border-white/5 flex flex-col justify-between gap-2.5 min-h-0">
+              {/* Header with Sub-tabs */}
+              <div className="flex items-center justify-between pb-2 border-b border-white/5 shrink-0">
+                <div className="flex items-center gap-1 bg-[#141311] p-0.5 rounded-xl border border-white/5">
+                  <button
+                    onClick={() => setStudySidebarTab('explorer')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      studySidebarTab === 'explorer'
+                        ? 'bg-white/20 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Master Moves</span>
+                  </button>
+                  <button
+                    onClick={() => setStudySidebarTab('plans')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      studySidebarTab === 'plans'
+                        ? 'bg-white/20 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Plans &amp; Drills</span>
+                  </button>
+                </div>
+
+                {/* Opening ECO & Name badge */}
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {masterResult?.opening?.eco || selectedDossier.eco}
+                </span>
+              </div>
+
+              {/* TAB 1: MASTER MOVES & STATS (Chess.com / Lichess baseline) */}
+              {studySidebarTab === 'explorer' && (
+                <div className="flex-1 flex flex-col justify-between gap-2 min-h-0 overflow-hidden">
+                  {/* Position Summary */}
+                  <div className="flex items-center justify-between bg-[#141311] px-3 py-2 rounded-xl border border-white/5 shrink-0">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-black text-white truncate">
+                        {masterResult?.opening?.name || selectedDossier.name}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 font-mono tabular-nums">
+                        {masterResult ? `${masterResult.totalGames.toLocaleString()} Master Games` : 'Querying Database...'}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold">
-                      +30 XP
-                    </span>
+                    {isLoadingMaster && <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />}
                   </div>
 
-                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex flex-col gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-                      Your Mission
-                    </span>
-                    <p className="text-xs text-white font-bold leading-relaxed">
-                      {coachFeedback}
-                    </p>
-                    {selectedDossier.continuationTree[drillIndex]?.evaluation && (
-                      <span className="text-[11px] font-mono text-amber-400">
-                        Eval: {selectedDossier.continuationTree[drillIndex].evaluation}
-                      </span>
+                  {/* Master Moves Table */}
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-0.5 flex flex-col gap-1">
+                    <div className="grid grid-cols-12 text-[10px] uppercase font-bold text-zinc-500 px-2 py-1 border-b border-white/5">
+                      <span className="col-span-3">Move</span>
+                      <span className="col-span-3 text-right pr-2">Games</span>
+                      <span className="col-span-6 text-center">Results (W / D / B)</span>
+                    </div>
+
+                    {masterResult?.moves && masterResult.moves.length > 0 ? (
+                      masterResult.moves.map((m) => (
+                        <button
+                          key={m.san}
+                          onClick={() => handlePlayMasterMove(m.san)}
+                          className="grid grid-cols-12 items-center px-2 py-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer text-left group"
+                        >
+                          <span className="col-span-3 font-mono font-black text-xs text-white group-hover:text-emerald-400 flex items-center gap-1">
+                            <span>{m.san}</span>
+                          </span>
+                          <span className="col-span-3 text-right pr-2 font-mono tabular-nums text-[11px] text-zinc-400">
+                            {m.total >= 1000000
+                              ? `${(m.total / 1000000).toFixed(1)}M`
+                              : m.total >= 1000
+                              ? `${Math.round(m.total / 1000)}k`
+                              : m.total}
+                          </span>
+                          <div className="col-span-6 flex h-4 rounded overflow-hidden text-[9px] font-bold font-mono">
+                            {m.whiteWinPct > 0 && (
+                              <div
+                                style={{ width: `${m.whiteWinPct}%` }}
+                                className="bg-slate-200 text-slate-900 flex items-center justify-center truncate px-0.5"
+                                title={`White wins: ${m.whiteWinPct}%`}
+                              >
+                                {m.whiteWinPct >= 18 ? `${m.whiteWinPct}%` : ''}
+                              </div>
+                            )}
+                            {m.drawPct > 0 && (
+                              <div
+                                style={{ width: `${m.drawPct}%` }}
+                                className="bg-slate-500 text-white flex items-center justify-center truncate px-0.5"
+                                title={`Draws: ${m.drawPct}%`}
+                              >
+                                {m.drawPct >= 18 ? `${m.drawPct}%` : ''}
+                              </div>
+                            )}
+                            {m.blackWinPct > 0 && (
+                              <div
+                                style={{ width: `${m.blackWinPct}%` }}
+                                className="bg-zinc-800 text-zinc-300 flex items-center justify-center truncate px-0.5"
+                                title={`Black wins: ${m.blackWinPct}%`}
+                              >
+                                {m.blackWinPct >= 18 ? `${m.blackWinPct}%` : ''}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-zinc-500">
+                        No further master database moves for this position.
+                      </div>
                     )}
-                    {selectedDossier.continuationTree[drillIndex]?.pitfallWarning && (
-                      <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 flex items-start gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                        <span>{selectedDossier.continuationTree[drillIndex].pitfallWarning}</span>
+
+                    {/* Top Master Games Section */}
+                    {masterResult?.topGames && masterResult.topGames.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                          Famous Master Encounters
+                        </span>
+                        {masterResult.topGames.slice(0, 3).map((g) => (
+                          <div
+                            key={g.id}
+                            className="p-1.5 rounded-lg bg-[#141311] border border-white/5 flex items-center justify-between text-[11px]"
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-white font-bold truncate">
+                                {g.white.name} vs {g.black.name}
+                              </span>
+                              <span className="text-zinc-500 text-[10px] truncate">
+                                {g.event} ({g.year})
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-white/5 text-emerald-400 shrink-0">
+                              {g.result}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                </div>
-              )}
 
-              {/* Completed Drill View */}
-              {drillStatus === 'completed' && (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2.5 text-center items-center">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-                  <h3 className="text-sm font-extrabold text-white">Opening Sequence Mastered!</h3>
-                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-                    {coachFeedback}
-                  </p>
-                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                    +30 XP Added to Profile
-                  </span>
-                </div>
-              )}
-
-              {/* Study Mode Default View */}
-              {drillStatus === 'idle' && (
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex items-center gap-2 pb-2 border-b border-white/5">
-                    <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                      <Sparkles className="w-3.5 h-3.5" />
+                  {/* Famous Openings Quick Repertoires Bar */}
+                  <div className="pt-2 border-t border-white/5 shrink-0 flex flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                      Popular Repertoires
+                    </span>
+                    <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+                      {FAMOUS_OPENINGS.map((op) => (
+                        <button
+                          key={op.id}
+                          onClick={() => handleSelectFamousOpening(op)}
+                          className="px-2 py-0.5 rounded-lg bg-[#141311] border border-white/5 hover:border-emerald-500/50 hover:bg-white/10 text-zinc-300 hover:text-white text-[10px] font-bold transition whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          {op.name}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
-                        Coach Advice
-                      </span>
-                      <span className="text-xs font-bold text-white">{selectedDossier.name}</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 text-xs text-zinc-300 leading-relaxed font-sans">
-                    {coachFeedback}
-                  </div>
-
-                  {/* Best Counter Quick Preview */}
-                  <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between gap-2">
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] uppercase font-bold text-zinc-500">Refutation Weapon</span>
-                      <span className="text-xs font-bold text-white truncate">
-                        {selectedDossier.bestCounterOpening.counterName}
-                      </span>
-                      <span className="text-[10px] font-mono text-amber-400">
-                        {selectedDossier.bestCounterOpening.counterMoves}
-                      </span>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="xs"
-                      rounded="lg"
-                      onClick={() => setActiveScreen('counter')}
-                      className="shrink-0"
-                    >
-                      <span>Full Plan</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Button>
                   </div>
                 </div>
               )}
 
-              {/* Action Anchors */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-white/5 shrink-0">
-                {drillStatus === 'practicing' ? (
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    rounded="xl"
-                    fullWidth
-                    onClick={() => {
-                      setDrillStatus('idle');
-                      jumpToPly(historyPositions.length - 1);
-                      setCoachFeedback(`Exited drill mode. Stepping through ${selectedDossier.name}.`);
-                    }}
-                  >
-                    <span>Exit Drill Mode</span>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    rounded="xl"
-                    fullWidth
-                    onClick={() => {
-                      setDrillStatus('practicing');
-                      setDrillIndex(0);
-                      // Set board to the final opening move
-                      jumpToPly(historyPositions.length - 1);
-                      // Auto-flip if counter is for Black
-                      if (selectedDossier.bestCounterOpening.counterMoves.startsWith('3...') || selectedDossier.bestCounterOpening.counterMoves.startsWith('1...')) {
-                        setOrientation('b');
-                      }
-                      const branch = selectedDossier.continuationTree[0];
-                      setCoachFeedback(`Drill Active: Play Black's refutation move ${branch?.moveSan || 'on the board'}.`);
-                    }}
-                  >
-                    <Play className="w-4 h-4 fill-black" />
-                    <span>Practice Counter Continuation (+30 XP)</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                )}
+              {/* TAB 2: PLANS & DRILLS */}
+              {studySidebarTab === 'plans' && (
+                <div className="flex-1 flex flex-col justify-between gap-3 min-h-0 overflow-y-auto">
+                  {/* Practice Mode Active View */}
+                  {drillStatus === 'practicing' && (
+                    <div className="flex flex-col gap-3">
+                      <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs font-extrabold text-emerald-400">
+                            Practice (Step {drillIndex + 1} of {selectedDossier.continuationTree.length})
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold">
+                          +30 XP
+                        </span>
+                      </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    rounded="xl"
-                    onClick={() => router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`)}
-                  >
-                    <Bot className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Spar Against Bot</span>
-                  </Button>
+                      <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex flex-col gap-2">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                          Your Mission
+                        </span>
+                        <p className="text-xs text-white font-bold leading-relaxed">
+                          {coachFeedback}
+                        </p>
+                        {selectedDossier.continuationTree[drillIndex]?.evaluation && (
+                          <span className="text-[11px] font-mono text-amber-400">
+                            Eval: {selectedDossier.continuationTree[drillIndex].evaluation}
+                          </span>
+                        )}
+                        {selectedDossier.continuationTree[drillIndex]?.pitfallWarning && (
+                          <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 flex items-start gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                            <span>{selectedDossier.continuationTree[drillIndex].pitfallWarning}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    rounded="xl"
-                    onClick={() => setActiveScreen('traps')}
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Pitfalls ({selectedDossier.commonTraps?.length || 0})</span>
-                  </Button>
+                  {/* Completed Drill View */}
+                  {drillStatus === 'completed' && (
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2.5 text-center items-center">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                      <h3 className="text-sm font-extrabold text-white">Opening Sequence Mastered!</h3>
+                      <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                        {coachFeedback}
+                      </p>
+                      <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                        +30 XP Added to Profile
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Study Mode Default View */}
+                  {drillStatus === 'idle' && (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                        <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
+                            Coach Advice
+                          </span>
+                          <span className="text-xs font-bold text-white">{selectedDossier.name}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[#141311] border border-white/5 text-xs text-zinc-300 leading-relaxed font-sans">
+                        {coachFeedback}
+                      </div>
+
+                      {/* Best Counter Quick Preview */}
+                      <div className="p-3 rounded-xl bg-[#141311] border border-white/5 flex items-center justify-between gap-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[10px] uppercase font-bold text-zinc-500">Refutation Weapon</span>
+                          <span className="text-xs font-bold text-white truncate">
+                            {selectedDossier.bestCounterOpening.counterName}
+                          </span>
+                          <span className="text-[10px] font-mono text-amber-400">
+                            {selectedDossier.bestCounterOpening.counterMoves}
+                          </span>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          rounded="lg"
+                          onClick={() => setActiveScreen('counter')}
+                          className="shrink-0"
+                        >
+                          <span>Full Plan</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Anchors */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-white/5 shrink-0">
+                    {drillStatus === 'practicing' ? (
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        rounded="xl"
+                        fullWidth
+                        onClick={() => {
+                          setDrillStatus('idle');
+                          jumpToPly(historyPositions.length - 1);
+                          setCoachFeedback(`Exited drill mode. Stepping through ${selectedDossier.name}.`);
+                        }}
+                      >
+                        <span>Exit Drill Mode</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        rounded="xl"
+                        fullWidth
+                        onClick={() => {
+                          setDrillStatus('practicing');
+                          setDrillIndex(0);
+                          jumpToPly(historyPositions.length - 1);
+                          if (selectedDossier.bestCounterOpening.counterMoves.startsWith('3...') || selectedDossier.bestCounterOpening.counterMoves.startsWith('1...')) {
+                            setOrientation('b');
+                          }
+                          const branch = selectedDossier.continuationTree[0];
+                          setCoachFeedback(`Drill Active: Play Black's refutation move ${branch?.moveSan || 'on the board'}.`);
+                        }}
+                      >
+                        <Play className="w-4 h-4 fill-black" />
+                        <span>Practice Counter Continuation (+30 XP)</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        rounded="xl"
+                        onClick={() => router.push(`/bots?fen=${encodeURIComponent(chess.fen())}`)}
+                      >
+                        <Bot className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Spar Against Bot</span>
+                      </Button>
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        rounded="xl"
+                        onClick={() => setActiveScreen('traps')}
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Pitfalls ({selectedDossier.commonTraps?.length || 0})</span>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

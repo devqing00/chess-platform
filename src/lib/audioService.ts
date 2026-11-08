@@ -194,16 +194,31 @@ class SoundService {
         return;
       }
       case 'wood': {
+        // Dual-component acoustic wooden piece clack:
+        // 1. Low body thud
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(180, t);
-        osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.exponentialRampToValueAtTime(45, t + 0.07);
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(600, t);
-        gain.gain.setValueAtTime(0.35, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+        filter.frequency.setValueAtTime(700, t);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
         osc.connect(filter).connect(gain).connect(dest);
+
+        // 2. High impact snap
+        const clickOsc = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+        clickOsc.type = 'sine';
+        clickOsc.frequency.setValueAtTime(1200, t);
+        clickOsc.frequency.exponentialRampToValueAtTime(280, t + 0.02);
+        clickGain.gain.setValueAtTime(0.18, t);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+        clickOsc.connect(clickGain).connect(dest);
+
         osc.start(t);
-        osc.stop(t + 0.1);
+        clickOsc.start(t);
+        osc.stop(t + 0.09);
+        clickOsc.stop(t + 0.03);
         return;
       }
       case 'marble': {
@@ -230,14 +245,29 @@ class SoundService {
       }
       case 'classic':
       default: {
+        // Crisp tactile click
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(320, t);
-        osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
-        gain.gain.setValueAtTime(0.3, t);
+        osc.frequency.setValueAtTime(280, t);
+        osc.frequency.exponentialRampToValueAtTime(65, t + 0.07);
+
+        const snap = ctx.createOscillator();
+        const snapGain = ctx.createGain();
+        snap.type = 'sine';
+        snap.frequency.setValueAtTime(900, t);
+        snap.frequency.exponentialRampToValueAtTime(200, t + 0.025);
+        snapGain.gain.setValueAtTime(0.2, t);
+        snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+
+        gain.gain.setValueAtTime(0.35, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
         osc.connect(gain).connect(dest);
+        snap.connect(snapGain).connect(dest);
+
         osc.start(t);
+        snap.start(t);
         osc.stop(t + 0.09);
+        snap.stop(t + 0.035);
         return;
       }
     }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { GameSessionStore, parsePgnToMoveRecords, extractTerminationReason } from '@/lib/gameSessionStore';
+import { ChessEvaluator } from '@/lib/chessEngine';
 import { GameReviewSummaryView } from '@/components/analysis/GameReviewSummaryView';
 import { GameReviewView } from '@/components/analysis/GameReviewView';
 import { GameReviewReport, GameSession, EngineStrengthTier } from '@/types/chess';
@@ -266,11 +267,32 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         return;
       }
 
-const CURRENT_REVIEW_VERSION = 'v3.0';
+const CURRENT_REVIEW_VERSION = 'v5.2';
 
-      // 4. If game has moves: load cached deep review (only if matching current engine version) or compute fresh review
+const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
+  if (!rep) return true;
+  if (!rep.moves || rep.moves.length === 0) return true;
+  if (movesCount >= 10) {
+    if ((rep.whiteAccuracy ?? 0) >= 99.5 && (rep.blackAccuracy ?? 0) >= 99.5) return true;
+    const totalMistakes =
+      (rep.tallies?.white?.inaccuracy || 0) +
+      (rep.tallies?.white?.mistake || 0) +
+      (rep.tallies?.white?.miss || 0) +
+      (rep.tallies?.white?.blunder || 0) +
+      (rep.tallies?.black?.inaccuracy || 0) +
+      (rep.tallies?.black?.mistake || 0) +
+      (rep.tallies?.black?.miss || 0) +
+      (rep.tallies?.black?.blunder || 0);
+    if (totalMistakes === 0 && movesCount >= 20) return true;
+  }
+  return false;
+};
+
+      // 4. If game has moves: load cached deep review (only if matching current engine version and not corrupted) or compute fresh review
       if (session && session.moves && session.moves.length > 0) {
+        const isCorrupted = isCorruptedReport(session.reviewReport, session.moves.length);
         if (
+          !isCorrupted &&
           session.reviewReport &&
           session.reviewReport.reviewVersion === CURRENT_REVIEW_VERSION &&
           session.reviewReport.isDeepReview &&
@@ -293,55 +315,146 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
         // Compute review via engine API
         try {
           if (isMounted) {
-            setLoadingStep('Evaluating moves and game turning points...');
+            setLoadingStep('Initializing Stockfish review engine...');
+            setLoadingProgress(5);
           }
+          const moveCount = session.moves?.length || 40;
+          const timeoutMs = Math.max(120000, moveCount * 2500);
           const controller = new AbortController();
-          const timeoutTimer = setTimeout(() => controller.abort(), 8000);
+          const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
 
-          const res = await fetch('/api/engine/review', {
-            method: 'POST',
-            signal: controller.signal,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              gameId,
-              moves: session.moves.map((m) => m.san),
-              whitePlayer: session.whitePlayer,
-              blackPlayer: session.blackPlayer,
-              strengthTier: engineStrength || 'fast',
-              engineMode: analysisEngine || 'torch_human',
-              gameResult: session.gameResult,
-              resultDetails: session.resultDetails,
-              pgn: session.pgn,
-            }),
-          });
-          clearTimeout(timeoutTimer);
+          // Attempt 1: Real-time Progressive SSE Stream
+          let streamSuccess = false;
+          try {
+            const streamRes = await fetch('/api/engine/review/stream', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gameId,
+                moves: session.moves.map((m) => m.san),
+                whitePlayer: session.whitePlayer,
+                blackPlayer: session.blackPlayer,
+                strengthTier: engineStrength || 'fast',
+                engineMode: analysisEngine || 'torch_human',
+                gameResult: session.gameResult,
+                resultDetails: session.resultDetails,
+                pgn: session.pgn,
+              }),
+            });
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.report) {
-              data.report.isDeepReview = true;
-              data.report.reviewVersion = CURRENT_REVIEW_VERSION;
-              data.report.gameResult = session.gameResult;
-              data.report.resultDetails = session.resultDetails;
-              data.report.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
-              session.reviewReport = data.report;
-              session.engineMode = analysisEngine || 'torch_human';
-              GameSessionStore.saveSession(session);
-              if (isMounted) {
-                setReport(data.report);
-                setIsLoading(false);
+            if (streamRes.ok && streamRes.body) {
+              const reader = streamRes.body.getReader();
+              const decoder = new TextDecoder();
+              let streamBuffer = '';
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                streamBuffer += decoder.decode(value, { stream: true });
+                const events = streamBuffer.split('\n\n');
+                streamBuffer = events.pop() || '';
+
+                for (const rawEvent of events) {
+                  if (!rawEvent.trim()) continue;
+                  const lines = rawEvent.split('\n');
+                  const eventTypeLine = lines.find((l) => l.startsWith('event: '));
+                  const dataLine = lines.find((l) => l.startsWith('data: '));
+                  if (!eventTypeLine || !dataLine) continue;
+
+                  const eventType = eventTypeLine.replace('event: ', '').trim();
+                  const eventData = JSON.parse(dataLine.replace('data: ', '').trim());
+
+                  if (eventType === 'progress' && isMounted) {
+                    const pct = Math.max(5, Math.min(99, eventData.pct || 0));
+                    setLoadingProgress(pct);
+                    setLoadingStep(
+                      `Move ${eventData.ply}/${eventData.totalPlies}: ${eventData.move?.san} (${eventData.move?.classification})`
+                    );
+                  } else if (eventType === 'complete' && eventData.report) {
+                    clearTimeout(timeoutTimer);
+                    streamSuccess = true;
+                    const finalReport = eventData.report;
+                    finalReport.isDeepReview = true;
+                    finalReport.reviewVersion = CURRENT_REVIEW_VERSION;
+                    finalReport.gameResult = session.gameResult;
+                    finalReport.resultDetails = session.resultDetails;
+                    finalReport.termination = session.pgn
+                      ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
+                      : undefined;
+                    session.reviewReport = finalReport;
+                    session.engineMode = analysisEngine || 'torch_human';
+                    GameSessionStore.saveSession(session);
+                    if (isMounted) {
+                      setReport(finalReport);
+                      setIsLoading(false);
+                    }
+                    return;
+                  }
+                }
               }
-              return;
+            }
+          } catch (streamErr) {
+            console.warn('Review stream failed, falling back to batch API:', streamErr);
+          }
+
+          if (!streamSuccess) {
+            const res = await fetch('/api/engine/review', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gameId,
+                moves: session.moves.map((m) => m.san),
+                whitePlayer: session.whitePlayer,
+                blackPlayer: session.blackPlayer,
+                strengthTier: engineStrength || 'fast',
+                engineMode: analysisEngine || 'torch_human',
+                gameResult: session.gameResult,
+                resultDetails: session.resultDetails,
+                pgn: session.pgn,
+              }),
+            });
+            clearTimeout(timeoutTimer);
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.report) {
+                data.report.isDeepReview = true;
+                data.report.reviewVersion = CURRENT_REVIEW_VERSION;
+                data.report.gameResult = session.gameResult;
+                data.report.resultDetails = session.resultDetails;
+                data.report.termination = session.pgn
+                  ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
+                  : undefined;
+                session.reviewReport = data.report;
+                session.engineMode = analysisEngine || 'torch_human';
+                GameSessionStore.saveSession(session);
+                if (isMounted) {
+                  setReport(data.report);
+                  setIsLoading(false);
+                }
+                return;
+              }
             }
           }
         } catch (err) {
           console.warn('Backend engine review failed, using local fallback:', err);
         }
 
-        // Local fallback if API unavailable
+        // Local tactical analysis fallback if API unavailable (guarantees authentic non-flat evaluation)
+        const hasEvaluations =
+          session.moves.length > 0 &&
+          session.moves.every((m) => m.evalAfter !== undefined && m.classification !== undefined);
+        let movesToUse = session.moves;
+        if (!hasEvaluations && session.moves.length > 0) {
+          movesToUse = ChessEvaluator.analyzeGameHistory(session.moves);
+          session.moves = movesToUse;
+        }
+
         const generated = GameSessionStore.completeGame(
           gameId,
-          session.moves,
+          movesToUse,
           session.gameResult || 'Game Concluded',
           session.resultDetails || {
             winner: 'w',
@@ -353,6 +466,14 @@ const CURRENT_REVIEW_VERSION = 'v3.0';
           }
         );
         const aligned = reclassifyReportWithEngine(generated, analysisEngine || 'torch_human');
+        const fallbackIsCorrupted = isCorruptedReport(aligned, session.moves.length);
+        if (!fallbackIsCorrupted) {
+          aligned.isDeepReview = true;
+          aligned.reviewVersion = CURRENT_REVIEW_VERSION;
+          session.reviewReport = aligned;
+          session.engineMode = analysisEngine || 'torch_human';
+          GameSessionStore.saveSession(session);
+        }
         if (isMounted) {
           setReport(aligned);
           setIsLoading(false);

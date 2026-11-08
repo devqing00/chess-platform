@@ -5,7 +5,7 @@ import {
   evaluatePositionStockfish,
   formatEngineScore,
 } from '@/lib/server/stockfishPool';
-import { queryTablebase } from '@/lib/server/tablebaseService';
+import { evaluateLocalEndgame } from '@/lib/server/tablebaseService';
 import {
   classifyMoveEngine,
   calculateGameCaps,
@@ -197,12 +197,51 @@ export async function POST(req: NextRequest) {
         inBook = false;
       }
 
-      // Evaluate position with Stockfish configured for current strength tier without compromising engine quality
-      const currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
+      // Fast-path opening book moves (0 engine search delay)
+      let currentEval: any;
+      if (isBookMove) {
+        const bookScore = isWhite ? 20 : -20;
+        currentEval = {
+          fen: fenAfter,
+          depth: targetDepth,
+          seldepth: targetDepth,
+          nodes: 100,
+          nps: 100000,
+          scoreCp: bookScore,
+          scoreFormatted: isWhite ? '+0.20' : '-0.20',
+          bestMoveSan: san,
+          bestMoveUci: playedMove ? `${playedMove.from}${playedMove.to}` : '',
+          pvSan: [san],
+          pvUci: [],
+          lines: [
+            {
+              rank: 1,
+              scoreCp: bookScore,
+              scoreFormatted: isWhite ? '+0.20' : '-0.20',
+              bestMoveSan: san,
+              bestMoveUci: playedMove ? `${playedMove.from}${playedMove.to}` : '',
+              pvSan: [san],
+              pvUci: [],
+            },
+          ],
+        };
+      } else {
+        currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
+      }
 
-      // Check tablebase for endgame only when 7 or fewer pieces remain on board
+      // Check tablebase for endgame only when 7 or fewer pieces remain on board (instant 0ms local evaluation)
       const pieceCount = (fenAfter.split(' ')[0].match(/[pnbrqkPNBRQK]/g) || []).length;
-      const tbAfter = pieceCount <= 7 ? await queryTablebase(fenAfter) : null;
+      if (pieceCount <= 7) {
+        const localTb = evaluateLocalEndgame(fenAfter);
+        if (localTb) {
+          currentEval.tablebase = {
+            category: localTb.category || 'draw',
+            dtz: localTb.dtz ?? null,
+            bestMoveUci: localTb.bestMoveUci,
+            bestMoveSan: localTb.bestMoveSan,
+          };
+        }
+      }
 
       const evalBeforeCp = prevEval.scoreCp;
       const evalAfterCp = currentEval.scoreCp;
@@ -234,7 +273,17 @@ export async function POST(req: NextRequest) {
       const isCapture = Boolean(playedMove?.captured);
       const isCheck = runner.inCheck();
 
-      const cpLoss = Math.max(0, isWhite ? evalBeforeCp - evalAfterCp : evalAfterCp - evalBeforeCp);
+      // Search for the played move in the lines evaluated at fenBefore (same search tree, 0 depth-horizon noise)
+      const playedLineInBefore = prevEval.lines?.find(
+        (l: any) => l.bestMoveSan === san || (playedMove && l.bestMoveUci === `${playedMove.from}${playedMove.to}`)
+      );
+
+      const rawCpLoss = Math.max(0, isWhite ? evalBeforeCp - evalAfterCp : evalAfterCp - evalBeforeCp);
+      const cpLoss =
+        playedLineInBefore && prevEval.lines && prevEval.lines[0]
+          ? Math.abs(prevEval.lines[0].scoreCp - playedLineInBefore.scoreCp)
+          : rawCpLoss;
+
       if (isWhite) whiteCpLosses.push(cpLoss);
       else blackCpLosses.push(cpLoss);
 
@@ -321,11 +370,52 @@ export async function POST(req: NextRequest) {
         classification: classificationResult.classification,
       });
 
-      const activeMotif = deepMotifs[0]
+      let activeMotif: { type: string; name: string; description: string } | undefined = deepMotifs[0]
         ? { type: deepMotifs[0].type, name: deepMotifs[0].name, description: deepMotifs[0].description }
         : baseMotifs[0]
         ? { type: baseMotifs[0].type, name: baseMotifs[0].type, description: baseMotifs[0].description }
         : undefined;
+
+      // Checkmate Motif Enrichment
+      if (runner.isCheckmate() || san.includes('#')) {
+        if (ply <= 4 && (san === 'Qxf7#' || san === 'Qxf2#')) {
+          activeMotif = {
+            type: 'scholars_mate',
+            name: "Scholar's Mate",
+            description: "The classic Scholar's Mate! Queen and bishop coordinate on the vulnerable f7/f2 square before castling.",
+          };
+        } else if (ply <= 2 && (san === 'Qh4#' || san === 'Qh5#')) {
+          activeMotif = {
+            type: 'fools_mate',
+            name: "Fool's Mate",
+            description: "The devastating Fool's Mate exploiting the prematurely exposed e1-h4 diagonal.",
+          };
+        } else if (!activeMotif || activeMotif.type === 'checkmate') {
+          if (pieceType === 'n') {
+            activeMotif = {
+              type: 'smothered_mate',
+              name: 'Smothered Mate',
+              description: 'A stunning smothered checkmate! The Knight delivers mate to a King trapped by its own army.',
+            };
+          } else if (
+            playedMove?.to &&
+            (playedMove.to.endsWith('8') || playedMove.to.endsWith('1')) &&
+            (pieceType === 'r' || pieceType === 'q')
+          ) {
+            activeMotif = {
+              type: 'back_rank_mate',
+              name: 'Back-Rank Checkmate',
+              description: 'A lethal back-rank checkmate exploiting the trapped enemy king behind its own pawn wall.',
+            };
+          } else {
+            activeMotif = {
+              type: 'checkmate',
+              name: 'Checkmate',
+              description: `${san} delivers the decisive checkmate, concluding the game!`,
+            };
+          }
+        }
+      }
 
       // Generate Coach Danny natural-language advice with exact motif explanations and refutations
       const coachExplanation = generateCoachExplanation({
@@ -612,7 +702,7 @@ export async function POST(req: NextRequest) {
       moves: analyzedMoves,
       summaryComment,
       isDeepReview: true,
-      reviewVersion: 'v3.0',
+      reviewVersion: 'v5.2',
       gameResult: gameResult || (isCheckmateLast ? (whiteWonByMate ? '1-0' : '0-1') : undefined),
       resultDetails: resultDetails || {
         winner: isCheckmateLast ? (whiteWonByMate ? 'w' : 'b') : 'draw',

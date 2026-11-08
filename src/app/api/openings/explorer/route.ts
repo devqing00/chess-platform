@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const result = OpeningExplorerService.queryPosition(fen, tier, ply);
+    const result = await OpeningExplorerService.queryPosition(fen, tier, ply);
 
     return NextResponse.json({
       success: true,
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       targetFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     }
 
-    const result = OpeningExplorerService.queryPosition(targetFen, tier, plyCount);
+    const result = await OpeningExplorerService.queryPosition(targetFen, tier, plyCount);
 
     return NextResponse.json({
       success: true,

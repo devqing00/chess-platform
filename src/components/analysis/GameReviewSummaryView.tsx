@@ -17,7 +17,9 @@ import {
   MoveClassification,
   EngineStrengthTier,
   ENGINE_STRENGTH_CONFIGS,
+  AntiCheatReport,
 } from '@/types/chess';
+import { AntiCheatReportModal } from './AntiCheatReportModal';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -211,6 +213,44 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   const [isBlunderModalOpen, setIsBlunderModalOpen] = useState(false);
   const [blunderStatus, setBlunderStatus] = useState<'idle' | 'correct' | 'wrong' | 'revealed'>('idle');
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  // Fair-Play & Anti-Cheat Audit State
+  const [isAntiCheatModalOpen, setIsAntiCheatModalOpen] = useState(false);
+  const [antiCheatReport, setAntiCheatReport] = useState<AntiCheatReport | null>(null);
+  const [isLoadingAntiCheat, setIsLoadingAntiCheat] = useState(false);
+
+  const handleOpenAntiCheat = async () => {
+    if (antiCheatReport) {
+      setIsAntiCheatModalOpen(true);
+      return;
+    }
+
+    setIsLoadingAntiCheat(true);
+    try {
+      const res = await fetch('/api/anti-cheat/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          moves: report.moves,
+          whiteAccuracy: report.whiteAccuracy,
+          blackAccuracy: report.blackAccuracy,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.report) {
+          setAntiCheatReport(json.report);
+          setIsAntiCheatModalOpen(true);
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsLoadingAntiCheat(false);
+    }
+  };
 
   const activeMistakePuzzle = userMistakesPuzzles[currentMistakeIndex] || userMistakesPuzzles[0];
 
@@ -646,6 +686,16 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             <span>Flawless play — 0 Blunders or Misses!</span>
           </div>
         )}
+
+        {/* Fair-Play & Anti-Cheat Screening Button */}
+        <button
+          onClick={handleOpenAntiCheat}
+          disabled={isLoadingAntiCheat}
+          className="w-full py-1.5 px-3 rounded-lg bg-[#24221e] hover:bg-[#2e2a25] text-zinc-300 hover:text-white font-bold uppercase tracking-wider text-[11px] border border-white/5 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-2"
+        >
+          <Shield className="w-3.5 h-3.5 text-purple-400" />
+          <span>{isLoadingAntiCheat ? 'Auditing Fair-Play...' : 'Fair-Play & Anti-Cheat Audit'}</span>
+        </button>
 
         {/* Hub Bridges */}
         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#2d2a26]">
@@ -1259,6 +1309,13 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Fair-Play & Anti-Cheat Audit Modal */}
+      <AntiCheatReportModal
+        isOpen={isAntiCheatModalOpen}
+        onClose={() => setIsAntiCheatModalOpen(false)}
+        report={antiCheatReport}
+      />
     </div>
   );
 };

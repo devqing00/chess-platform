@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '@/components/board/ChessBoard';
 import { TacticalPuzzle, PuzzlePillar, PuzzleTier } from '@/types/chess';
+import { TACTICAL_PUZZLES } from '@/lib/puzzlesData';
 import { PuzzleEngineService, UserMasteryStats } from '@/lib/server/puzzleEngineService';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
@@ -52,23 +53,29 @@ function PuzzlesMasteryContent() {
 
   const [activeScreen, setActiveScreen] = useState<PuzzleScreen>(initialScreen);
   const [selectedTier, setSelectedTier] = useState<PuzzleTier>('club');
+  const [mounted, setMounted] = useState(false);
 
-  // Master SRS puzzle state
-  const [currentPuzzle, setCurrentPuzzle] = useState<TacticalPuzzle>(() => {
-    const initialPillar: PuzzlePillar = initialScreen === 'vault' ? 'tactics' : initialScreen;
-    return PuzzleEngineService.getNextPuzzle(initialPillar, 'club');
-  });
-
-  const [chess, setChess] = useState<Chess>(() => new Chess(currentPuzzle.fen));
+  // Deterministic seed for 100% hydration match between server and client
+  const [currentPuzzle, setCurrentPuzzle] = useState<TacticalPuzzle>(TACTICAL_PUZZLES[0]);
+  const [chess, setChess] = useState<Chess>(() => new Chess(TACTICAL_PUZZLES[0].fen));
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [boardHistoryFen, setBoardHistoryFen] = useState<string[]>([TACTICAL_PUZZLES[0].fen]);
   const [moveStepIndex, setMoveStepIndex] = useState(0);
   const [statusMessage, setStatusMessage] = useState<'idle' | 'correct' | 'incorrect' | 'solved'>('idle');
   const [hintLevel, setHintLevel] = useState(0);
   const [streak, setStreak] = useState(0);
   const [masteryNotice, setMasteryNotice] = useState<string | null>(null);
+  const [isShowingSolution, setIsShowingSolution] = useState(false);
 
-  // Spaced repetition stats for Vault screen
-  const [masteryStats, setMasteryStats] = useState<UserMasteryStats>(() => {
-    return PuzzleEngineService.getMasteryStats();
+  // Spaced repetition stats for Vault screen (initialized deterministically for SSR match)
+  const [masteryStats, setMasteryStats] = useState<UserMasteryStats>({
+    totalSolved: 0,
+    totalMastered: 0,
+    currentStreak: 0,
+    tacticsMastered: 0,
+    strategyMastered: 0,
+    endgameMastered: 0,
+    unlockedTiers: { fundamentals: true, club: true, advanced: false, master: false },
   });
 
   // Recent solved session log
@@ -77,10 +84,24 @@ function PuzzlesMasteryContent() {
   const loadPuzzle = useCallback((puz: TacticalPuzzle) => {
     setCurrentPuzzle(puz);
     setChess(new Chess(puz.fen));
+    setLastMove(null);
+    setBoardHistoryFen([puz.fen]);
     setMoveStepIndex(0);
     setStatusMessage('idle');
     setHintLevel(0);
     setMasteryNotice(null);
+    setIsShowingSolution(false);
+  }, []);
+
+  // On client mount, load personalized SRS puzzle and real stats without SSR hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+    setMasteryStats(PuzzleEngineService.getMasteryStats());
+    const targetPillar: PuzzlePillar = initialScreen === 'vault' ? 'tactics' : initialScreen;
+    const nextPuz = PuzzleEngineService.getNextPuzzle(targetPillar, selectedTier);
+    if (nextPuz && nextPuz.id !== TACTICAL_PUZZLES[0].id) {
+      loadPuzzle(nextPuz);
+    }
   }, []);
 
   const handleNextPuzzle = useCallback(() => {
@@ -126,7 +147,7 @@ function PuzzlesMasteryContent() {
 
   // Execute and validate player move
   const handleMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
-    if (statusMessage === 'solved') return;
+    if (statusMessage === 'solved' || isShowingSolution) return;
 
     try {
       const copy = new Chess(chess.fen());
@@ -146,6 +167,8 @@ function PuzzlesMasteryContent() {
 
       if (isExpected) {
         setChess(copy);
+        setLastMove({ from, to });
+        setBoardHistoryFen((prev) => [...prev, copy.fen()]);
         soundService.playMove();
 
         const nextStepIndex = moveStepIndex + 1;
@@ -206,14 +229,19 @@ function PuzzlesMasteryContent() {
               }
               if (oppMove) {
                 setChess(oppCopy);
+                setLastMove({ from: oppMove.from, to: oppMove.to });
+                setBoardHistoryFen((prev) => [...prev, oppCopy.fen()]);
                 setMoveStepIndex(nextStepIndex + 1);
                 soundService.playMove();
+                setStatusMessage('idle');
               }
             }
           }, 450);
         }
       } else {
-        // Incorrect move attempt: reset streak
+        // Incorrect move attempt: show move on board with red highlight, do NOT wipe board
+        setChess(copy);
+        setLastMove({ from, to });
         soundService.playGameEndLoss();
         setStatusMessage('incorrect');
         setStreak(0);
@@ -225,20 +253,56 @@ function PuzzlesMasteryContent() {
           currentPuzzle.pillar || targetPillar,
           currentPuzzle.tier || selectedTier
         );
-
-        setTimeout(() => {
-          setChess(new Chess(currentPuzzle.fen));
-          setMoveStepIndex(0);
-          setStatusMessage('idle');
-        }, 1200);
       }
     } catch {
       // Invalid move ignored
     }
   };
 
+  const handleRetry = () => {
+    // Revert to board state before incorrect move was played
+    const prevFen = boardHistoryFen[boardHistoryFen.length - 1] || currentPuzzle.fen;
+    setChess(new Chess(prevFen));
+    setLastMove(null);
+    setStatusMessage('idle');
+  };
+
+  const handleShowSolution = async () => {
+    if (isShowingSolution || statusMessage === 'solved') return;
+    setIsShowingSolution(true);
+
+    const startFen = boardHistoryFen[0] || currentPuzzle.fen;
+    const copy = new Chess(startFen);
+    setChess(new Chess(startFen));
+    setMoveStepIndex(0);
+
+    for (let i = 0; i < solutionSequence.length; i++) {
+      const uci = solutionSequence[i];
+      if (!uci) break;
+      await new Promise((r) => setTimeout(r, 600));
+      let m = null;
+      if (uci.length >= 4) {
+        const from = uci.slice(0, 2) as Square;
+        const to = uci.slice(2, 4) as Square;
+        const promotion = (uci[4] as PieceSymbol) || undefined;
+        m = copy.move({ from, to, promotion });
+      }
+      if (!m) m = copy.move(uci);
+      if (m) {
+        setChess(new Chess(copy.fen()));
+        setLastMove({ from: m.from, to: m.to });
+        soundService.playMove();
+        setMoveStepIndex(i + 1);
+      }
+    }
+    setIsShowingSolution(false);
+    setStatusMessage('solved');
+  };
+
   const handleReset = () => {
     setChess(new Chess(currentPuzzle.fen));
+    setLastMove(null);
+    setBoardHistoryFen([currentPuzzle.fen]);
     setMoveStepIndex(0);
     setStatusMessage('idle');
     setHintLevel(0);
@@ -361,18 +425,19 @@ function PuzzlesMasteryContent() {
                   boardTheme={boardTheme}
                   pieceTheme={pieceTheme}
                   onMove={handleMove}
+                  lastMove={lastMove}
                   disabled={statusMessage === 'solved'}
                 />
 
-                {/* In-Board Success / Error Status Badge */}
+                {/* In-Board Success / Error Status Badge (z-50: always rendered above pieces) */}
                 {statusMessage === 'solved' && (
-                  <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_2px_0_0_#385a16] border-t border-white/35 backdrop-blur-sm animate-in fade-in">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.6)] border-t border-white/35 backdrop-blur-md animate-in fade-in zoom-in-95">
                     <CheckCircle2 className="w-4 h-4 stroke-[3]" />
                     <span>Solved! +{currentPuzzle.xpReward || 25} XP</span>
                   </div>
                 )}
                 {statusMessage === 'incorrect' && (
-                  <div className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xl backdrop-blur-sm animate-in fade-in">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.6)] border-t border-white/35 backdrop-blur-md animate-in fade-in zoom-in-95">
                     <XCircle className="w-4 h-4" />
                     <span>Incorrect Move</span>
                   </div>
@@ -433,6 +498,8 @@ function PuzzlesMasteryContent() {
                   <p className="text-[11px] text-zinc-300">
                     {statusMessage === 'solved'
                       ? currentPuzzle.teachingNotes || currentPuzzle.solutionDescription
+                      : statusMessage === 'incorrect'
+                      ? "That's not quite the move. Look for tactical motifs, checks, captures, or loose pieces. Click 'Try Again' when ready!"
                       : hintLevel === 1
                       ? currentPuzzle.coachHint || 'Look for unprotected pieces and tactical motifs.'
                       : hintLevel >= 2
@@ -468,8 +535,8 @@ function PuzzlesMasteryContent() {
                 </div>
               </div>
 
-              {/* Exactly ONE P1 Anchor Button */}
-              <div className="pt-2 border-t border-white/5 shrink-0">
+              {/* Action Buttons Panel / Retry / Solution Controls */}
+              <div className="pt-2 border-t border-white/5 shrink-0 flex flex-col gap-2">
                 {statusMessage === 'solved' ? (
                   <Button
                     variant="primary"
@@ -479,9 +546,44 @@ function PuzzlesMasteryContent() {
                     onClick={handleNextPuzzle}
                     className="font-black"
                   >
-                    <span>Next {activeScreen === 'tactics' ? 'Tactics' : activeScreen === 'strategy' ? 'Strategy' : 'Endgame'} (Spacebar)</span>
+                    <span>Next Puzzle (Spacebar)</span>
                     <ArrowRight className="w-4 h-4 stroke-[3]" />
                   </Button>
+                ) : statusMessage === 'incorrect' ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="primary"
+                        size="md"
+                        rounded="xl"
+                        className="flex-1 font-black bg-gradient-to-b from-amber-500 to-amber-600 text-black border-amber-400 shadow-[0_2px_0_0_#b45309]"
+                        onClick={handleRetry}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Try Again</span>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        rounded="xl"
+                        className="flex-1 font-bold border-cyan-500/30 text-cyan-300 hover:text-white"
+                        onClick={handleShowSolution}
+                        disabled={isShowingSolution}
+                      >
+                        <Brain className="w-4 h-4 text-cyan-400" />
+                        <span>{isShowingSolution ? 'Showing...' : 'Show Solution'}</span>
+                      </Button>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      rounded="lg"
+                      onClick={handleNextPuzzle}
+                      className="text-zinc-400 hover:text-white w-full"
+                    >
+                      <span>Skip to Next Puzzle &rarr;</span>
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     variant="secondary"
@@ -650,11 +752,25 @@ function PuzzlesMasteryContent() {
 }
 
 export default function PuzzlesPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 flex items-center justify-center h-full min-h-[100dvh] bg-[#161512] text-zinc-400 text-xs font-mono">
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
+
   return (
     <Suspense
       fallback={
-        <div className="flex-1 flex items-center justify-center h-full bg-[#161512] text-zinc-400 text-xs font-mono">
-          <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
+        <div className="flex-1 flex items-center justify-center h-full min-h-[100dvh] bg-[#161512] text-zinc-400 text-xs font-mono">
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
         </div>
       }
     >

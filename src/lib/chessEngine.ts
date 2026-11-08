@@ -1,5 +1,5 @@
 import { Chess, Square, PieceSymbol, Color, Move } from 'chess.js';
-import { MoveClassification, KeyMoment, PieceColor, MoveRecord } from '@/types/chess';
+import { MoveClassification, KeyMoment, PieceColor, MoveRecord } from '../types/chess';
 
 // Piece values in centipawns
 const PIECE_VALUES: Record<PieceSymbol, number> = {

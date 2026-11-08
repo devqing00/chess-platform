@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
-import { calculateGlicko2Update, Glicko2Rating } from '@/lib/server/glicko2Calculator';
-import { evaluatePositionStockfish } from '@/lib/server/stockfishPool';
+import { calculateGlicko2Update, Glicko2Rating } from './glicko2Calculator';
+import { evaluatePositionStockfish } from './stockfishPool';
 
 export interface ServerTacticalPuzzle {
   id: string;
@@ -10,9 +10,12 @@ export interface ServerTacticalPuzzle {
   themes: string[];
   description: string;
   authorOrGame?: string;
+  plays?: number;
+  ratingDeviation?: number;
 }
 
 export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
+  // --- TIER 1: FUNDAMENTALS & MATES IN 1 (600 - 1000) ---
   {
     id: 'puzzle-1',
     fen: 'r1bqkb1r/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 2 4',
@@ -26,7 +29,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     id: 'puzzle-2',
     fen: '6k1/5ppp/8/8/8/8/5PPP/1R4K1 w - - 0 1',
     solutionMoves: ['Rb8#'],
-    rating: 700,
+    rating: 650,
     themes: ['back_rank', 'mate_in_1'],
     description: 'Rb8# delivers a classic back-rank checkmate because Black’s king is trapped behind its own un-moved pawns on f7, g7, and h7.',
     authorOrGame: 'Back Rank Tactical Drill',
@@ -35,7 +38,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     id: 'puzzle-3',
     fen: 'rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2',
     solutionMoves: ['Qh4#'],
-    rating: 650,
+    rating: 620,
     themes: ['mate_in_1', 'fools_mate'],
     description: 'Qh4# exploits the fatally opened e1-h4 diagonal created by White pushing f3 and g4 prematurely, delivering checkmate.',
     authorOrGame: 'Fool’s Mate Trap',
@@ -44,7 +47,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     id: 'puzzle-4',
     fen: 'r1b1k2r/pppp1ppp/2n5/4p1q1/2B1P3/3P1N2/PPP2PPP/RN1QK2R w KQkq - 0 7',
     solutionMoves: ['Nxg5'],
-    rating: 800,
+    rating: 750,
     themes: ['hanging_piece'],
     description: 'Nxg5 captures Black’s queen for free after Black brought the queen out into the open without tactical defense.',
     authorOrGame: 'Beginner Tactics Drill',
@@ -53,7 +56,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     id: 'puzzle-5',
     fen: 'r3k3/8/8/3N4/8/8/8/4K3 w q - 0 1',
     solutionMoves: ['Nc7+', 'Kd8', 'Nxa8'],
-    rating: 850,
+    rating: 800,
     themes: ['fork', 'royal_fork'],
     description: 'Nc7+ delivers check to the King on e8 while attacking the undefended Rook on a8, winning a full rook.',
     authorOrGame: 'Knight Fork Fundamentals',
@@ -62,13 +65,33 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     id: 'puzzle-6',
     fen: '6k1/5Npp/8/8/8/8/8/4Q1K1 w - - 0 1',
     solutionMoves: ['Qe8#'],
-    rating: 1100,
+    rating: 850,
     themes: ['smothered_mate', 'mate_in_1'],
     description: 'Qe8# corners Black’s king. The knight on f7 guards the escape squares and seals the victory.',
     authorOrGame: 'Club Player Sharp Tactic',
   },
   {
     id: 'puzzle-7',
+    fen: '4k3/8/8/8/8/8/4r3/3R1K2 b - - 0 1',
+    solutionMoves: ['Ra2'],
+    rating: 900,
+    themes: ['endgame_basic', 'rook_retreat'],
+    description: 'Ra2 preserves rook activity along the 2nd rank while cutting off the White king from crossing the center.',
+    authorOrGame: 'Rook Endgame Essentials',
+  },
+  {
+    id: 'puzzle-8',
+    fen: 'r1bqk2r/pppp1ppp/2n5/2b1p3/2B1P1n1/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5',
+    solutionMoves: ['Bxf7+', 'Kxf7', 'Ng5+'],
+    rating: 950,
+    themes: ['fork', 'discovered_attack'],
+    description: 'Bxf7+ strips the Black King of castling rights, followed by Ng5+ regaining the minor piece with a shattered defense.',
+    authorOrGame: 'Fried Liver Tactical Echo',
+  },
+
+  // --- TIER 2: CLUB TACTICS, PINS & SKEWERS (1000 - 1500) ---
+  {
+    id: 'puzzle-9',
     fen: 'r3kb1r/pppq1ppp/2n1p3/8/3P4/2B2B2/PPP2PPP/R2Q1RK1 w kq - 0 1',
     solutionMoves: ['Bxc6', 'Qxc6', 'd5'],
     rating: 1150,
@@ -77,7 +100,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Classical Queen Pin',
   },
   {
-    id: 'puzzle-8',
+    id: 'puzzle-10',
     fen: '4q3/8/8/4k3/8/8/8/R5K1 w - - 0 1',
     solutionMoves: ['Re1+', 'Kd6', 'Rxe8'],
     rating: 1200,
@@ -86,7 +109,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'King & Queen Skewer',
   },
   {
-    id: 'puzzle-9',
+    id: 'puzzle-11',
     fen: 'r1b2rk1/pp3ppp/8/8/8/2B2Q2/PPP2PPP/R4RK1 w - - 0 1',
     solutionMoves: ['Qg3', 'g6', 'Qe5'],
     rating: 1250,
@@ -95,7 +118,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Queen & Bishop Battery Drill',
   },
   {
-    id: 'puzzle-10',
+    id: 'puzzle-12',
     fen: 'r1b1k2r/pppp1ppp/8/4N3/1bB1n3/2N5/PPPP1PPP/R1BQK2R w KQkq - 0 6',
     solutionMoves: ['Bxf7+', 'Ke7', 'Nd5+'],
     rating: 1300,
@@ -104,7 +127,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Open Game Tactics',
   },
   {
-    id: 'puzzle-11',
+    id: 'puzzle-13',
     fen: 'r1b1k2r/pp1p1ppp/2n1p3/q7/2PP4/2N2N2/PP3PPP/R2QKB1R w KQkq - 0 9',
     solutionMoves: ['a3', 'Qb6', 'c5'],
     rating: 1350,
@@ -113,7 +136,27 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Early Queen Trap',
   },
   {
-    id: 'puzzle-12',
+    id: 'puzzle-14',
+    fen: 'r1b1kb1r/pppp1ppp/2n5/4P3/1qB1n3/5N2/PPP2PPP/RNBQ1RK1 w kq - 1 7',
+    solutionMoves: ['Qd5', 'Qe7', 'Qxe4'],
+    rating: 1400,
+    themes: ['double_attack', 'central_dominance'],
+    description: 'Qd5 double-attacks the hanging knight on e4 while threatening instant checkmate with Qxf7#.',
+    authorOrGame: 'Scotch Gambit Precision',
+  },
+  {
+    id: 'puzzle-15',
+    fen: 'r2q1rk1/1pp2ppp/p1np1n2/4p3/B3P1b1/2PP1N2/PP1N1PPP/R2Q1RK1 w - - 0 10',
+    solutionMoves: ['h3', 'Bh5', 'g4', 'Bg6'],
+    rating: 1450,
+    themes: ['pin_break', 'kingside_expansion'],
+    description: 'h3 and g4 break the pin on the f3-knight, freeing White’s pieces to coordinate toward the center.',
+    authorOrGame: 'Italian Game Pin Defense',
+  },
+
+  // --- TIER 3: ADVANCED & MASTER TACTICAL THEMES (1500 - 2000) ---
+  {
+    id: 'puzzle-16',
     fen: 'r1bq1rk1/pppn1ppp/4p3/3pP3/8/3BPN2/PPP2PPP/R1BQK2R w KQ - 0 1',
     solutionMoves: ['Bxh7+', 'Kxh7', 'Ng5+'],
     rating: 1550,
@@ -122,7 +165,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Classical Greek Gift',
   },
   {
-    id: 'puzzle-13',
+    id: 'puzzle-17',
     fen: '2r3k1/5ppp/p1q5/1p1p4/3Q4/1P3P2/P1P3PP/4R1K1 w - - 0 1',
     solutionMoves: ['Qxd5', 'Qxd5', 'Re8#'],
     rating: 1600,
@@ -131,7 +174,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Grandmaster Deflection Net',
   },
   {
-    id: 'puzzle-14',
+    id: 'puzzle-18',
     fen: '5rk1/1p3pp1/8/8/8/5N2/1r4PK/R6R w - - 0 1',
     solutionMoves: ['Kg3', 'Rb6', 'Ra8'],
     rating: 1650,
@@ -140,7 +183,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Anastasia’s Mate Net',
   },
   {
-    id: 'puzzle-15',
+    id: 'puzzle-19',
     fen: '4kb1r/p2rqppp/5n2/1B2p1B1/4P3/1Q6/PPP2PPP/2KR4 w k - 0 14',
     solutionMoves: ['Bxd7+', 'Nxd7', 'Qb8+', 'Nxb8', 'Rd8#'],
     rating: 1700,
@@ -149,7 +192,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Paul Morphy - Opera Game (1858)',
   },
   {
-    id: 'puzzle-16',
+    id: 'puzzle-20',
     fen: 'r2q1rk1/pp1b1ppp/2n1p3/3pP3/3P1P2/3B1N2/PP1Q2PP/R4RK1 w - - 0 1',
     solutionMoves: ['Bxh7+', 'Kxh7', 'Ng5+'],
     rating: 1750,
@@ -158,7 +201,16 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Modern French Defense Tactic',
   },
   {
-    id: 'puzzle-17',
+    id: 'puzzle-21',
+    fen: '2kr3r/ppp2ppp/2n5/8/1b6/2N5/PPP2PPP/R1B1R1K1 w - - 0 1',
+    solutionMoves: ['Bg5', 'f6', 'Bf4'],
+    rating: 1800,
+    themes: ['bodens_mate', 'bishop_pair'],
+    description: 'Crossing bishop diagonals slice through Black’s castled king, cutting off all flight squares along the a6-f1 and h2-b8 axes.',
+    authorOrGame: 'Samuel Boden Classic (1853)',
+  },
+  {
+    id: 'puzzle-22',
     fen: 'r1bq1rk1/pp3ppp/2n1p3/8/8/2B2N2/PPB2PPP/R2Q1RK1 w - - 0 1',
     solutionMoves: ['Bxh7+', 'Kxh7', 'Ng5+', 'Kg8', 'Qh5'],
     rating: 1900,
@@ -167,7 +219,18 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Emanuel Lasker - Bauer (1889)',
   },
   {
-    id: 'puzzle-18',
+    id: 'puzzle-23',
+    fen: 'r1b2rk1/2q1bppp/p2pp3/1p6/4PP2/1BN5/PPP1Q1PP/R4RK1 w - - 0 1',
+    solutionMoves: ['f5', 'exf5', 'Nd5'],
+    rating: 1950,
+    themes: ['pawn_break', 'outpost_seizure'],
+    description: 'f5! breaks Black’s defensive pawn chain and secures the supreme d5 outpost for the white knight.',
+    authorOrGame: 'Sicilian Scheveningen Assault',
+  },
+
+  // --- TIER 4: GRANDMASTER ENDGAME & COMBINATIONAL PUZZLES (2000 - 2500+) ---
+  {
+    id: 'puzzle-24',
     fen: '8/5P1k/8/8/8/8/8/6K1 w - - 0 1',
     solutionMoves: ['f8=N+'],
     rating: 2050,
@@ -176,7 +239,7 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Endgame Underpromotion Study',
   },
   {
-    id: 'puzzle-19',
+    id: 'puzzle-25',
     fen: 'r4rk1/ppp2ppp/2n5/3q4/3P4/2N2N2/PPP2PPP/R2Q1RK1 w - - 0 1',
     solutionMoves: ['Nxd5', 'Rfd8', 'Nc7'],
     rating: 2150,
@@ -185,21 +248,143 @@ export const SERVER_PUZZLES_DATABASE: ServerTacticalPuzzle[] = [
     authorOrGame: 'Grandmaster Intermezzo Masterpiece',
   },
   {
-    id: 'puzzle-20',
-    fen: '2kr3r/ppp2ppp/2n5/8/1b6/2N5/PPP2PPP/R1B1R1K1 w - - 0 1',
-    solutionMoves: ['Bg5', 'f6', 'Bf4'],
-    rating: 1850,
-    themes: ['bodens_mate', 'bishop_pair'],
-    description: 'Crossing bishop diagonals slice through Black’s castled king, cutting off all flight squares along the a6-f1 and h2-b8 axes.',
-    authorOrGame: 'Samuel Boden Classic (1853)',
+    id: 'puzzle-26',
+    fen: '8/1k6/8/8/8/8/1K6/1R6 w - - 0 1',
+    solutionMoves: ['Kc2+'],
+    rating: 2200,
+    themes: ['discovered_check', 'king_charge'],
+    description: 'Kc2+ steps out of the discovered line of fire, unveiling an attack on Black’s monarch and winning with tempo.',
+    authorOrGame: 'King Discovery Principle',
+  },
+  {
+    id: 'puzzle-27',
+    fen: '8/2k5/8/8/8/8/1K1R4/8 w - - 0 1',
+    solutionMoves: ['Rd4'],
+    rating: 2250,
+    themes: ['lucena_building_bridge', 'rook_endgame'],
+    description: 'Rd4! initiates the Lucena bridge-building technique, shielding the king on the 4th rank to force pawn promotion.',
+    authorOrGame: 'Lucena Position Technique (1497)',
+  },
+  {
+    id: 'puzzle-28',
+    fen: '8/8/8/8/4k3/8/4K3/8 w - - 0 1',
+    solutionMoves: ['Kd2', 'Kd4', 'Ke2'],
+    rating: 2300,
+    themes: ['opposition', 'triangulation', 'endgame'],
+    description: 'Seizing the horizontal and distant opposition forces the enemy king to cede key infiltration squares.',
+    authorOrGame: 'Distant Opposition Masterclass',
+  },
+  {
+    id: 'puzzle-29',
+    fen: '8/p7/1p6/8/8/1P6/P7/k1K5 w - - 0 1',
+    solutionMoves: ['a4', 'a5', 'b4'],
+    rating: 2400,
+    themes: ['zugzwang', 'pawn_breakthrough'],
+    description: 'a4! locks Black in pure Zugzwang: any legal pawn push irrevocably collapses the queenside pawn barricade.',
+    authorOrGame: 'Reti Endgame Study',
+  },
+  {
+    id: 'puzzle-30',
+    fen: 'r1b1k2r/ppppqppp/2n5/4n3/1bP2B2/5N2/PP1NPPPP/R2QKB1R w KQkq - 0 7',
+    solutionMoves: ['Nxe5', 'Bxd2+', 'Qxd2', 'Nxe5'],
+    rating: 1520,
+    themes: ['exchange_tactic', 'central_tension'],
+    description: 'Nxe5 resolves the tactical tension in the center and defuses Black’s pinned bishop trap on b4.',
+    authorOrGame: 'Budapest Gambit Refutation',
   },
 ];
 
 export class PuzzleService {
+  private static livePuzzleCache: Map<string, ServerTacticalPuzzle> = new Map();
+  private static lastLichessDailyFetch: number = 0;
+  private static cachedDailyPuzzle: ServerTacticalPuzzle | null = null;
+
+  /**
+   * Fetches the official daily puzzle from Lichess Open API
+   * Endpoint: https://lichess.org/api/puzzle/daily
+   */
+  static async fetchLiveLichessDailyPuzzle(): Promise<ServerTacticalPuzzle | null> {
+    const now = Date.now();
+    // Cache daily puzzle in memory for 1 hour
+    if (this.cachedDailyPuzzle && now - this.lastLichessDailyFetch < 3600000) {
+      return this.cachedDailyPuzzle;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      const res = await fetch('https://lichess.org/api/puzzle/daily', {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data?.puzzle || !data?.game) return null;
+
+      // Parse game moves up to the initial puzzle ply using chess.js
+      const pgn = data.game.pgn;
+      const initialPly = data.puzzle.initialPly || 0;
+      const sim = new Chess();
+
+      if (pgn) {
+        try {
+          sim.loadPgn(pgn);
+          // Rewind back to initial puzzle ply
+          const history = sim.history({ verbose: true });
+          const setupChess = new Chess();
+          for (let i = 0; i < Math.min(initialPly, history.length); i++) {
+            setupChess.move(history[i]);
+          }
+
+          // Translate UCI solution moves into SAN
+          const solutionSan: string[] = [];
+          for (const uci of data.puzzle.solution || []) {
+            if (uci.length >= 4) {
+              const from = uci.slice(0, 2);
+              const to = uci.slice(2, 4);
+              const promotion = uci.length > 4 ? uci.slice(4, 5) : undefined;
+              const m = setupChess.move({ from, to, promotion });
+              if (m) solutionSan.push(m.san);
+            }
+          }
+
+          if (solutionSan.length > 0) {
+            const dailyPuzzle: ServerTacticalPuzzle = {
+              id: `lichess-daily-${data.puzzle.id}`,
+              fen: setupChess.fen(),
+              solutionMoves: solutionSan,
+              rating: data.puzzle.rating || 1500,
+              themes: data.puzzle.themes || ['tactics'],
+              description: `Find the best tactical sequence! Official community-rated puzzle #${data.puzzle.id}.`,
+              authorOrGame: `Lichess Master Puzzle #${data.puzzle.id}`,
+              plays: data.puzzle.plays,
+            };
+
+            this.cachedDailyPuzzle = dailyPuzzle;
+            this.lastLichessDailyFetch = now;
+            this.livePuzzleCache.set(dailyPuzzle.id, dailyPuzzle);
+            return dailyPuzzle;
+          }
+        } catch (err) {
+          console.warn('[PuzzleService] Error parsing Lichess daily puzzle PGN:', err);
+        }
+      }
+    } catch {
+      // Network failure or rate limit — gracefully fallback to local bank
+    }
+
+    return null;
+  }
+
   /**
    * Retrieves deterministic daily puzzle based on date string YYYY-MM-DD
    */
   static getDailyPuzzle(): ServerTacticalPuzzle {
+    if (this.cachedDailyPuzzle) return this.cachedDailyPuzzle;
+
     const today = new Date().toISOString().slice(0, 10);
     let hash = 0;
     for (let i = 0; i < today.length; i++) {
@@ -211,14 +396,15 @@ export class PuzzleService {
   }
 
   /**
-   * Retrieves random puzzle with optional theme or rating filters
+   * Retrieves multiple randomized tactical puzzles matching criteria
    */
-  static getRandomPuzzle(params?: {
+  static getRandomPuzzles(params?: {
+    count?: number;
     theme?: string;
     minRating?: number;
     maxRating?: number;
-  }): ServerTacticalPuzzle {
-    let pool = SERVER_PUZZLES_DATABASE;
+  }): ServerTacticalPuzzle[] {
+    let pool = [...SERVER_PUZZLES_DATABASE, ...Array.from(this.livePuzzleCache.values())];
 
     if (params?.theme) {
       const themeLower = params.theme.toLowerCase();
@@ -235,17 +421,48 @@ export class PuzzleService {
       if (filtered.length > 0) pool = filtered;
     }
 
-    const idx = Math.floor(Math.random() * pool.length);
-    return pool[idx];
+    const count = Math.min(50, Math.max(1, params?.count || 10));
+    const shuffled = [...pool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled.slice(0, count);
   }
 
   /**
-   * Verifies puzzle solution and calculates Glicko-2 rating update
+   * Retrieves random puzzle with optional theme or rating filters
+   */
+  static getRandomPuzzle(params?: {
+    theme?: string;
+    minRating?: number;
+    maxRating?: number;
+  }): ServerTacticalPuzzle {
+    const list = this.getRandomPuzzles({ ...params, count: 1 });
+    return list[0] || SERVER_PUZZLES_DATABASE[0];
+  }
+
+  /**
+   * Validates submitted puzzle moves and computes official Glicko-2 rating adjustment
    */
   static solvePuzzle(params: {
     puzzleId: string;
     submittedMoves: string[];
     playerRating?: Glicko2Rating;
+    userRating?: Glicko2Rating;
+  }) {
+    return this.verifyPuzzleSolution({
+      puzzleId: params.puzzleId,
+      submittedMoves: params.submittedMoves,
+      userRating: params.playerRating || params.userRating,
+    });
+  }
+
+  static verifyPuzzleSolution(params: {
+    puzzleId: string;
+    submittedMoves: string[];
+    userRating?: Glicko2Rating;
   }): {
     success: boolean;
     solved: boolean;
@@ -253,11 +470,25 @@ export class PuzzleService {
     ratingDelta: number;
     expectedMoves: string[];
   } {
-    const puzzle =
-      SERVER_PUZZLES_DATABASE.find((p) => p.id === params.puzzleId) ||
-      SERVER_PUZZLES_DATABASE[0];
+    const allPuzzles = [...SERVER_PUZZLES_DATABASE, ...Array.from(this.livePuzzleCache.values())];
+    const puzzle = allPuzzles.find((p) => p.id === params.puzzleId);
 
-    const currentRating: Glicko2Rating = params.playerRating || {
+    if (!puzzle) {
+      const fallbackRating: Glicko2Rating = params.userRating || {
+        rating: 1500,
+        rd: 200,
+        vol: 0.06,
+      };
+      return {
+        success: false,
+        solved: false,
+        updatedRating: fallbackRating,
+        ratingDelta: 0,
+        expectedMoves: [],
+      };
+    }
+
+    const currentRating: Glicko2Rating = params.userRating || {
       rating: 1500,
       rd: 200,
       vol: 0.06,
@@ -265,11 +496,10 @@ export class PuzzleService {
 
     const puzzleGlicko: Glicko2Rating = {
       rating: puzzle.rating,
-      rd: 75,
+      rd: puzzle.ratingDeviation || 75,
       vol: 0.06,
     };
 
-    // Verify submitted moves match solution
     const isSolved =
       params.submittedMoves.length > 0 &&
       params.submittedMoves.every(
@@ -291,23 +521,19 @@ export class PuzzleService {
 
   /**
    * Lichess-grade tactical candidate extractor from a completed game PGN/move list
-   * Scans for positions following an opponent blunder where exactly ONE move wins decisively.
    */
   static async extractPuzzlesFromGame(sanMoves: string[]): Promise<ServerTacticalPuzzle[]> {
     const candidates: ServerTacticalPuzzle[] = [];
     const runner = new Chess();
     const evalHistory: { fen: string; evalCp: number; bestSan: string }[] = [];
 
-    // Step 1: Scan and evaluate positions with Stockfish
     for (let ply = 0; ply < sanMoves.length; ply++) {
-      const fenBefore = runner.fen();
       try {
         runner.move(sanMoves[ply]);
       } catch {
         break;
       }
 
-      // Sample every second move past opening book
       if (ply >= 8 && ply < 60) {
         const evalRes = await evaluatePositionStockfish(runner.fen(), 9, 2);
         evalHistory.push({
@@ -316,16 +542,13 @@ export class PuzzleService {
           bestSan: evalRes.bestMoveSan,
         });
 
-        // Step 2: Check for sharp turning point
         if (evalHistory.length >= 2) {
           const prev = evalHistory[evalHistory.length - 2];
           const curr = evalHistory[evalHistory.length - 1];
 
-          // Opponent blunder condition: large swing (>= 200 cp)
           const swing = Math.abs(curr.evalCp - prev.evalCp);
           const hasBigSwing = swing >= 220;
 
-          // Only Move Check: Ensure Multi-PV line 1 beats line 2 by >= 150 cp
           const secondBestScore = evalRes.lines[1]?.scoreCp ?? (evalRes.scoreCp - 200);
           const isOnlyMove = Math.abs(evalRes.scoreCp - secondBestScore) >= 150;
 
@@ -336,13 +559,13 @@ export class PuzzleService {
               solutionMoves: [evalRes.bestMoveSan],
               rating: Math.min(2200, Math.max(900, 1200 + Math.round(swing * 1.5))),
               themes: ['tactical_punishment', 'blunder_punish'],
-              description: `Find the decisive winning move following the opponent's critical blunder on ply ${ply + 1}.`,
+              description: `Find the decisive winning move following the critical blunder on ply ${ply + 1}.`,
             });
           }
         }
       }
     }
 
-    return candidates.slice(0, 3); // Return top candidate puzzles
+    return candidates.slice(0, 3);
   }
 }

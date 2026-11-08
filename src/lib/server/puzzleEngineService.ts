@@ -260,16 +260,16 @@ export class PuzzleEngineService {
             .filter((p: any) => !existingIds.has(p.id))
             .map((p: any) => ({
               id: p.id,
-              title: p.title || `${p.theme || 'Tactical'} Master Challenge`,
+              title: p.title || `${p.theme || (p.themes && p.themes[0]) || 'Tactical'} Master Challenge`,
               rating: p.rating || 1500,
-              theme: p.theme || 'Tactics',
+              theme: p.theme || (p.themes && p.themes[0]) || 'Tactics',
               fen: p.fen,
-              moves: p.moves || [],
-              solutionDescription: p.description || 'Find the tactical refutation.',
+              moves: p.moves || p.solutionMoves || [],
+              solutionDescription: p.description || p.solutionDescription || 'Find the tactical refutation.',
               pillar: (pillar || 'tactics') as PuzzlePillar,
               tier: p.rating < 1300 ? 'fundamentals' : p.rating < 1650 ? 'club' : p.rating < 1950 ? 'advanced' : 'master',
               xpReward: p.rating < 1300 ? 15 : p.rating < 1650 ? 25 : p.rating < 1950 ? 40 : 60,
-              coachHint: p.theme || 'Look for tactical relationships',
+              coachHint: p.theme || (p.themes && p.themes[0]) || 'Look for tactical relationships',
             }));
 
           const updatedBuffer = [...currentBuffer, ...newPuzzles].slice(0, 50);

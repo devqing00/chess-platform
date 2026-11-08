@@ -8,7 +8,7 @@ import {
   KeyMoment,
   ChessVariant,
   GameResultDetails,
-} from '@/types/chess';
+} from '../types/chess';
 import { Chess } from 'chess.js';
 import { ChessEvaluator } from './chessEngine';
 import { CHESS_BOTS } from './botsData';
@@ -426,9 +426,13 @@ export function generateGameReviewReport(
   moves: MoveRecord[],
   skipReanalysis: boolean = false
 ): GameReviewReport {
-  // Deeply analyze game history with engine evaluator unless pre-calculated or explicitly skipped
+  const hasCompleteEvaluations =
+    moves.length > 0 &&
+    moves.every((m) => m.evalAfter !== undefined && m.classification !== undefined);
+
+  // Deeply analyze game history with engine evaluator unless complete evaluations exist
   let analyzedMoves: MoveRecord[] = [];
-  if (skipReanalysis) {
+  if (skipReanalysis && hasCompleteEvaluations) {
     analyzedMoves = moves;
   } else if (moves.length > 0) {
     analyzedMoves = ChessEvaluator.analyzeGameHistory(moves);
@@ -777,7 +781,10 @@ export class GameSessionStore {
       session = this.createSession(defaultWhite, defaultBlack, 600);
     }
 
-    const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves, true);
+    const hasEvaluations =
+      moves.length > 0 &&
+      moves.every((m) => m.evalAfter !== undefined && m.classification !== undefined);
+    const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves, hasEvaluations);
     report.gameResult = gameResult;
     report.resultDetails = resultDetails;
     report.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;

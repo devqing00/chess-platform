@@ -86,28 +86,13 @@ function uciToSan(fen: string, uci: string): string {
   }
 }
 
-// In-process Stockfish loader: Use single-threaded WASM (never multithreaded which locks Node.js)
-let initStockfishEngine: (() => any) | null = null;
-try {
-  initStockfishEngine = require('stockfish/bin/stockfish-19-lite-single.js');
-} catch {
-  try {
-    initStockfishEngine = require('stockfish/bin/stockfish-19-single.js');
-  } catch {
-    try {
-      initStockfishEngine = require('stockfish/bin/stockfish-19-asm.js');
-    } catch (err) {
-      console.warn('[Stockfish] In-process require failed, will use child process fallback:', err);
-    }
-  }
-}
-
 /**
- * Single Stockfish worker (supports in-process WASM/ASM with child_process fallback)
+ * Dedicated Stockfish worker running in an isolated Node.js child process.
+ * This completely isolates Stockfish WASM/ASM from Next.js / Turbopack virtual paths
+ * and eliminates C:\ROOT ENOENT errors.
  */
 class StockfishWorker {
   public id: number;
-  private engine: any = null;
   private process: ChildProcess | null = null;
   public isBusy: boolean = false;
   public isReady: boolean = false;
@@ -118,36 +103,6 @@ class StockfishWorker {
   constructor(id: number, onReady?: () => void) {
     this.id = id;
     this.onReadyCallback = onReady;
-    this.initEngine();
-  }
-
-  public initEngine() {
-    if (initStockfishEngine) {
-      try {
-        this.engine = initStockfishEngine();
-        this.engine.listener = (line: string) => {
-          const trimmed = line.trim();
-          if (!this.isReady && (trimmed.startsWith('bestmove') || trimmed.startsWith('uciok') || trimmed.startsWith('readyok'))) {
-            this.isReady = true;
-            if (this.onReadyCallback) {
-              const cb = this.onReadyCallback;
-              setTimeout(() => cb(), 0);
-            }
-          }
-          if (this.currentHandler) {
-            this.currentHandler(trimmed);
-          }
-        };
-        this.engine.processCommand('uci');
-        this.engine.processCommand('setoption name Threads value 1');
-        this.engine.processCommand('setoption name Hash value 32');
-        this.engine.processCommand('isready');
-        return;
-      } catch (err) {
-        console.warn(`[StockfishWorker ${this.id}] In-process init failed, trying child process:`, err);
-      }
-    }
-
     this.initProcess();
   }
 
@@ -158,12 +113,14 @@ class StockfishWorker {
       } catch {
         // ignore
       }
+      this.process = null;
     }
 
     const cp = typeof require !== 'undefined' ? eval("require('child_process')") : null;
+    if (!cp) return;
+
     const rootDir = process.cwd();
     const scriptPath = path.resolve(rootDir, 'scripts', 'engine-cli.js');
-    if (!cp) return;
 
     try {
       this.process = cp.spawn('node', [scriptPath], {
@@ -176,6 +133,35 @@ class StockfishWorker {
     }
 
     if (!this.process) return;
+
+    this.process.stdout?.on('data', (chunk: Buffer) => {
+      this.buffer += chunk.toString();
+      const rawLines = this.buffer.split('\n');
+      this.buffer = rawLines.pop() || '';
+      for (const raw of rawLines) {
+        const line = raw.trim();
+        if (!line) continue;
+
+        if (!this.isReady && (line.startsWith('readyok') || line.startsWith('uciok') || line.startsWith('bestmove'))) {
+          this.isReady = true;
+          if (this.onReadyCallback) {
+            const cb = this.onReadyCallback;
+            setTimeout(() => cb(), 0);
+          }
+        }
+
+        if (this.currentHandler) {
+          this.currentHandler(line);
+        }
+      }
+    });
+
+    this.process.stderr?.on('data', (chunk: Buffer) => {
+      const errStr = chunk.toString().trim();
+      if (errStr) {
+        console.warn(`[StockfishWorker ${this.id}] stderr:`, errStr);
+      }
+    });
 
     this.process.on('error', (err) => {
       console.error(`[StockfishWorker ${this.id}] Process error:`, err);
@@ -194,7 +180,6 @@ class StockfishWorker {
       this.process.stdin.write('setoption name Threads value 1\n');
       this.process.stdin.write('setoption name Hash value 32\n');
       this.process.stdin.write('isready\n');
-      this.isReady = true;
     }
   }
 
@@ -270,6 +255,11 @@ class StockfishWorker {
         return;
       }
 
+      // If process died, restart it
+      if (!this.process || !this.process.stdin) {
+        this.initProcess();
+      }
+
       const isWhiteTurn = chess.turn() === 'w';
       const linesMap = new Map<number, MultiPvLine>();
       let maxDepth = 0;
@@ -286,9 +276,6 @@ class StockfishWorker {
           timer = null;
         }
         this.currentHandler = null;
-        if (this.process && this.process.stdout) {
-          this.process.stdout.removeListener('data', onProcessData);
-        }
       };
 
       const finishAndResolve = (evaluation: EngineEvaluation) => {
@@ -378,25 +365,12 @@ class StockfishWorker {
         }
       };
 
-      const onProcessData = (chunk: Buffer) => {
-        this.buffer += chunk.toString();
-        const rawLines = this.buffer.split('\n');
-        this.buffer = rawLines.pop() || '';
-        for (const line of rawLines) {
-          handleUciLine(line.trim());
-        }
-      };
-
       const timeCap = Math.max(40, timeoutMs || 1500);
 
       timer = setTimeout(() => {
         if (searchFinished) return;
         // Stop current engine search; it will emit bestmove momentarily
-        if (this.engine) {
-          try {
-            this.engine.processCommand('stop');
-          } catch {}
-        } else if (this.process?.stdin) {
+        if (this.process?.stdin) {
           try {
             this.process.stdin.write('stop\n');
           } catch {}
@@ -454,24 +428,7 @@ class StockfishWorker {
         }, 500);
       }, timeCap + 400);
 
-      // Branch 1: In-process Stockfish engine (Fastest, 0 IPC latency, 100% reliable)
-      if (this.engine) {
-        this.currentHandler = handleUciLine;
-        try {
-          this.engine.processCommand(`setoption name MultiPV value ${Math.min(5, Math.max(1, multiPv))}`);
-          this.engine.processCommand(`position fen ${fen}`);
-          this.engine.processCommand(`go depth ${depth} movetime ${timeCap}`);
-        } catch (err) {
-          cleanup();
-          reject(err);
-        }
-        return;
-      }
-
-      // Branch 2: Child process fallback
-      if (this.process?.stdout) {
-        this.process.stdout.on('data', onProcessData);
-      }
+      this.currentHandler = handleUciLine;
 
       if (this.process?.stdin) {
         try {
@@ -485,7 +442,7 @@ class StockfishWorker {
         return;
       }
 
-      // Fallback if neither engine nor child process is available
+      // Fallback if child process is not available
       cleanup();
       const best = ChessEvaluator.findBestMoveAndScore(chess);
       resolve({
@@ -533,9 +490,9 @@ class StockfishProcessPool {
   private queue: QueuedTask[] = [];
   private cache: Map<string, EngineEvaluation> = new Map();
   private maxCacheSize: number = 5000;
-  private poolSize: number = 1; // 1 dedicated singleton worker because asm.js uses global memory in process
+  private poolSize: number = 2; // 2 concurrent child process workers
 
-  constructor(poolSize: number = 1) {
+  constructor(poolSize: number = 2) {
     this.poolSize = poolSize;
     for (let i = 0; i < this.poolSize; i++) {
       this.workers.push(new StockfishWorker(i + 1, () => this.dispatchNext()));
@@ -629,7 +586,7 @@ let globalPool: StockfishProcessPool | null = null;
 
 function getGlobalPool(): StockfishProcessPool {
   if (!globalPool) {
-    globalPool = new StockfishProcessPool(1);
+    globalPool = new StockfishProcessPool(2);
   }
   return globalPool;
 }
