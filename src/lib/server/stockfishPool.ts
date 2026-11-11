@@ -697,28 +697,30 @@ class StockfishProcessPool {
       return;
     }
 
-    // Find an idle ready worker
-    const idleWorker = this.workers.find((w) => !w.isBusy && w.isReady && w.isAlive());
-    if (!idleWorker) {
-      return;
+    while (this.queue.length > 0) {
+      // Find an idle ready worker
+      const idleWorker = this.workers.find((w) => !w.isBusy && w.isReady && w.isAlive());
+      if (!idleWorker) {
+        break;
+      }
+
+      const task = this.queue.shift();
+      if (!task) break;
+
+      idleWorker.isBusy = true;
+      idleWorker
+        .executeEval(task.fen, task.depth, task.multiPv, task.timeoutMs)
+        .then((res) => {
+          task.resolve(res);
+        })
+        .catch(() => {
+          task.resolve(buildFallbackEvaluation(task.fen, task.depth));
+        })
+        .finally(() => {
+          idleWorker.isBusy = false;
+          this.dispatchNext();
+        });
     }
-
-    const task = this.queue.shift();
-    if (!task) return;
-
-    idleWorker.isBusy = true;
-    idleWorker
-      .executeEval(task.fen, task.depth, task.multiPv, task.timeoutMs)
-      .then((res) => {
-        task.resolve(res);
-      })
-      .catch(() => {
-        task.resolve(buildFallbackEvaluation(task.fen, task.depth));
-      })
-      .finally(() => {
-        idleWorker.isBusy = false;
-        this.dispatchNext();
-      });
   }
 }
 
@@ -727,7 +729,8 @@ const globalForStockfish = globalThis as unknown as { stockfishPool?: StockfishP
 
 function getGlobalPool(): StockfishProcessPool {
   if (!globalForStockfish.stockfishPool) {
-    globalForStockfish.stockfishPool = new StockfishProcessPool(2);
+    const defaultWorkers = Math.min(4, Math.max(2, (require('os').cpus()?.length || 2) - 1));
+    globalForStockfish.stockfishPool = new StockfishProcessPool(defaultWorkers);
   }
   return globalForStockfish.stockfishPool;
 }

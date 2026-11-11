@@ -2140,22 +2140,22 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               {activeMoveIndex > 0 ? (
                 <button
                   onClick={handlePrevMove}
-                  className="flex-1 py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
+                  className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
                   title="Previous move"
                 >
-                  <span className="text-zinc-500 font-sans text-[10px]">
+                  <span className="text-zinc-500 font-sans text-[10px] shrink-0">
                     {Math.floor((activeMoveIndex - 1) / 2) + 1}.
                   </span>
                   <span className="truncate">{moves[activeMoveIndex - 1]?.san}</span>
                 </button>
               ) : (
-                <div className="flex-1 py-1 px-2 text-center text-zinc-600 text-xs">—</div>
+                <div className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 text-center text-zinc-600 text-xs">—</div>
               )}
 
-              {/* Currently Active Move (Played, Best, or Show Follow-up) */}
-              <div className="flex-1 py-1 px-2.5 rounded-lg bg-[#332f28] border border-[#524b3f] font-black text-white shadow-sm flex items-center justify-center gap-1.5">
+              {/* Currently Active Move (Played, Best, or Show Follow-up): Prominently wider, never wraps or truncates */}
+              <div className="flex-[1.6] sm:flex-[1.8] min-w-0 py-1 px-2.5 rounded-lg bg-[#332f28] border border-[#524b3f] font-black text-white shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap">
                 <ClassificationBadge classification={displayedBadgeClass} size="sm" />
-                <span className="text-xs font-black text-white truncate">
+                <span className="text-xs font-black text-white shrink-0 whitespace-nowrap">
                   {showBestMove && bestMoveVariation
                     ? bestMoveVariation.san
                     : showFollowUpMove && followUpVariation
@@ -2163,7 +2163,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                     : activeMove?.san || ''}
                 </span>
                 {activeMove?.timeSpentSeconds !== undefined && activeMove.timeSpentSeconds > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-zinc-300">
+                  <span className="text-[10px] font-mono font-bold text-zinc-300 shrink-0 whitespace-nowrap inline-flex items-center gap-0.5">
                     ⏱{activeMove.timeSpentSeconds < 60 ? `${activeMove.timeSpentSeconds.toFixed(1)}s` : `${Math.floor(activeMove.timeSpentSeconds / 60)}m`}
                   </span>
                 )}
@@ -2172,16 +2172,16 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               {activeMoveIndex < moves.length - 1 ? (
                 <button
                   onClick={handleNextMove}
-                  className="flex-1 py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
+                  className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
                   title="Next move"
                 >
-                  <span className="text-zinc-500 font-sans text-[10px]">
+                  <span className="text-zinc-500 font-sans text-[10px] shrink-0">
                     {Math.floor((activeMoveIndex + 1) / 2) + 1}.
                   </span>
                   <span className="truncate">{moves[activeMoveIndex + 1]?.san}</span>
                 </button>
               ) : (
-                <div className="flex-1 py-1 px-2 text-center text-zinc-600 text-xs">—</div>
+                <div className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 text-center text-zinc-600 text-xs">—</div>
               )}
             </div>
           </div>

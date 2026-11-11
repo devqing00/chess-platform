@@ -398,7 +398,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
               const data = await res.json();
               if (data.success && data.report) {
                 data.report.isDeepReview = true;
-                data.report.reviewVersion = 'v3.0';
+                data.report.reviewVersion = 'v6.0';
                 data.report.gameResult = resultString;
                 data.report.resultDetails = details;
                 const session = GameSessionStore.getSession(gameId);

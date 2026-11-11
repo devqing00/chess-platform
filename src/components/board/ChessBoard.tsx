@@ -155,8 +155,12 @@ const BoardSquare = React.memo<BoardSquareProps>(function BoardSquare({
       !isFastForward
   );
 
-  // Badges are positioned strictly at standard top-right corner of each square
-  const badgePositionClass = '-top-1.5 sm:-top-2 -right-1.5 sm:-right-2';
+  // Prevent badges from being cut off at the outer top and right edges of the chessboard
+  const isRightEdge = fileIdx === 7;
+  const isTopEdge = rankIdx === 0;
+  const badgeTopClass = isTopEdge ? 'top-0.5 sm:top-1' : '-top-1.5 sm:-top-2';
+  const badgeRightClass = isRightEdge ? 'right-0.5 sm:right-1' : '-right-1.5 sm:-right-2';
+  const badgePositionClass = `${badgeTopClass} ${badgeRightClass}`;
 
   // 1. Background layer (Tiles, Highlights, Coordinates, Glows)
   if (layer === 'background') {

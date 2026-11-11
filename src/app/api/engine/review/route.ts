@@ -168,6 +168,21 @@ export async function POST(req: NextRequest) {
     const whiteClassifications: MoveClassification[] = [];
     const blackClassifications: MoveClassification[] = [];
 
+    interface PreparedPly {
+      ply: number;
+      san: string;
+      isWhite: boolean;
+      moveNumber: number;
+      fenBefore: string;
+      fenAfter: string;
+      playedMove: any;
+      isBookMove: boolean;
+      isCheck: boolean;
+      isCheckmate: boolean;
+      eval?: any;
+    }
+
+    const preparedPlies: PreparedPly[] = [];
     let inBook = true;
     for (let ply = 0; ply < sanMoves.length; ply++) {
       const san = sanMoves[ply];
@@ -190,6 +205,8 @@ export async function POST(req: NextRequest) {
       }
 
       const fenAfter = runner.fen();
+      const isCheck = runner.inCheck();
+      const isCheckmate = runner.isCheckmate();
 
       // Authentically check opening theory against master 3,800+ ECO opening database
       let isBookMove = false;
@@ -204,62 +221,86 @@ export async function POST(req: NextRequest) {
         inBook = false;
       }
 
-      // Fast-path opening book moves (0 engine search delay)
-      let currentEval: any;
-      if (isBookMove) {
-        const bookScore = isWhite ? 20 : -20;
-        currentEval = {
-          fen: fenAfter,
-          depth: targetDepth,
-          seldepth: targetDepth,
-          nodes: 100,
-          nps: 100000,
-          scoreCp: bookScore,
-          scoreFormatted: isWhite ? '+0.20' : '-0.20',
-          bestMoveSan: san,
-          bestMoveUci: playedMove ? `${playedMove.from}${playedMove.to}` : '',
-          pvSan: [san],
-          pvUci: [],
-          lines: [
-            {
-              rank: 1,
-              scoreCp: bookScore,
-              scoreFormatted: isWhite ? '+0.20' : '-0.20',
-              bestMoveSan: san,
-              bestMoveUci: playedMove ? `${playedMove.from}${playedMove.to}` : '',
-              pvSan: [san],
-              pvUci: [],
-            },
-          ],
-        };
-      } else {
-        const plyBudget = Math.min(100, Math.max(50, timeBudgetMs || 70));
-        const timeoutPerPly = Math.max(3000, plyBudget * 4); // Gives engine sufficient headroom
+      preparedPlies.push({
+        ply,
+        san,
+        isWhite,
+        moveNumber,
+        fenBefore,
+        fenAfter,
+        playedMove,
+        isBookMove,
+        isCheck,
+        isCheckmate,
+      });
+    }
+
+    // Evaluate all positions concurrently through multi-worker Stockfish pool
+    const plyBudget = Math.min(80, Math.max(35, timeBudgetMs || 50));
+    const timeoutPerPly = Math.max(3500, plyBudget * 4);
+
+    await Promise.all(
+      preparedPlies.map(async (p) => {
+        if (p.isBookMove) {
+          const bookScore = p.isWhite ? 20 : -20;
+          p.eval = {
+            fen: p.fenAfter,
+            depth: targetDepth,
+            seldepth: targetDepth,
+            nodes: 100,
+            nps: 100000,
+            scoreCp: bookScore,
+            scoreFormatted: p.isWhite ? '+0.20' : '-0.20',
+            bestMoveSan: p.san,
+            bestMoveUci: p.playedMove ? `${p.playedMove.from}${p.playedMove.to}` : '',
+            pvSan: [p.san],
+            pvUci: [],
+            lines: [
+              {
+                rank: 1,
+                scoreCp: bookScore,
+                scoreFormatted: p.isWhite ? '+0.20' : '-0.20',
+                bestMoveSan: p.san,
+                bestMoveUci: p.playedMove ? `${p.playedMove.from}${p.playedMove.to}` : '',
+                pvSan: [p.san],
+                pvUci: [],
+              },
+            ],
+          };
+          return;
+        }
+
         try {
-          currentEval = await Promise.race([
-            evaluatePositionStockfish(fenAfter, targetDepth, multiPv, plyBudget),
+          p.eval = await Promise.race([
+            evaluatePositionStockfish(p.fenAfter, targetDepth, multiPv, plyBudget),
             new Promise<any>((_, reject) =>
               setTimeout(() => reject(new Error('Per-ply Stockfish eval timeout')), timeoutPerPly)
             ),
           ]);
         } catch {
-          currentEval = buildFallbackEvaluation(fenAfter, targetDepth);
+          p.eval = buildFallbackEvaluation(p.fenAfter, targetDepth);
         }
-      }
 
-      // Check tablebase for endgame only when 7 or fewer pieces remain on board (instant 0ms local evaluation)
-      const pieceCount = (fenAfter.split(' ')[0].match(/[pnbrqkPNBRQK]/g) || []).length;
-      if (pieceCount <= 7) {
-        const localTb = evaluateLocalEndgame(fenAfter);
-        if (localTb) {
-          currentEval.tablebase = {
-            category: localTb.category || 'draw',
-            dtz: localTb.dtz ?? null,
-            bestMoveUci: localTb.bestMoveUci,
-            bestMoveSan: localTb.bestMoveSan,
-          };
+        // Check tablebase for endgame only when 7 or fewer pieces remain on board (instant 0ms local evaluation)
+        const pieceCount = (p.fenAfter.split(' ')[0].match(/[pnbrqkPNBRQK]/g) || []).length;
+        if (pieceCount <= 7) {
+          const localTb = evaluateLocalEndgame(p.fenAfter);
+          if (localTb) {
+            p.eval.tablebase = {
+              category: localTb.category || 'draw',
+              dtz: localTb.dtz ?? null,
+              bestMoveUci: localTb.bestMoveUci,
+              bestMoveSan: localTb.bestMoveSan,
+            };
+          }
         }
-      }
+      })
+    );
+
+    for (let ply = 0; ply < preparedPlies.length; ply++) {
+      const p = preparedPlies[ply];
+      const { san, isWhite, moveNumber, fenBefore, fenAfter, playedMove, isBookMove, isCheck, isCheckmate } = p;
+      const currentEval = p.eval;
 
       const evalBeforeCp = prevEval.scoreCp;
       const evalAfterCp = currentEval.scoreCp;
@@ -289,7 +330,6 @@ export async function POST(req: NextRequest) {
 
       const pieceType = (playedMove?.piece || 'p') as PieceSymbol;
       const isCapture = Boolean(playedMove?.captured);
-      const isCheck = runner.inCheck();
 
       // Search for the played move in the lines evaluated at fenBefore (same search tree, 0 depth-horizon noise)
       const playedLineInBefore = prevEval.lines?.find(
@@ -379,7 +419,7 @@ export async function POST(req: NextRequest) {
       });
 
       const baseMotifs = detectTacticalMotifs({
-        chessAfter: runner,
+        chessAfter: new Chess(fenAfter),
         playedMoveSan: san,
         from: playedMove?.from,
         to: playedMove?.to,
@@ -395,7 +435,7 @@ export async function POST(req: NextRequest) {
         : undefined;
 
       // Checkmate Motif Enrichment
-      if (runner.isCheckmate() || san.includes('#')) {
+      if (isCheckmate || san.includes('#')) {
         if (ply <= 4 && (san === 'Qxf7#' || san === 'Qxf2#')) {
           activeMotif = {
             type: 'scholars_mate',
@@ -724,7 +764,7 @@ export async function POST(req: NextRequest) {
       moves: analyzedMoves,
       summaryComment,
       isDeepReview: true,
-      reviewVersion: 'v5.2',
+      reviewVersion: 'v6.0',
       gameResult: gameResult || (isCheckmateLast ? (whiteWonByMate ? '1-0' : '0-1') : undefined),
       resultDetails: resultDetails || {
         winner: isCheckmateLast ? (whiteWonByMate ? 'w' : 'b') : 'draw',

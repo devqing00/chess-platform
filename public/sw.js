@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-globals */
 // Check.mate Progressive Web App Service Worker
-// Version: checkmate-pwa-v1.0.0
+// Version: checkmate-pwa-v2.0.0
 
-const CACHE_NAME = 'checkmate-pwa-v1';
+const CACHE_NAME = 'checkmate-pwa-v2';
 const OFFLINE_URL = '/offline';
 
 // Pre-cached critical application shell & offline assets
@@ -53,19 +53,34 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((name) => {
-            if (name !== CACHE_NAME) {
+            if (name !== CACHE_NAME || self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
               return caches.delete(name);
             }
           })
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => {
+        if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') {
+          return self.registration.unregister();
+        }
+        return self.clients.claim();
+      })
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = request.url;
+
+  // 0. Completely bypass service worker in localhost / development
+  if (
+    self.location.hostname === 'localhost' ||
+    self.location.hostname === '127.0.0.1' ||
+    self.location.hostname.endsWith('.local') ||
+    self.location.port === '3000'
+  ) {
+    return;
+  }
 
   // 1. Only handle GET requests
   if (request.method !== 'GET') {
@@ -116,9 +131,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 5. Handle Static Assets (Images, Icons, Piece Assets, Fonts, CSS/JS chunks) -> Stale-While-Revalidate
-  const isStaticAsset =
-    url.includes('/_next/static/') ||
+  // 5. Handle Next.js code chunks (JS/CSS) -> Network First with Offline Fallback
+  // Crucial: Network First ensures browser always runs the JS bundle matching the server rendered HTML!
+  if (url.includes('/_next/')) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // 6. Handle Static Media Assets (Images, Icons, Piece Assets, Audio, Fonts) -> Stale-While-Revalidate
+  const isMediaAsset =
     url.includes('/pieces/') ||
     url.includes('/icons/') ||
     url.includes('/workers/') ||
@@ -128,7 +161,7 @@ self.addEventListener('fetch', (event) => {
     url.endsWith('.mp3') ||
     url.endsWith('.woff2');
 
-  if (isStaticAsset) {
+  if (isMediaAsset) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         const fetchPromise = fetch(request)
@@ -149,7 +182,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 6. Default fallback to standard fetch
+  // 7. Default fallback to standard fetch
   event.respondWith(
     fetch(request).catch(() => caches.match(request))
   );

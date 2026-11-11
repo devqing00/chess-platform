@@ -117,6 +117,34 @@ export function usePwaInstall(): UsePwaInstallReturn {
     let refreshing = false;
 
     if ('serviceWorker' in navigator) {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        Boolean(
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          window.location.hostname.endsWith('.local') ||
+          window.location.port === '3000' ||
+          process.env.NODE_ENV === 'development'
+        );
+
+      if (isLocalhost) {
+        // Proactively unregister any active service worker and delete all caches on localhost
+        // to prevent stale JS chunk caching and React hydration mismatches.
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
+        });
+        if ('caches' in window) {
+          caches.keys().then((names) => {
+            for (const name of names) {
+              caches.delete(name);
+            }
+          });
+        }
+        return;
+      }
+
       navigator.serviceWorker
         .register('/sw.js')
         .then((reg) => {

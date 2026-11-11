@@ -864,7 +864,10 @@ export class GameSessionStore {
     session.isGameOver = true;
     session.gameResult = gameResult;
     session.resultDetails = resultDetails;
-    session.reviewReport = report;
+    // CRITICAL: Do NOT store the unanalyzed preliminary report into session.reviewReport.
+    // Leaving session.reviewReport = null ensures the Review page computes authentic deep evaluations
+    // via /api/engine/review without ever getting locked into a dummy 99.9% report.
+    session.reviewReport = null;
     session.updatedAt = Date.now();
 
     this.saveSession(session);
