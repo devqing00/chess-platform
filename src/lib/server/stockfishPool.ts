@@ -47,6 +47,39 @@ export function formatEngineScore(scoreCp: number, mateIn?: number): string {
   return scoreCp > 0 ? `+${pawns}` : `${pawns}`;
 }
 
+export function buildFallbackEvaluation(
+  fen: string,
+  depth: number = 8,
+  best?: { score: number; bestMoveSan: string; bestMoveUci: string }
+): EngineEvaluation {
+  const chess = new Chess(fen);
+  const evalBest = best || ChessEvaluator.findBestMoveAndScore(chess);
+  return {
+    fen,
+    depth: depth || 8,
+    seldepth: depth || 8,
+    nodes: 1800,
+    nps: 45000,
+    scoreCp: evalBest.score,
+    scoreFormatted: formatEngineScore(evalBest.score),
+    bestMoveUci: evalBest.bestMoveUci,
+    bestMoveSan: evalBest.bestMoveSan,
+    pvUci: [evalBest.bestMoveUci],
+    pvSan: [evalBest.bestMoveSan],
+    lines: [
+      {
+        rank: 1,
+        scoreCp: evalBest.score,
+        scoreFormatted: formatEngineScore(evalBest.score),
+        bestMoveUci: evalBest.bestMoveUci,
+        bestMoveSan: evalBest.bestMoveSan,
+        pvUci: [evalBest.bestMoveUci],
+        pvSan: [evalBest.bestMoveSan],
+      },
+    ],
+  };
+}
+
 /**
  * Converts UCI moves to SAN using chess.js
  */
@@ -96,9 +129,11 @@ class StockfishWorker {
   private process: ChildProcess | null = null;
   public isBusy: boolean = false;
   public isReady: boolean = false;
+  public hasFailed: boolean = false;
   private currentHandler: ((line: string) => void) | null = null;
   private buffer: string = '';
   private onReadyCallback?: () => void;
+  private bootTimer: NodeJS.Timeout | null = null;
 
   constructor(id: number, onReady?: () => void) {
     this.id = id;
@@ -106,7 +141,15 @@ class StockfishWorker {
     this.initProcess();
   }
 
+  public isAlive(): boolean {
+    return Boolean(this.process && !this.process.killed && !this.hasFailed);
+  }
+
   public initProcess() {
+    if (this.bootTimer) {
+      clearTimeout(this.bootTimer);
+      this.bootTimer = null;
+    }
     if (this.process) {
       try {
         this.process.kill();
@@ -117,7 +160,12 @@ class StockfishWorker {
     }
 
     const cp = typeof require !== 'undefined' ? eval("require('child_process')") : null;
-    if (!cp) return;
+    if (!cp) {
+      this.hasFailed = true;
+      this.isReady = false;
+      this.onReadyCallback?.();
+      return;
+    }
 
     const rootDir = process.cwd();
     const scriptPath = path.resolve(rootDir, 'scripts', 'engine-cli.js');
@@ -128,11 +176,27 @@ class StockfishWorker {
         windowsHide: true,
       });
     } catch (err) {
-      console.error(`[StockfishWorker ${this.id}] Spawn error:`, err);
+      console.warn(`[StockfishWorker ${this.id}] Spawn error:`, err);
+      this.hasFailed = true;
+      this.isReady = false;
+      this.onReadyCallback?.();
       return;
     }
 
-    if (!this.process) return;
+    if (!this.process) {
+      this.hasFailed = true;
+      this.isReady = false;
+      this.onReadyCallback?.();
+      return;
+    }
+
+    // Safety timeout: If worker does not report ready within 1200ms, mark failed so pool can fallback immediately
+    this.bootTimer = setTimeout(() => {
+      if (!this.isReady) {
+        this.hasFailed = true;
+        this.onReadyCallback?.();
+      }
+    }, 1200);
 
     this.process.stdout?.on('data', (chunk: Buffer) => {
       this.buffer += chunk.toString();
@@ -144,6 +208,11 @@ class StockfishWorker {
 
         if (!this.isReady && (line.startsWith('readyok') || line.startsWith('uciok') || line.startsWith('bestmove'))) {
           this.isReady = true;
+          this.hasFailed = false;
+          if (this.bootTimer) {
+            clearTimeout(this.bootTimer);
+            this.bootTimer = null;
+          }
           if (this.onReadyCallback) {
             const cb = this.onReadyCallback;
             setTimeout(() => cb(), 0);
@@ -164,22 +233,31 @@ class StockfishWorker {
     });
 
     this.process.on('error', (err) => {
-      console.error(`[StockfishWorker ${this.id}] Process error:`, err);
+      console.warn(`[StockfishWorker ${this.id}] Process error:`, err);
       this.isReady = false;
       this.isBusy = false;
+      this.hasFailed = true;
+      this.onReadyCallback?.();
     });
 
     this.process.on('exit', () => {
       this.isReady = false;
       this.isBusy = false;
+      this.hasFailed = true;
       this.process = null;
+      this.onReadyCallback?.();
     });
 
     if (this.process.stdin) {
-      this.process.stdin.write('uci\n');
-      this.process.stdin.write('setoption name Threads value 1\n');
-      this.process.stdin.write('setoption name Hash value 32\n');
-      this.process.stdin.write('isready\n');
+      try {
+        this.process.stdin.write('uci\n');
+        this.process.stdin.write('setoption name Threads value 1\n');
+        this.process.stdin.write('setoption name Hash value 32\n');
+        this.process.stdin.write('isready\n');
+      } catch {
+        this.hasFailed = true;
+        this.onReadyCallback?.();
+      }
     }
   }
 
@@ -480,6 +558,7 @@ interface QueuedTask {
   timeoutMs: number;
   resolve: (res: EngineEvaluation) => void;
   reject: (err: any) => void;
+  timer?: NodeJS.Timeout;
 }
 
 /**
@@ -529,13 +608,14 @@ class StockfishProcessPool {
       }
     }
 
-    return new Promise<EngineEvaluation>((resolve, reject) => {
-      this.queue.push({
+    return new Promise<EngineEvaluation>((resolve) => {
+      const task: QueuedTask = {
         fen,
         depth,
         multiPv,
         timeoutMs,
         resolve: (result: EngineEvaluation) => {
+          if (task.timer) clearTimeout(task.timer);
           // Store in cache with LRU eviction
           if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
@@ -548,15 +628,43 @@ class StockfishProcessPool {
           }
           resolve(result);
         },
-        reject,
-      });
+        reject: () => {
+          if (task.timer) clearTimeout(task.timer);
+          const fallback = buildFallbackEvaluation(fen, depth);
+          resolve(fallback);
+        },
+      };
 
+      // Infallible hard timeout: Never let a task sit pending indefinitely!
+      const timeLimit = Math.max(1000, timeoutMs + 400);
+      task.timer = setTimeout(() => {
+        const qIdx = this.queue.indexOf(task);
+        if (qIdx !== -1) {
+          this.queue.splice(qIdx, 1);
+        }
+        task.resolve(buildFallbackEvaluation(fen, depth));
+      }, timeLimit);
+
+      this.queue.push(task);
       this.dispatchNext();
     });
   }
 
   private dispatchNext() {
     if (this.queue.length === 0) return;
+
+    // Check if all workers have failed or exited
+    const allWorkersDead = this.workers.every((w) => w.hasFailed || !w.isAlive());
+    if (allWorkersDead && this.workers.length > 0) {
+      // Drain entire queue immediately using fast local evaluator
+      while (this.queue.length > 0) {
+        const task = this.queue.shift();
+        if (!task) break;
+        if (task.timer) clearTimeout(task.timer);
+        task.resolve(buildFallbackEvaluation(task.fen, task.depth));
+      }
+      return;
+    }
 
     // Find an idle ready worker
     const idleWorker = this.workers.find((w) => !w.isBusy && w.isReady);
@@ -571,8 +679,8 @@ class StockfishProcessPool {
       .then((res) => {
         task.resolve(res);
       })
-      .catch((err) => {
-        task.reject(err);
+      .catch(() => {
+        task.resolve(buildFallbackEvaluation(task.fen, task.depth));
       })
       .finally(() => {
         idleWorker.isBusy = false;

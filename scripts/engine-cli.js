@@ -3,19 +3,27 @@ const path = require('path');
 
 function main() {
   let initEngine;
-  try {
-    initEngine = require('stockfish/bin/stockfish-19-lite-single.js');
-  } catch (err) {
+  const candidates = [
+    'stockfish/bin/stockfish-19-lite-single.js',
+    path.join(__dirname, '..', 'node_modules', 'stockfish', 'bin', 'stockfish-19-lite-single.js'),
+    path.join(process.cwd(), 'node_modules', 'stockfish', 'bin', 'stockfish-19-lite-single.js'),
+    'stockfish/bin/stockfish-19-asm.js',
+    path.join(__dirname, '..', 'node_modules', 'stockfish', 'bin', 'stockfish-19-asm.js'),
+    path.join(process.cwd(), 'node_modules', 'stockfish', 'bin', 'stockfish-19-asm.js'),
+  ];
+
+  for (const candidate of candidates) {
     try {
-      initEngine = require(path.join(__dirname, '..', 'node_modules', 'stockfish', 'bin', 'stockfish-19-lite-single.js'));
-    } catch (err2) {
-      try {
-        initEngine = require('stockfish/bin/stockfish-19-asm.js');
-      } catch (err3) {
-        console.error('Failed to load Stockfish engine:', err3);
-        process.exit(1);
-      }
+      initEngine = require(candidate);
+      if (typeof initEngine === 'function') break;
+    } catch {
+      // try next
     }
+  }
+
+  if (typeof initEngine !== 'function') {
+    console.error('Failed to load Stockfish engine from any candidate paths');
+    process.exit(1);
   }
 
   const engine = initEngine();

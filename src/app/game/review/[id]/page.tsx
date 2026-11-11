@@ -64,7 +64,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loadingStep, setLoadingStep] = useState('Evaluating game moves...');
-  const [loadingProgress, setLoadingProgress] = useState(18);
+  const [loadingProgress, setLoadingProgress] = useState(5);
   const [gamePgn, setGamePgn] = useState<string>('');
 
   // Rotating random facts (never repeated until entire pool is shown)
@@ -80,7 +80,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
     }
     setReport(null);
     setIsLoading(true);
-    setLoadingProgress(14);
+    setLoadingProgress(5);
     setReanalyzeNonce((prev) => prev + 1);
   };
 
@@ -106,11 +106,11 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
     if (!isLoading) return;
     const interval = setInterval(() => {
       setLoadingProgress((prev) => {
-        if (prev >= 94) return prev;
-        const jump = Math.floor(Math.random() * 8) + 4;
-        return Math.min(94, prev + jump);
+        // Soft gentle crawl during initial connection before move events arrive (up to 12% max)
+        if (prev >= 12) return prev;
+        return prev + 1;
       });
-    }, 380);
+    }, 450);
     return () => clearInterval(interval);
   }, [isLoading]);
 
@@ -379,6 +379,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
                   } else if (eventType === 'complete' && eventData.report) {
                     clearTimeout(timeoutTimer);
                     streamSuccess = true;
+                    if (isMounted) setLoadingProgress(100);
                     const finalReport = eventData.report;
                     finalReport.isDeepReview = true;
                     finalReport.reviewVersion = CURRENT_REVIEW_VERSION;
@@ -429,6 +430,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
             if (res.ok) {
               const data = await res.json();
               if (data.success && data.report) {
+                if (isMounted) setLoadingProgress(100);
                 data.report.isDeepReview = true;
                 data.report.reviewVersion = CURRENT_REVIEW_VERSION;
                 data.report.gameResult = session.gameResult;
@@ -486,6 +488,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
           GameSessionStore.saveSession(session);
         }
         if (isMounted) {
+          setLoadingProgress(100);
           setReport(aligned);
           setIsLoading(false);
         }

@@ -100,19 +100,24 @@ export const MatchVersusIntro: React.FC<MatchVersusIntroProps> = ({
           </div>
         </div>
 
-        {/* Center Stage: Unified Fighter Cards (Gradient White for White vs Gradient Dark for Black) */}
-        <div className="w-full flex flex-row items-center justify-center gap-2.5 sm:gap-4 md:gap-6">
-          {/* White Fighter Card (Gradient White Background with Crisp Black & Emerald Accents) */}
+        {/* Center Stage: Diagonal Fighter Clash (Top-Left White, Center VS, Bottom-Right Black across all screens) */}
+        <div className="relative w-full max-w-[420px] sm:max-w-[500px] md:max-w-[540px] flex flex-col justify-between gap-5 sm:gap-6 min-h-[210px] sm:min-h-[230px] my-2 sm:my-4 px-1">
+          {/* White Fighter Card (Top Left) */}
           <div
-            className={`flex-1 max-w-[240px] sm:max-w-[270px] p-2.5 sm:p-3.5 rounded-2xl bg-gradient-to-br from-white via-zinc-100 to-zinc-200 border border-white/90 shadow-[0_12px_28px_rgba(0,0,0,0.35)] flex items-center gap-2.5 sm:gap-3.5 transition-all duration-300 ease-out ${
+            className={`self-start w-[85%] sm:w-[260px] md:w-[270px] z-10 p-2.5 sm:p-3.5 rounded-2xl bg-gradient-to-br from-white via-zinc-50 to-zinc-200 border border-white/90 shadow-[0_12px_28px_rgba(0,0,0,0.35)] flex items-center gap-2.5 sm:gap-3.5 transition-all duration-300 ease-out ${
               isEntered && !isExiting
-                ? 'opacity-100 translate-x-0'
-                : 'opacity-0 -translate-x-6'
+                ? 'opacity-100 translate-x-0 translate-y-0'
+                : 'opacity-0 -translate-x-6 -translate-y-4'
             }`}
           >
             {/* Avatar Frame (Clean Light Base) */}
             <div className="relative shrink-0">
-              <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl bg-white border border-zinc-200 overflow-hidden flex items-center justify-center text-lg sm:text-xl shadow-xs">
+              {whitePlayer.isBot && (
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 px-1.5 py-0.5 rounded text-[8px] font-black font-mono tracking-wider bg-[#ca8a04] text-zinc-950 uppercase shadow-xs">
+                  BOT
+                </span>
+              )}
+              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-xl bg-white border border-zinc-200 overflow-hidden flex items-center justify-center text-lg sm:text-xl shadow-xs">
                 {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -152,30 +157,35 @@ export const MatchVersusIntro: React.FC<MatchVersusIntroProps> = ({
             </div>
           </div>
 
-          {/* Clean VS Divider */}
+          {/* Center VS Divider (Absolute Center Clash Badge) */}
           <div
-            className={`shrink-0 flex items-center justify-center transition-all duration-300 delay-75 ${
-              isEntered && !isExiting ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none transition-all duration-300 delay-75 ${
+              isEntered && !isExiting ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
             }`}
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-b from-[#2a2723] to-[#161512] border border-white/20 flex items-center justify-center shadow-lg">
-              <span className="text-[11px] font-black font-mono tracking-wider text-amber-400">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-b from-[#2a2723] to-[#161512] border border-white/20 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+              <span className="text-[11px] sm:text-xs font-black font-mono tracking-wider text-amber-400">
                 VS
               </span>
             </div>
           </div>
 
-          {/* Black Fighter Card (Gradient Obsidian Background with Crisp Light & Emerald Accents) */}
+          {/* Black Fighter Card (Bottom Right) */}
           <div
-            className={`flex-1 max-w-[240px] sm:max-w-[270px] p-2.5 sm:p-3.5 rounded-2xl bg-gradient-to-br from-[#24221f] via-[#1a1815] to-[#12110f] border border-white/10 shadow-[0_12px_28px_rgba(0,0,0,0.5)] flex items-center gap-2.5 sm:gap-3.5 transition-all duration-300 ease-out ${
+            className={`self-end w-[85%] sm:w-[260px] md:w-[270px] z-10 p-2.5 sm:p-3.5 rounded-2xl bg-gradient-to-br from-[#24221f] via-[#1a1815] to-[#12110f] border border-white/10 shadow-[0_12px_28px_rgba(0,0,0,0.5)] flex items-center gap-2.5 sm:gap-3.5 transition-all duration-300 ease-out ${
               isEntered && !isExiting
-                ? 'opacity-100 translate-x-0'
-                : 'opacity-0 translate-x-6'
+                ? 'opacity-100 translate-x-0 translate-y-0'
+                : 'opacity-0 translate-x-6 translate-y-4'
             }`}
           >
             {/* Avatar Frame (Obsidian Base) */}
             <div className="relative shrink-0">
-              <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl bg-[#161512] border border-white/10 overflow-hidden flex items-center justify-center text-lg sm:text-xl shadow-xs">
+              {blackPlayer.isBot && (
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 px-1.5 py-0.5 rounded text-[8px] font-black font-mono tracking-wider bg-[#ca8a04] text-zinc-950 uppercase shadow-xs">
+                  BOT
+                </span>
+              )}
+              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-xl bg-[#161512] border border-white/10 overflow-hidden flex items-center justify-center text-lg sm:text-xl shadow-xs">
                 {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

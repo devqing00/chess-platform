@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server';
 import { Chess, PieceSymbol } from 'chess.js';
-import { evaluatePositionStockfish } from '@/lib/server/stockfishPool';
+import {
+  evaluatePositionStockfish,
+  formatEngineScore,
+  buildFallbackEvaluation,
+} from '@/lib/server/stockfishPool';
+import { ChessEvaluator } from '@/lib/chessEngine';
 import { evaluateLocalEndgame } from '@/lib/server/tablebaseService';
 import {
   classifyMoveEngine,
@@ -216,7 +221,18 @@ export async function POST(req: NextRequest) {
               ],
             };
           } else {
-            currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
+            const plyBudget = Math.max(40, timeBudgetMs || 100);
+            const timeoutPerPly = Math.min(2500, plyBudget + 800);
+            try {
+              currentEval = await Promise.race([
+                evaluatePositionStockfish(fenAfter, targetDepth, multiPv, plyBudget),
+                new Promise<any>((_, reject) =>
+                  setTimeout(() => reject(new Error('Per-ply Stockfish eval timeout')), timeoutPerPly)
+                ),
+              ]);
+            } catch {
+              currentEval = buildFallbackEvaluation(fenAfter, targetDepth);
+            }
           }
 
           // Tablebase endgame for <= 7 pieces

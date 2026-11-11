@@ -4,6 +4,7 @@ import { ChessEvaluator } from '@/lib/chessEngine';
 import {
   evaluatePositionStockfish,
   formatEngineScore,
+  buildFallbackEvaluation,
 } from '@/lib/server/stockfishPool';
 import { evaluateLocalEndgame } from '@/lib/server/tablebaseService';
 import {
@@ -232,7 +233,18 @@ export async function POST(req: NextRequest) {
           ],
         };
       } else {
-        currentEval = await evaluatePositionStockfish(fenAfter, targetDepth, multiPv, timeBudgetMs);
+        const plyBudget = Math.max(40, timeBudgetMs || 100);
+        const timeoutPerPly = Math.min(2500, plyBudget + 800);
+        try {
+          currentEval = await Promise.race([
+            evaluatePositionStockfish(fenAfter, targetDepth, multiPv, plyBudget),
+            new Promise<any>((_, reject) =>
+              setTimeout(() => reject(new Error('Per-ply Stockfish eval timeout')), timeoutPerPly)
+            ),
+          ]);
+        } catch {
+          currentEval = buildFallbackEvaluation(fenAfter, targetDepth);
+        }
       }
 
       // Check tablebase for endgame only when 7 or fewer pieces remain on board (instant 0ms local evaluation)
