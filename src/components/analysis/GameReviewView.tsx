@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
+import { PlayerCard } from '../game/PlayerCard';
 import { ClassificationBadge } from '../board/ClassificationBadge';
 import { PieceIcon } from '../board/PieceIcons';
 import { CoachDannyAvatar } from './CoachDannyAvatar';
@@ -26,6 +27,7 @@ import {
   KeyMoment,
 } from '@/types/chess';
 import { matchOpeningFromMoves } from '@/lib/openingsData';
+import { matchEcoOpening } from '@/lib/ecoOpenings';
 import { formatGameOutcomeDescription, extractTerminationReason, isSessionUserWhite } from '@/lib/gameSessionStore';
 import {
   ArrowLeft,
@@ -223,13 +225,27 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
 
   const gameOutcome = useMemo(() => {
     const lastMove = moves && moves.length > 0 ? moves[moves.length - 1] : undefined;
-    const isCheckmateLast = Boolean(lastMove?.san?.includes('#'));
+    let isCheckmateFen = false;
+    if (lastMove?.fenAfter) {
+      try {
+        isCheckmateFen = new Chess(lastMove.fenAfter).isCheckmate();
+      } catch {}
+    }
+    const isCheckmateLast =
+      Boolean(lastMove?.san?.includes('#')) ||
+      isCheckmateFen ||
+      resultDetails?.reason === 'checkmate';
 
     let winner: 'w' | 'b' | 'draw';
     let reason: string;
 
     if (isCheckmateLast) {
-      winner = moves.length % 2 === 1 ? 'w' : 'b';
+      winner =
+        resultDetails?.winner && ['w', 'b'].includes(resultDetails.winner)
+          ? (resultDetails.winner as 'w' | 'b')
+          : moves.length % 2 === 1
+          ? 'w'
+          : 'b';
       reason = 'checkmate';
     } else {
       const termLower = (termination || '').toLowerCase();
@@ -314,7 +330,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
   const activeOpening = useMemo(() => {
     if (moves.length === 0 || activeMoveIndex < 0) return null;
     const currentSanList = moves.slice(0, activeMoveIndex + 1).map((m) => m.san);
-    return matchOpeningFromMoves(currentSanList);
+    return matchEcoOpening(currentSanList);
   }, [moves, activeMoveIndex]);
 
   const [showBestMove, setShowBestMove] = useState(false);
@@ -730,9 +746,9 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
     }
     if (activeClass === 'book') {
       if (activeOpening) {
-        return `Book move! Standard grandmaster opening theory in the ${activeOpening.name} [${activeOpening.eco}]. ${activeOpening.description || 'Focus on controlling the center, developing pieces smoothly, and securing early king safety.'}`;
+        return `Book move! Standard opening theory in the ${activeOpening.name}. ${activeOpening.description || 'Focus on controlling the center, developing pieces smoothly, and securing early king safety.'}`;
       }
-      return `${activeMove.san} is standard grandmaster opening theory, following time-tested principles for piece development.`;
+      return `${activeMove.san} is standard opening theory, following time-tested principles for piece development.`;
     }
     return coachComment;
   }, [activeMove, showBestMove, showFollowUpMove, isRetryMode, retrySuccess, retryMove, coachComment, movingPlayerName, nextPlayerName, bestMoveVariation, followUpVariation, activeMoveIndex, moves.length, gameOutcome.fullSentence, gameOutcome.subtitle, activeClass, activeOpening]);
@@ -1521,159 +1537,104 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
         </div>
       </header>
 
-      {/* Main Review Workspace: Responsive Container */}
-      <div className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center overflow-visible lg:overflow-hidden w-full max-w-7xl mx-auto min-h-0 lg:p-3 lg:gap-5">
-        {/* Left Board Column: Top Opponent Card, ChessBoard with EvalBar, Bottom User Card */}
+      {/* Main Review Workspace: Responsive Container (Side-by-side on desktop md:+) */}
+      <div className="flex-1 flex flex-col md:flex-row items-center justify-center overflow-hidden w-full max-w-full mx-auto min-h-0 px-1.5 sm:px-3 md:px-4 py-1 sm:py-1.5 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+        {/* Left Board Column: Top Opponent Card, ChessBoard with flush EvalBar, Bottom User Card */}
         {(() => {
           const topPlayer = orientation === 'w' ? blackPlayer : whitePlayer;
           const topAccuracy = orientation === 'w' ? blackAccuracy : whiteAccuracy;
           const topColor: PieceColor = orientation === 'w' ? 'b' : 'w';
           const topCapturedPieces = topColor === 'w' ? materialInfo.whiteCaptured : materialInfo.blackCaptured;
           const topAdvantage = topColor === 'w' ? materialInfo.whiteAdvantage : materialInfo.blackAdvantage;
-          const topCapturedPieceColor: PieceColor = topColor === 'w' ? 'b' : 'w';
 
           const bottomPlayer = orientation === 'w' ? whitePlayer : blackPlayer;
           const bottomAccuracy = orientation === 'w' ? whiteAccuracy : blackAccuracy;
           const bottomColor: PieceColor = orientation === 'w' ? 'w' : 'b';
           const bottomCapturedPieces = bottomColor === 'w' ? materialInfo.whiteCaptured : materialInfo.blackCaptured;
           const bottomAdvantage = bottomColor === 'w' ? materialInfo.whiteAdvantage : materialInfo.blackAdvantage;
-          const bottomCapturedPieceColor: PieceColor = bottomColor === 'w' ? 'b' : 'w';
+
+          // Board & Cards dimension: calibrated to fit comfortably inside 100dvh with zero horizontal or vertical clipping
+          const boardWidthClasses =
+            'w-[min(calc(100vw-3.5rem),calc(100dvh-180px))] md:w-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] lg:w-[min(calc(100vw-30rem),calc(100dvh-160px),580px)]';
+
+          const boardSquareClasses =
+            'w-[min(calc(100vw-3.5rem),calc(100dvh-180px))] h-[min(calc(100vw-3.5rem),calc(100dvh-180px))] md:w-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] md:h-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] lg:w-[min(calc(100vw-30rem),calc(100dvh-160px),580px)] lg:h-[min(calc(100vw-30rem),calc(100dvh-160px),580px)]';
+
+          const evalBarHeightClasses =
+            'h-[min(calc(100vw-3.5rem),calc(100dvh-180px))] md:h-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] lg:h-[min(calc(100vw-30rem),calc(100dvh-160px),580px)]';
 
           return (
-            <div className="flex flex-col items-center justify-start w-full lg:w-auto shrink-0 min-h-0 px-0 sm:px-2">
-              {/* Top Player Card (Opponent) - Compact 34px-38px max height */}
-              <div className="w-full max-w-[min(100vw,calc(100dvh-200px),520px)] flex items-center justify-between px-2 sm:px-3 py-1 bg-[#201e1a] border-b border-[#2d2a26] sm:border sm:rounded-xl shrink-0 h-8 sm:h-9">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative shrink-0">
-                    <div className="w-6 h-6 rounded bg-[#2c2924] flex items-center justify-center font-black text-[11px] text-zinc-300 overflow-hidden">
-                      {topPlayer.avatar && (topPlayer.avatar.startsWith('http') || topPlayer.avatar.startsWith('/') || topPlayer.avatar.startsWith('data:')) ? (
-                        <img src={topPlayer.avatar} alt={topPlayer.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-xs">{topPlayer.avatar || topPlayer.name.charAt(0).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[#201e1a] shadow-sm ${
-                        topColor === 'w' ? 'bg-white' : 'bg-[#181613]'
-                      }`}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-bold text-white truncate max-w-[120px] sm:max-w-[160px]">{topPlayer.name}</span>
-                    {topPlayer.rating && (
-                      <span className="text-[10px] text-zinc-400 font-mono">({topPlayer.rating})</span>
-                    )}
-                    {topCapturedPieces.length > 0 && (
-                      <div className="hidden xs:flex items-center gap-0.5 bg-[#171613] px-1 py-0.2 rounded border border-[#2b2824]">
-                        <div className="flex items-center -space-x-1">
-                          {topCapturedPieces.slice(0, 5).map((p, idx) => (
-                            <div key={`${p}-${idx}`} className="w-3 h-3 shrink-0 opacity-85">
-                              <PieceIcon type={p} color={topCapturedPieceColor} theme={pieceTheme} />
-                            </div>
-                          ))}
-                        </div>
-                        {topAdvantage > 0 && (
-                          <span className="text-[9px] font-black font-mono text-zinc-200 ml-0.5">+{topAdvantage}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {topAccuracy !== undefined && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 shrink-0">
-                    <span className="text-[9px] text-zinc-400 font-bold">ACC</span>
-                    <span className="text-[11px] font-black text-emerald-400 font-mono">{topAccuracy.toFixed(1)}%</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Center Board with EvalBar: Edge-to-Edge on Mobile, Responsive & Constrained to never overflow */}
-              <div className="w-full max-w-[min(100vw,calc(100dvh-200px),520px)] flex items-stretch gap-1.5 sm:gap-2 shrink-0 aspect-square relative">
-                <div className="w-5 sm:w-6 py-0.5 shrink-0">
+            <div className="w-full max-w-full md:w-auto flex flex-col items-center justify-center shrink-0 px-0.5 sm:px-1 gap-1.5">
+              {/* Main Row: EvalBar + Board & Player Cards Column */}
+              <div className="flex items-center justify-center shrink-0">
+                {/* EvalBar on the left - exactly matching board height from rank 8 to 1 */}
+                <div className={`w-4 sm:w-5 mr-1.5 sm:mr-2 shrink-0 py-0.5 ${evalBarHeightClasses}`}>
                   <EvalBar score={activeMove ? activeMove.evalAfter : 0} orientation={orientation} />
                 </div>
-                <div className="flex-1 min-w-0 relative aspect-square">
-                  {isRetryMode && (
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-amber-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-xl flex items-center gap-1.5 border border-white/20 select-none pointer-events-auto">
-                      <RotateCcw className="w-3 h-3 text-white" />
-                      <span>Retry: Play on board</span>
-                      <button
-                        onClick={() => {
-                          setIsRetryMode(false);
-                          setRetrySuccess(null);
-                        }}
-                        className="ml-1 p-0.5 rounded-full hover:bg-black/30 text-white cursor-pointer"
-                        title="Exit retry mode"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
 
-                  <ChessBoard
-                    chess={currentChess}
-                    orientation={orientation}
-                    boardTheme={boardTheme}
-                    pieceTheme={pieceTheme}
-                    activeClassification={activeSquareHighlight}
-                    lastMove={displayedLastMove}
-                    customArrows={reviewArrows}
-                    onMove={isRetryMode ? handleRetryMove : undefined}
-                    disabled={!isRetryMode}
-                    isFastForward={isFastForwarding}
-                  />
-                </div>
-              </div>
-
-              {/* Bottom Player Card (User) - Compact 34px-38px max height */}
-              <div className="w-full max-w-[min(100vw,calc(100dvh-200px),520px)] flex items-center justify-between px-2 sm:px-3 py-1 bg-[#201e1a] border-t border-[#2d2a26] sm:border sm:rounded-xl shrink-0 h-8 sm:h-9">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative shrink-0">
-                    <div className="w-6 h-6 rounded bg-[#2c2924] flex items-center justify-center font-black text-[11px] text-zinc-300 overflow-hidden">
-                      {bottomPlayer.avatar && (bottomPlayer.avatar.startsWith('http') || bottomPlayer.avatar.startsWith('/') || bottomPlayer.avatar.startsWith('data:')) ? (
-                        <img src={bottomPlayer.avatar} alt={bottomPlayer.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-xs">{bottomPlayer.avatar || bottomPlayer.name.charAt(0).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[#201e1a] shadow-sm ${
-                        bottomColor === 'w' ? 'bg-white' : 'bg-[#181613]'
-                      }`}
+                {/* Board & Player Cards Column */}
+                <div className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 shrink-0">
+                  {/* Top Player Card (Opponent) */}
+                  <div className={`${boardWidthClasses} px-0.5`}>
+                    <PlayerCard
+                      player={topPlayer}
+                      color={topColor}
+                      accuracy={topAccuracy}
+                      capturedPieces={topCapturedPieces}
+                      materialAdvantage={topAdvantage}
                     />
                   </div>
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-bold text-white truncate max-w-[120px] sm:max-w-[160px]">{bottomPlayer.name}</span>
-                    <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/20 px-1 rounded border border-emerald-500/30">YOU</span>
-                    {bottomPlayer.rating && (
-                      <span className="text-[10px] text-zinc-400 font-mono">({bottomPlayer.rating})</span>
-                    )}
-                    {bottomCapturedPieces.length > 0 && (
-                      <div className="hidden xs:flex items-center gap-0.5 bg-[#171613] px-1 py-0.2 rounded border border-[#2b2824]">
-                        <div className="flex items-center -space-x-1">
-                          {bottomCapturedPieces.slice(0, 5).map((p, idx) => (
-                            <div key={`${p}-${idx}`} className="w-3 h-3 shrink-0 opacity-85">
-                              <PieceIcon type={p} color={bottomCapturedPieceColor} theme={pieceTheme} />
-                            </div>
-                          ))}
-                        </div>
-                        {bottomAdvantage > 0 && (
-                          <span className="text-[9px] font-black font-mono text-zinc-200 ml-0.5">+{bottomAdvantage}</span>
-                        )}
+
+                  {/* Edge-to-Edge Chessboard: Pure 1:1 Aspect Ratio Square */}
+                  <div
+                    className={`shrink-0 aspect-square flex items-center justify-center relative select-none overflow-hidden ${boardSquareClasses}`}
+                  >
+                    {isRetryMode && (
+                      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-amber-600/95 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-xl flex items-center gap-1.5 border border-white/20 select-none pointer-events-auto">
+                        <RotateCcw className="w-3 h-3 text-white" />
+                        <span>Retry: Play on board</span>
+                        <button
+                          onClick={() => {
+                            setIsRetryMode(false);
+                            setRetrySuccess(null);
+                          }}
+                          className="ml-1 p-0.5 rounded-full hover:bg-black/30 text-white cursor-pointer"
+                          title="Exit retry mode"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       </div>
                     )}
+
+                    <ChessBoard
+                      chess={currentChess}
+                      orientation={orientation}
+                      boardTheme={boardTheme}
+                      pieceTheme={pieceTheme}
+                      activeClassification={activeSquareHighlight}
+                      lastMove={displayedLastMove}
+                      customArrows={reviewArrows}
+                      onMove={isRetryMode ? handleRetryMove : undefined}
+                      disabled={!isRetryMode}
+                      isFastForward={isFastForwarding}
+                    />
+                  </div>
+
+                  {/* Bottom Player Card (User) */}
+                  <div className={`${boardWidthClasses} px-0.5`}>
+                    <PlayerCard
+                      player={bottomPlayer}
+                      color={bottomColor}
+                      accuracy={bottomAccuracy}
+                      capturedPieces={bottomCapturedPieces}
+                      materialAdvantage={bottomAdvantage}
+                    />
                   </div>
                 </div>
-                {bottomAccuracy !== undefined && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 shrink-0">
-                    <span className="text-[9px] text-zinc-400 font-bold">ACC</span>
-                    <span className="text-[11px] font-black text-emerald-400 font-mono">{bottomAccuracy.toFixed(1)}%</span>
-                  </div>
-                )}
               </div>
 
               {/* Mobile Coach Micro-Banner: Ultra-compact single line (~36px) with tap-to-expand Details */}
-              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1 bg-[#1a1816] border-t border-b border-[#2d2a26] flex items-center justify-between gap-1.5 shrink-0 h-9">
+              <div className="md:hidden w-full max-w-[min(calc(100vw-1rem),500px)] px-2 py-1 bg-[#1a1816] border-t border-b border-[#2d2a26] flex items-center justify-between gap-1.5 shrink-0 h-9 mt-1">
                 <div className="flex items-center gap-1.5 min-w-0 truncate">
                   <ClassificationBadge classification={displayedBadgeClass} size="sm" />
                   <span className="font-black text-white text-[11px] truncate">{displayedHeaderTitle}</span>
@@ -1694,7 +1655,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               </div>
 
               {/* Mobile Review Navigation Row (Line 1: Prev Highlight, Prev, Play/Pause, Next, Next Highlight & Move Info) */}
-              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2.5 py-1.5 bg-[#181614] border-t border-[#2d2a26] flex items-center justify-between gap-1.5 shrink-0">
+              <div className="md:hidden w-full max-w-[min(calc(100vw-1rem),500px)] px-2.5 py-1.5 bg-[#181614] border-t border-[#2d2a26] flex items-center justify-between gap-1.5 shrink-0">
                 <div className="flex items-center gap-1 sm:gap-1.5">
                   {/* Speed Rewind to Prev Highlight */}
                   <button
@@ -1788,7 +1749,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               </div>
 
               {/* Mobile Review Actions Row (Line 2: Best, Show, Retry, Moves Grid) */}
-              <div className="lg:hidden w-full max-w-[min(100vw,calc(100dvh-200px),520px)] px-2 py-1.5 bg-[#141311] border-t border-[#24221e] grid grid-cols-4 gap-1.5 shrink-0">
+              <div className="md:hidden w-full max-w-[min(calc(100vw-1rem),500px)] px-2 py-1.5 bg-[#141311] border-t border-[#24221e] grid grid-cols-4 gap-1.5 shrink-0">
                 <button
                   onClick={handleToggleBest}
                   disabled={isBestDisabled && !showBestMove}
@@ -1848,7 +1809,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
         })()}
 
         {/* Right Side Review Panel - Desktop Dashboard Split-View (Zero Outer Scroll, Fixed Height) */}
-        <div className="hidden lg:flex flex-col gap-2 w-full max-w-[420px] xl:max-w-[460px] 2xl:max-w-[490px] h-full max-h-[calc(100dvh-54px)] overflow-hidden shrink-0">
+        <div className="hidden md:flex flex-col gap-2 w-full max-w-[290px] lg:max-w-[320px] xl:max-w-[350px] h-full max-h-[calc(100dvh-54px)] overflow-hidden shrink-0">
           {/* Bento Tile 1: Coach Intelligence Card */}
           <div className="flex flex-col gap-1.5">
             {/* Active Mentor Header (Static, following Settings) */}
@@ -1898,13 +1859,32 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       </span>
                     )}
                     {activeOpening && (activeClass === 'book' || activeMoveIndex <= 14) && (
-                      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-900 border border-purple-500/30 tracking-tight shrink-0" title={activeOpening.description}>
-                        📖 [{activeOpening.eco}] {activeOpening.name}
-                      </span>
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/openings?eco=${encodeURIComponent(activeOpening.eco)}&name=${encodeURIComponent(
+                              activeOpening.name
+                            )}`
+                          )
+                        }
+                        className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-900 border border-purple-500/30 tracking-tight shrink-0 transition-colors cursor-pointer group"
+                        title="Study this opening in Opening Explorer"
+                      >
+                        <span>📖 {activeOpening.name}</span>
+                        <span className="text-purple-700 font-bold group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                      </button>
                     )}
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {activeMove?.timeSpentSeconds !== undefined && activeMove.timeSpentSeconds > 0 && (
+                      <span
+                        className="text-[10px] font-bold font-mono bg-[#282521] text-zinc-300 px-1.5 py-0.5 rounded border border-[#3d3830]"
+                        title={`Time taken to play this move: ${activeMove.timeSpentSeconds.toFixed(1)}s`}
+                      >
+                        ⏱ {activeMove.timeSpentSeconds < 60 ? `${activeMove.timeSpentSeconds.toFixed(1)}s` : `${Math.floor(activeMove.timeSpentSeconds / 60)}m ${Math.floor(activeMove.timeSpentSeconds % 60)}s`}
+                      </span>
+                    )}
                     <span className="text-[11px] font-black font-mono bg-[#312e2b] text-white px-2 py-0.5 rounded shadow-sm">
                       {formattedScore}
                     </span>
@@ -1995,18 +1975,25 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         onClick={() => navigateToMove(moveIdx)}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer text-xs ${
                           isSelected
-                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                             : 'bg-[#24221e] hover:bg-[#2c2924] text-zinc-200 border border-[#302d27]'
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`text-[10px] font-mono shrink-0 ${isSelected ? 'text-white/80' : 'text-zinc-500'}`}>
+                          <span className={`text-[10px] font-mono shrink-0 ${isSelected ? 'text-zinc-900 font-bold' : 'text-zinc-500'}`}>
                             #{moveIdx + 1}
                           </span>
                           <div className="text-left min-w-0">
-                            <span className="font-bold block">{moveLabel}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold">{moveLabel}</span>
+                              {m.timeSpentSeconds !== undefined && m.timeSpentSeconds > 0 && (
+                                <span className={`text-[9px] font-mono tabular-nums ${isSelected ? 'text-zinc-900 font-bold' : 'text-zinc-400'}`}>
+                                  {m.timeSpentSeconds < 60 ? `${m.timeSpentSeconds.toFixed(1)}s` : `${Math.floor(m.timeSpentSeconds / 60)}m`}
+                                </span>
+                              )}
+                            </div>
                             {km?.description && (
-                              <span className={`text-[10px] block truncate font-sans ${isSelected ? 'text-white/90' : 'text-zinc-400'}`}>
+                              <span className={`text-[10px] block truncate font-sans ${isSelected ? 'text-zinc-900' : 'text-zinc-400'}`}>
                                 {km.description}
                               </span>
                             )}
@@ -2019,7 +2006,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                               size="sm"
                             />
                           )}
-                          <span className={`text-[10px] font-mono ${isSelected ? 'text-white' : 'text-zinc-400'}`}>
+                          <span className={`text-[10px] font-mono ${isSelected ? 'text-zinc-950 font-black' : 'text-zinc-400'}`}>
                             {m.evalAfter > 0 ? `+${(m.evalAfter / 100).toFixed(1)}` : (m.evalAfter / 100).toFixed(1)}
                           </span>
                         </div>
@@ -2059,11 +2046,25 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                       }}
                       className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-xs ${
                         isWhiteSelected
-                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                           : 'text-zinc-200 hover:bg-[#33302b]'
                       }`}
                     >
-                      <span className="truncate">{whiteMove?.san}</span>
+                      <div className="flex items-center gap-1 truncate">
+                        <span className="truncate">{whiteMove?.san}</span>
+                        {whiteMove?.timeSpentSeconds !== undefined && whiteMove.timeSpentSeconds > 0 && (
+                          <span
+                            className={`text-[9px] font-mono tabular-nums ${
+                              isWhiteSelected ? 'text-zinc-900 font-bold' : 'text-zinc-500'
+                            }`}
+                            title={`Time: ${whiteMove.timeSpentSeconds.toFixed(1)}s`}
+                          >
+                            {whiteMove.timeSpentSeconds < 60
+                              ? `${whiteMove.timeSpentSeconds.toFixed(1)}s`
+                              : `${Math.floor(whiteMove.timeSpentSeconds / 60)}m`}
+                          </span>
+                        )}
+                      </div>
                       {whiteMove?.classification && (
                         <ClassificationBadge
                           classification={getCleanClassification(whiteMove.classification)}
@@ -2081,11 +2082,25 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                         }}
                         className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-xs ${
                           isBlackSelected
-                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-bold shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                            ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
                             : 'text-zinc-200 hover:bg-[#33302b]'
                         }`}
                       >
-                        <span className="truncate">{blackMove.san}</span>
+                        <div className="flex items-center gap-1 truncate">
+                          <span className="truncate">{blackMove.san}</span>
+                          {blackMove.timeSpentSeconds !== undefined && blackMove.timeSpentSeconds > 0 && (
+                            <span
+                              className={`text-[9px] font-mono tabular-nums ${
+                                isBlackSelected ? 'text-zinc-900 font-bold' : 'text-zinc-500'
+                              }`}
+                              title={`Time: ${blackMove.timeSpentSeconds.toFixed(1)}s`}
+                            >
+                              {blackMove.timeSpentSeconds < 60
+                                ? `${blackMove.timeSpentSeconds.toFixed(1)}s`
+                                : `${Math.floor(blackMove.timeSpentSeconds / 60)}m`}
+                            </span>
+                          )}
+                        </div>
                         {blackMove.classification && (
                           <ClassificationBadge
                             classification={getCleanClassification(blackMove.classification)}
@@ -2147,6 +2162,11 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                     ? followUpVariation.san
                     : activeMove?.san || ''}
                 </span>
+                {activeMove?.timeSpentSeconds !== undefined && activeMove.timeSpentSeconds > 0 && (
+                  <span className="text-[10px] font-mono font-bold text-zinc-300">
+                    ⏱{activeMove.timeSpentSeconds < 60 ? `${activeMove.timeSpentSeconds.toFixed(1)}s` : `${Math.floor(activeMove.timeSpentSeconds / 60)}m`}
+                  </span>
+                )}
               </div>
 
               {activeMoveIndex < moves.length - 1 ? (

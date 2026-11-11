@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { AuthService } from '@/lib/firebase/authService';
+import { detectBrowserCountry } from '@/lib/countryUtils';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 import { UserProfile, SyncedChessComAccount, SyncedLichessAccount } from '@/lib/firebase/types';
 import { MembershipTier } from '@/types/chess';
@@ -278,8 +279,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     '♟️';
 
   const effectiveCountry =
-    profile?.country ||
-    'us';
+    syncedChessCom?.countryCode?.toUpperCase() ||
+    (syncedChessCom as any)?.country?.toUpperCase() ||
+    (syncedLichess as any)?.country?.toUpperCase() ||
+    (profile?.country && profile.country !== 'US' ? profile.country.toUpperCase() : null) ||
+    detectBrowserCountry();
 
   return (
     <AuthContext.Provider

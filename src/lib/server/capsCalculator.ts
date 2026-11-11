@@ -477,7 +477,7 @@ export function classifyMoveEngine(params: {
       classification: 'book',
       winProbLoss: 0,
       accuracy: 100,
-      coachComment: `${moveSan || 'This'} is established grandmaster opening theory, controlling key central tension.`,
+      coachComment: `${moveSan || 'This'} is established opening theory, controlling key central tension.`,
     };
   }
 

@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     let games: any[] = [];
     try {
       const gamesRes = await fetch(
-        `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=35&pgnInJson=true&clocks=false&evals=false`,
+        `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=35&pgnInJson=true&clocks=true&evals=false`,
         {
           headers: {
             ...customHeaders,

@@ -30,12 +30,15 @@ import {
   MembershipTier,
 } from '@/types/chess';
 import { OPENINGS_DATABASE, matchOpeningFromMoves } from '@/lib/openingsData';
+import { isEcoBookMove, matchEcoOpening } from '@/lib/ecoOpenings';
 import { EntitlementGuard } from '@/lib/server/entitlementGuard';
 import {
   detectTacticalMotif,
   detectTacticalMotifs as detectDeepTacticalMotifs,
   buildRefutations,
 } from '@/lib/tacticalMotifDetector';
+
+import { extractMoveTimesFromPgn } from '@/lib/pgnTimeParser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -100,9 +103,15 @@ export async function POST(req: NextRequest) {
       chess.loadPgn(pgn);
     }
 
-    // Determine move list
+    // Determine move list and time maps
     let sanMoves: string[] = [];
+    const inputTimeMap: Record<number, number> = {};
     if (Array.isArray(inputMoves)) {
+      inputMoves.forEach((m: any, idx: number) => {
+        if (m && typeof m === 'object' && typeof m.timeSpentSeconds === 'number') {
+          inputTimeMap[idx] = m.timeSpentSeconds;
+        }
+      });
       if (typeof inputMoves[0] === 'string') {
         sanMoves = inputMoves as string[];
       } else if (inputMoves[0] && typeof inputMoves[0] === 'object' && inputMoves[0].san) {
@@ -111,6 +120,8 @@ export async function POST(req: NextRequest) {
     } else if (pgn) {
       sanMoves = chess.history();
     }
+
+    const pgnTimeMap = pgn ? extractMoveTimesFromPgn(pgn) : {};
 
     if (sanMoves.length === 0) {
       return NextResponse.json({ error: 'No moves provided for game review' }, { status: 400 });
@@ -179,16 +190,11 @@ export async function POST(req: NextRequest) {
 
       const fenAfter = runner.fen();
 
-      // Authentically check opening theory against master opening database
+      // Authentically check opening theory against master 3,800+ ECO opening database
       let isBookMove = false;
-      if (inBook && ply <= 16) {
+      if (inBook && ply <= 24) {
         const currentPrefix = sanMoves.slice(0, ply + 1);
-        const matchesBook = OPENINGS_DATABASE.some((op) => {
-          const tokens = op.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
-          if (tokens.length < currentPrefix.length) return false;
-          return currentPrefix.every((t, i) => t === tokens[i]);
-        });
-        if (matchesBook) {
+        if (isEcoBookMove(currentPrefix)) {
           isBookMove = true;
         } else {
           inBook = false;
@@ -458,6 +464,7 @@ export async function POST(req: NextRequest) {
         accuracy: classificationResult.accuracy,
         winProbLoss: classificationResult.winProbLoss,
         isCheck,
+        timeSpentSeconds: inputTimeMap[ply] ?? pgnTimeMap[ply] ?? undefined,
         motif: activeMotif
           ? {
               type: activeMotif.name || activeMotif.type,
@@ -564,7 +571,10 @@ export async function POST(req: NextRequest) {
       summaryComment = `Black outplayed White with ${blackAccuracy}% accuracy (perf est. ${blackEstimatedElo}), punishing opening and tactical inaccuracies to secure victory!`;
     }
 
-    const opening = matchOpeningFromMoves(sanMoves);
+    const matchedEco = matchEcoOpening(sanMoves);
+    const opening = matchedEco
+      ? { eco: matchedEco.eco, name: matchedEco.name, moves: matchedEco.moves, variation: '' }
+      : matchOpeningFromMoves(sanMoves);
 
     // Dynamic Chess Phase Segmentation (Grandmaster Material & Development Heuristic)
     // 1. Opening: Plies 0 to 20 while queens remain and material is intact

@@ -46,8 +46,10 @@ import {
   Volume2,
   VolumeX,
   Settings,
+  BookOpen,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { matchEcoOpening } from '@/lib/ecoOpenings';
 
 interface GamePageProps {
   params: Promise<{ id: string }>;
@@ -55,7 +57,7 @@ interface GamePageProps {
 
 export default function GameRoomPage({ params }: GamePageProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, effectiveDisplayName, effectiveAvatar, effectiveCountry, effectiveRating } = useAuth();
   const {
     boardTheme,
     pieceTheme,
@@ -75,13 +77,13 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [incrementSeconds, setIncrementSeconds] = useState<number>(0);
 
   // Players
-  const [whitePlayer, setWhitePlayer] = useState<GamePlayer>({
-    id: 'player-1',
-    name: 'You',
-    rating: 1250,
-    avatar: '🧑‍💻',
-    country: 'US',
-  });
+  const [whitePlayer, setWhitePlayer] = useState<GamePlayer>(() => ({
+    id: user?.uid || 'player-1',
+    name: effectiveDisplayName || 'You',
+    rating: effectiveRating || 1250,
+    avatar: effectiveAvatar || '🧑‍💻',
+    country: effectiveCountry || 'NG',
+  }));
   const [blackPlayer, setBlackPlayer] = useState<GamePlayer>({
     id: 'martin',
     name: 'Martin',
@@ -125,6 +127,29 @@ export default function GameRoomPage({ params }: GamePageProps) {
   const [earnedBotStars, setEarnedBotStars] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'moves' | 'chat'>('moves');
   const [hasUnreadChat, setHasUnreadChat] = useState<boolean>(false);
+  const turnStartTimeRef = useRef<number>(Date.now());
+  const lastTickTimeRef = useRef<number>(Date.now());
+
+  // Dynamically detect opening variation as moves are played
+  const detectedOpening = useMemo(() => {
+    if (moveHistory.length === 0) return null;
+    const sanList = moveHistory.map((m) => m.san);
+    return matchEcoOpening(sanList);
+  }, [moveHistory]);
+
+  // Keep player identity synced with authenticated profile and real flag
+  useEffect(() => {
+    setWhitePlayer((prev) => {
+      if (prev.isBot) return prev;
+      return {
+        ...prev,
+        name: prev.name === 'You' ? (effectiveDisplayName || 'You') : prev.name,
+        avatar: prev.avatar === '🧑‍💻' ? (effectiveAvatar || '🧑‍💻') : prev.avatar,
+        country: effectiveCountry || prev.country,
+        rating: effectiveRating || prev.rating,
+      };
+    });
+  }, [effectiveDisplayName, effectiveAvatar, effectiveCountry, effectiveRating]);
 
   // 1. Initialize from Session Store
   useEffect(() => {
@@ -132,16 +157,17 @@ export default function GameRoomPage({ params }: GamePageProps) {
     if (!session) {
       const defaultWhite: GamePlayer = {
         id: 'player-you',
-        name: 'You',
-        rating: 1250,
-        avatar: '🧑‍💻',
-        country: 'US',
+        name: effectiveDisplayName || 'Player',
+        rating: effectiveRating || 1250,
+        avatar: effectiveAvatar || '🧑‍💻',
+        country: effectiveCountry || 'NG',
       };
       const defaultBlack: GamePlayer = {
         id: 'martin',
         name: 'Martin',
         rating: 250,
         avatar: '👨‍👧',
+        country: 'US',
         isBot: true,
       };
       session = GameSessionStore.createSession(defaultWhite, defaultBlack, 600, 'standard', gameId);
@@ -355,7 +381,10 @@ export default function GameRoomPage({ params }: GamePageProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             gameId,
-            moves: movesSnapshot.map((m) => m.san),
+            moves: movesSnapshot.map((m) => ({
+              san: m.san,
+              timeSpentSeconds: m.timeSpentSeconds,
+            })),
             whitePlayer,
             blackPlayer,
             strengthTier: 'fast',
@@ -431,32 +460,39 @@ export default function GameRoomPage({ params }: GamePageProps) {
     setIsResignModalOpen(true);
   };
 
-  // Clock countdown timer
+  // High-precision clock countdown timer (100ms delta-based with clean timeout termination)
   useEffect(() => {
     if (!isClockRunning || gameResult) return;
+    lastTickTimeRef.current = Date.now();
 
     const interval = setInterval(() => {
+      const now = Date.now();
+      const deltaSec = (now - lastTickTimeRef.current) / 1000;
+      lastTickTimeRef.current = now;
+
       const turn = chess.turn();
       if (turn === 'w') {
         setWhiteTime((prev) => {
-          if (prev <= 1) {
+          const next = Math.max(0, prev - deltaSec);
+          if (next <= 0.05) {
             clearInterval(interval);
             triggerGameOver('b', 'timeout', 'Black won on time! (0-1)');
             return 0;
           }
-          return prev - 1;
+          return next;
         });
       } else {
         setBlackTime((prev) => {
-          if (prev <= 1) {
+          const next = Math.max(0, prev - deltaSec);
+          if (next <= 0.05) {
             clearInterval(interval);
             triggerGameOver('w', 'timeout', 'White won on time! (1-0)');
             return 0;
           }
-          return prev - 1;
+          return next;
         });
       }
-    }, 1000);
+    }, 100);
 
     return () => clearInterval(interval);
   }, [isClockRunning, chess, gameResult, triggerGameOver]);
@@ -489,23 +525,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
       const fenAfter = currentChessInstance.fen();
       const isCheckNow = currentChessInstance.isCheck();
 
-      if (currentChessInstance.isCheckmate()) {
-        triggerGameOver(
-          botColor,
-          'checkmate',
-          `${botPlayer?.name || 'Bot'} wins by Checkmate!`
-        );
-      } else if (currentChessInstance.isDraw() || currentChessInstance.isStalemate()) {
-        triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
-      } else if (isCheckNow) {
-        soundService.playCheck();
-      } else if (botMove.flags.includes('k') || botMove.flags.includes('q')) {
-        soundService.playCastle();
-      } else if (botMove.captured) {
-        soundService.playCapture();
-      } else {
-        soundService.playMove();
-      }
+      const botDurationSec = Math.max(0.1, (Date.now() - turnStartTimeRef.current) / 1000);
+      turnStartTimeRef.current = Date.now();
 
       const botRecord: MoveRecord = {
         san: botMove.san,
@@ -518,10 +539,12 @@ export default function GameRoomPage({ params }: GamePageProps) {
         evalAfter: 0,
         coachComment: `${botPlayer?.name || 'Bot'} plays ${botMove.san}.`,
         isCheck: isCheckNow,
+        timeSpentSeconds: Number(botDurationSec.toFixed(1)),
       };
 
       const finalMoves = [...currentMoves, botRecord];
       setMoveHistory(finalMoves);
+      moveHistoryRef.current = finalMoves;
       setCurrentMoveIndex(finalMoves.length - 1);
       setChess(new Chess(fenAfter));
       GameSessionStore.updateSessionMoves(gameId, finalMoves);
@@ -532,6 +555,26 @@ export default function GameRoomPage({ params }: GamePageProps) {
         } else {
           setBlackTime((t) => t + incrementSeconds);
         }
+      }
+
+      if (currentChessInstance.isCheckmate()) {
+        triggerGameOver(
+          botColor,
+          'checkmate',
+          `${botPlayer?.name || 'Bot'} wins by Checkmate!`
+        );
+        return;
+      } else if (currentChessInstance.isDraw() || currentChessInstance.isStalemate()) {
+        triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
+        return;
+      } else if (isCheckNow) {
+        soundService.playCheck();
+      } else if (botMove.flags.includes('k') || botMove.flags.includes('q')) {
+        soundService.playCastle();
+      } else if (botMove.captured) {
+        soundService.playCapture();
+      } else {
+        soundService.playMove();
       }
     } catch {
       //
@@ -581,24 +624,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
         const fenAfter = chess.fen();
         const isCheckNow = chess.isCheck();
 
-        // Play appropriate tactile sound instantly
-        if (chess.isCheckmate()) {
-          triggerGameOver(
-            turnBefore === 'w' ? 'w' : 'b',
-            'checkmate',
-            `${turnBefore === 'w' ? 'White' : 'Black'} wins by Checkmate!`
-          );
-        } else if (chess.isDraw() || chess.isStalemate()) {
-          triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
-        } else if (isCheckNow) {
-          soundService.playCheck();
-        } else if (move.flags.includes('k') || move.flags.includes('q')) {
-          soundService.playCastle();
-        } else if (move.captured) {
-          soundService.playCapture();
-        } else {
-          soundService.playMove();
-        }
+        const moveDurationSec = Math.max(0.1, (Date.now() - turnStartTimeRef.current) / 1000);
+        turnStartTimeRef.current = Date.now();
 
         const newRecord: MoveRecord = {
           san: move.san,
@@ -612,14 +639,16 @@ export default function GameRoomPage({ params }: GamePageProps) {
           classification: undefined,
           coachComment: `${whitePlayer.name} plays ${move.san}.`,
           isCheck: isCheckNow,
+          timeSpentSeconds: Number(moveDurationSec.toFixed(1)),
         };
 
         const nextMoves = [...moveHistory, newRecord];
         setMoveHistory(nextMoves);
+        moveHistoryRef.current = nextMoves;
         setCurrentMoveIndex(nextMoves.length - 1);
         setChess(new Chess(fenAfter));
 
-        // Sync storage
+        // Sync storage with the full move history including this move
         GameSessionStore.updateSessionMoves(gameId, nextMoves);
 
         // Add clock increment
@@ -629,6 +658,27 @@ export default function GameRoomPage({ params }: GamePageProps) {
           } else {
             setBlackTime((t) => t + incrementSeconds);
           }
+        }
+
+        // Play appropriate tactile sound instantly & handle game conclusion
+        if (chess.isCheckmate()) {
+          triggerGameOver(
+            turnBefore === 'w' ? 'w' : 'b',
+            'checkmate',
+            `${turnBefore === 'w' ? 'White' : 'Black'} wins by Checkmate!`
+          );
+          return;
+        } else if (chess.isDraw() || chess.isStalemate()) {
+          triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
+          return;
+        } else if (isCheckNow) {
+          soundService.playCheck();
+        } else if (move.flags.includes('k') || move.flags.includes('q')) {
+          soundService.playCastle();
+        } else if (move.captured) {
+          soundService.playCapture();
+        } else {
+          soundService.playMove();
         }
 
         // Bot response (Scaled to authentic Bot ELO rating with reasoning pause)
@@ -741,143 +791,27 @@ export default function GameRoomPage({ params }: GamePageProps) {
   }, [currentMoveIndex, moveHistory]);
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#161512] text-zinc-100 select-none justify-between min-w-0">
-      {/* 1. Header with compact vertical padding */}
-      <header className="h-12 sm:h-14 py-1.5 sm:py-2 px-3 sm:px-5 border-b border-[#262421] bg-[#1a1815] flex items-center justify-between shrink-0 select-none z-30">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <button
-            onClick={() => router.push('/play')}
-            className="py-1.5 px-2.5 sm:px-3 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold shrink-0"
-            title="Return to Play Lobby"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden xs:inline">Lobby</span>
-          </button>
-          <span className="text-zinc-600 hidden xs:inline">|</span>
-          <span className="text-xs sm:text-sm font-bold text-zinc-300 truncate">
-            {botPlayer ? (
-              <span className="flex items-center gap-1.5">
-                <span className="text-zinc-400 font-normal">vs</span>
-                <strong className="text-white font-extrabold">{botPlayer.name}</strong>
-                <span className="text-[11px] text-zinc-400 font-mono">({botPlayer.rating})</span>
-              </span>
-            ) : (
-              <strong className="text-white font-mono">Live Match</strong>
-            )}
-          </span>
-        </div>
+    <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#161512] text-zinc-100 select-none justify-between min-w-0 relative">
+      {/* Floating Minimal Lobby Return Button on Mobile (< md) with Zero Document Flow Impact */}
+      <div className="md:hidden absolute top-2 left-2 z-40">
+        <button
+          onClick={() => router.push('/play')}
+          className="p-1.5 rounded-lg bg-[#1a1815]/90 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center backdrop-blur-md shadow-sm"
+          title="Return to Play Lobby"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+      </div>
 
-        {/* Right Header Controls: Review Button or Compact More Options Popover */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0 relative">
-          {gameResult ? (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => router.push(`/game/review/${gameId}`)}
-              className="px-2.5 sm:px-3 py-1 gap-1 text-xs font-black shadow-sm"
-            >
-              <Award className="w-3.5 h-3.5" />
-              <span>Review</span>
-            </Button>
-          ) : (
-            <span className="text-[10px] font-mono font-bold text-zinc-400 px-2 py-0.5 rounded-md bg-[#211f1c] border border-[#2d2a25] uppercase tracking-wider">
-              Live
-            </span>
-          )}
-
-          {/* More Options Button */}
-          <button
-            onClick={() => setIsMoreMenuOpen((prev) => !prev)}
-            className="p-1 sm:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] border border-[#35322b] transition-colors cursor-pointer"
-            title="Game Options"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-
-          {/* Lightweight Popover Menu */}
-          {isMoreMenuOpen && (
-            <div className="absolute right-0 top-10 w-48 bg-[#1f1d1a] border border-[#35322b] rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95">
-              <button
-                onClick={() => {
-                  soundService.playTactilePop();
-                  setOrientation((o) => (o === 'w' ? 'b' : 'w'));
-                  setIsMoreMenuOpen(false);
-                }}
-                className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-zinc-200 hover:bg-[#2c2924] flex items-center gap-2 text-left transition-colors"
-              >
-                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Flip Board</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSoundEnabled(!soundEnabled);
-                  setIsMoreMenuOpen(false);
-                }}
-                className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-zinc-200 hover:bg-[#2c2924] flex items-center gap-2 text-left transition-colors"
-              >
-                {soundEnabled ? (
-                  <Volume2 className="w-3.5 h-3.5 text-zinc-400" />
-                ) : (
-                  <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                )}
-                <span>Sound: {soundEnabled ? 'On' : 'Off'}</span>
-              </button>
-
-              {!gameResult && (
-                <>
-                  <button
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      triggerGameOver('draw', 'agreement', 'Draw by mutual agreement');
-                    }}
-                    disabled={moveHistory.length === 0}
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-zinc-200 hover:bg-[#2c2924] flex items-center gap-2 text-left transition-colors disabled:opacity-40"
-                  >
-                    <Handshake className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Offer Draw</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setIsMoreMenuOpen(false);
-                      handleResign();
-                    }}
-                    disabled={moveHistory.length === 0}
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors disabled:opacity-40"
-                  >
-                    <Flag className="w-3.5 h-3.5" />
-                    <span>Resign Game</span>
-                  </button>
-                </>
-              )}
-
-              <div className="border-t border-[#2e2a25] my-0.5" />
-
-              <button
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  openSettings();
-                }}
-                className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-zinc-400 hover:text-white hover:bg-[#2c2924] flex items-center gap-2 text-left transition-colors"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Settings</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* 2. Main Workspace: Top-Aligned Responsive Container (Side-by-side on laptop/desktop md:+) */}
-      <main className="flex-1 flex flex-col md:flex-row items-center md:items-start justify-center p-1 sm:p-2 md:p-3 xl:p-4 gap-1 sm:gap-2 md:gap-4 xl:gap-6 w-full max-w-6xl mx-auto overflow-hidden min-h-0">
+      {/* 2. Main Workspace: Vertically centered on desktop md:+, edge-to-edge responsive */}
+      <main className="flex-1 flex flex-col md:flex-row items-center justify-center p-1 sm:p-2 md:p-3 xl:p-4 gap-1 sm:gap-2 md:gap-4 xl:gap-6 w-full max-w-7xl mx-auto overflow-hidden min-h-0">
         
         {/* Center Column: Opponent Bar + Board + User Bar + Mobile Controls */}
-        <div className="w-full max-w-full md:w-auto flex flex-col items-center justify-start shrink-0 px-0 sm:px-1 gap-1">
+        <div className="w-full max-w-full md:w-auto flex flex-col items-center justify-center shrink-0 px-0 sm:px-1 gap-1.5 sm:gap-2">
           
           {/* Top Opponent Player Bar */}
           <div
-            className="w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
+            className="w-[min(calc(100vw-1rem),calc(100dvh-180px))] md:w-[min(calc(100vw-24rem),calc(100dvh-165px),580px)] lg:w-[min(calc(100vw-28rem),calc(100dvh-160px),600px)] px-1 sm:px-0"
           >
             <PlayerCard
               player={topPlayer}
@@ -890,9 +824,9 @@ export default function GameRoomPage({ params }: GamePageProps) {
             />
           </div>
 
-          {/* Edge-to-Edge Chessboard (Strictly bounded by 100dvh) */}
+          {/* Edge-to-Edge Chessboard (Strictly bounded by 100dvh, perfectly sized without pushing cards off) */}
           <div
-            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-hidden w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] h-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] md:h-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] lg:h-[min(calc(100vw-26rem),calc(100dvh-170px),540px)]"
+            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-hidden w-[min(calc(100vw-1rem),calc(100dvh-180px))] h-[min(calc(100vw-1rem),calc(100dvh-180px))] md:w-[min(calc(100vw-24rem),calc(100dvh-165px),580px)] md:h-[min(calc(100vw-24rem),calc(100dvh-165px),580px)] lg:w-[min(calc(100vw-28rem),calc(100dvh-160px),600px)] lg:h-[min(calc(100vw-28rem),calc(100dvh-160px),600px)]"
           >
             <ChessBoard
               chess={chess}
@@ -932,7 +866,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
 
           {/* Bottom Player Bar (User) */}
           <div
-            className="w-[min(calc(100vw-1rem),calc(100dvh-185px),500px)] md:w-[min(calc(100vw-22rem),calc(100dvh-170px),520px)] lg:w-[min(calc(100vw-26rem),calc(100dvh-170px),540px)] px-1 sm:px-0"
+            className="w-[min(calc(100vw-1rem),calc(100dvh-180px))] md:w-[min(calc(100vw-24rem),calc(100dvh-165px),580px)] lg:w-[min(calc(100vw-28rem),calc(100dvh-160px),600px)] px-1 sm:px-0"
           >
             <PlayerCard
               player={bottomPlayer}
@@ -985,8 +919,46 @@ export default function GameRoomPage({ params }: GamePageProps) {
         {/* 3. Right Side Console (Laptop/Desktop >= md, strictly fits inside single viewport) */}
         <div
           className="hidden md:flex w-[300px] md:w-[320px] lg:w-[360px] xl:w-[400px] flex-col gap-2 shrink-0"
-          style={{ height: 'min(calc(100dvh - 100px), 580px)' }}
+          style={{ height: 'min(calc(100dvh - 36px), 640px)' }}
         >
+          {/* Top Desktop Utility Row (Lobby + Status + Review / Settings) */}
+          <div className="flex items-center justify-between px-1 py-0.5 shrink-0">
+            <button
+              onClick={() => router.push('/play')}
+              className="py-1 px-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+              title="Return to Play Lobby"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Lobby</span>
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {gameResult ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => router.push(`/game/review/${gameId}`)}
+                  className="px-2.5 py-0.5 gap-1 text-xs font-black shadow-sm h-7"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>Review</span>
+                </Button>
+              ) : (
+                <span className="text-[10px] font-mono font-bold text-zinc-400 px-2 py-0.5 rounded-md bg-[#211f1c] border border-[#2d2a25] uppercase tracking-wider">
+                  Live
+                </span>
+              )}
+
+              <button
+                onClick={openSettings}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#282622] border border-[#35322b] transition-colors cursor-pointer"
+                title="Settings"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
           {/* Top Console Tabs: Moves vs Bot Chat */}
           <div className="p-1 bg-[#1a1815] rounded-xl border border-[#2d2a25] flex items-center gap-1 shrink-0">
             <button
@@ -1033,12 +1005,38 @@ export default function GameRoomPage({ params }: GamePageProps) {
           <div className="flex-1 min-h-0 bg-[#211f1c] rounded-xl border border-[#35322b] overflow-hidden flex flex-col shadow-sm">
             {activeTab === 'moves' ? (
               <div className="h-full flex flex-col min-h-0">
-                <MoveHistory
-                  moves={moveHistory}
-                  currentMoveIndex={currentMoveIndex}
-                  onSelectMove={handleSelectHistoricalMove}
-                  showClassifications={Boolean(gameResult)}
-                />
+                {/* Dynamically Detected Opening Header (Clickable to Opening Explorer) */}
+                {detectedOpening && (
+                  <button
+                    onClick={() =>
+                      router.push(
+                        `/openings?eco=${encodeURIComponent(detectedOpening.eco)}&name=${encodeURIComponent(
+                          detectedOpening.name
+                        )}`
+                      )
+                    }
+                    className="flex items-center justify-between px-3 py-1.5 bg-[#1b1916] hover:bg-[#25221e] border-b border-[#35322b] shrink-0 text-xs text-left cursor-pointer transition-colors group"
+                    title="Study this opening in Opening Explorer"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:scale-105 transition-transform" />
+                      <span className="font-bold text-white truncate text-[11px] sm:text-xs group-hover:text-amber-300 transition-colors">
+                        {detectedOpening.name}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-zinc-400 group-hover:text-amber-400 font-bold transition-colors shrink-0">
+                      Study &rarr;
+                    </span>
+                  </button>
+                )}
+                <div className="flex-1 min-h-0">
+                  <MoveHistory
+                    moves={moveHistory}
+                    currentMoveIndex={currentMoveIndex}
+                    onSelectMove={handleSelectHistoricalMove}
+                    showClassifications={Boolean(gameResult)}
+                  />
+                </div>
               </div>
             ) : (
               <div className="h-full flex flex-col min-h-0 p-2.5 justify-between bg-[#1e1c19]">

@@ -25,6 +25,13 @@ export type SoundTheme = 'classic' | 'wood' | 'marble' | 'arcade' | 'silman' | '
 export type LowTimeRegister = 'tick' | 'shrill' | 'beep' | 'voice';
 export type SoundPreset = 'focus' | 'casual' | 'commentary';
 
+export type BoardCoordinatesMode = 'inside' | 'outside' | 'none';
+export type PieceNotationMode = 'figurine' | 'text';
+export type PieceAnimationSpeed = 'none' | 'slow' | 'medium' | 'fast' | 'arcade';
+export type CastlingMethod = 'normal' | 'king_onto_rook';
+export type AnalysisEngineType = 'stockfish_wasm' | 'coach_danny' | 'backend_pool' | 'engine_off';
+export type AnalysisMaxTime = '1s' | '3s' | '5s' | 'unlimited';
+
 export interface AudioSettings {
   masterVolume: number;
   sfxVolume: number;
@@ -81,6 +88,7 @@ export interface MoveRecord {
   bestMoveSan?: string;
   bestMoveUci?: string;
   isCheck?: boolean;
+  timeSpentSeconds?: number;
   accuracy?: number;
   winProbLoss?: number;
   motif?: {
@@ -239,11 +247,11 @@ export interface OpeningInfo {
   eco: string;
   name: string;
   moves: string;
-  whiteWinPct: number;
-  drawPct: number;
-  blackWinPct: number;
-  totalGames: number;
-  description: string;
+  whiteWinPct?: number;
+  drawPct?: number;
+  blackWinPct?: number;
+  totalGames?: number;
+  description?: string;
   variation?: string;
   keyIdeas?: string[];
   counterOpenings?: CounterOpeningStrategy[];

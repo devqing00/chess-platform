@@ -4,46 +4,51 @@ import React from 'react';
 import { GamePlayer, PieceType, PieceColor } from '@/types/chess';
 import { CapturedPiecesBar } from './CapturedPiecesBar';
 import { Clock } from 'lucide-react';
+import { getCountryFlag } from '@/lib/countryUtils';
 
 interface PlayerCardProps {
   player: GamePlayer;
   color: PieceColor;
-  timeRemainingSeconds: number;
-  isActiveTurn: boolean;
+  timeRemainingSeconds?: number;
+  isActiveTurn?: boolean;
   isThinking?: boolean;
   capturedPieces?: PieceType[];
   materialAdvantage?: number; // positive if this player has more material
+  accuracy?: number; // Post-match / Game review accuracy %
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerCard({
   player,
   color,
   timeRemainingSeconds,
-  isActiveTurn,
+  isActiveTurn = false,
   isThinking = false,
   capturedPieces = [],
   materialAdvantage = 0,
+  accuracy,
 }) {
-  const minutes = Math.floor(timeRemainingSeconds / 60);
-  const seconds = Math.floor(timeRemainingSeconds % 60);
-  const ms = Math.floor((timeRemainingSeconds % 1) * 10);
+  const hasTime = timeRemainingSeconds !== undefined;
+  const time = timeRemainingSeconds ?? 0;
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  const ms = Math.floor((time % 1) * 10);
 
   const formattedTime =
-    timeRemainingSeconds < 20 && timeRemainingSeconds > 0
+    time < 20 && time > 0
       ? `${minutes}:${seconds < 10 ? '0' : ''}${seconds}.${ms}`
       : `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
-  const isLowTime = timeRemainingSeconds <= 20 && timeRemainingSeconds > 0;
-  const isTimeZero = timeRemainingSeconds === 0;
+  const isLowTime = time <= 20 && time > 0;
+  const isTimeZero = time === 0 && hasTime;
 
   return (
-    <div className="flex items-center justify-between px-2 sm:px-3 py-1 sm:py-1.5 bg-[#211f1c] rounded-xl border border-[#35322b] select-none shadow-sm min-h-[38px] max-h-[42px] w-full">
+    <div className="flex items-center justify-between px-1.5 sm:px-2 py-1 select-none min-h-[32px] max-h-[36px] w-full">
       {/* Player Profile & Captures */}
       <div className="flex items-center gap-2 min-w-0">
         <div className="relative shrink-0">
           <div
-            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#282522] border border-[#38342e] shadow-sm overflow-hidden flex items-center justify-center text-sm transition-all ${
-              isThinking ? 'ring-2 ring-emerald-500/70 ring-offset-1 ring-offset-[#211f1c] animate-pulse' : ''
+            className={`w-7 h-7 rounded-md bg-[#24221f] overflow-hidden flex items-center justify-center text-xs transition-all ${
+              isThinking ? 'ring-2 ring-emerald-500/70' : ''
             }`}
           >
             {player.avatar && player.avatar.startsWith('http') ? (
@@ -54,7 +59,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
             )}
           </div>
           {player.title && (
-            <span className="absolute -top-1 -right-1 text-[8px] font-black bg-[#f59e0b] border border-amber-600 text-black px-1 rounded-full">
+            <span className="absolute -top-1 -right-1 text-[8px] font-black bg-[#ca8a04] text-zinc-950 px-1 rounded-sm uppercase tracking-wider">
               {player.title}
             </span>
           )}
@@ -62,21 +67,13 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
 
         <div className="flex flex-col min-w-0 justify-center">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[11px] sm:text-xs font-black text-white truncate tracking-tight">
+            <span className="text-xs font-bold text-zinc-100 truncate tracking-tight">
               {player.name}
             </span>
-            <span className="text-[10px] text-zinc-400 font-mono font-bold">({player.rating})</span>
+            <span className="text-[11px] text-zinc-400 font-mono font-medium">({player.rating})</span>
             {player.country && (
-              <span className="text-[10px] shrink-0" title={player.country}>
-                {player.country === 'US'
-                  ? '🇺🇸'
-                  : player.country === 'DE'
-                  ? '🇩🇪'
-                  : player.country === 'AR'
-                  ? '🇦🇷'
-                  : player.country === 'NG'
-                  ? '🇳🇬'
-                  : '🌍'}
+              <span className="text-[11px] shrink-0 select-none" title={player.country}>
+                {getCountryFlag(player.country)}
               </span>
             )}
           </div>
@@ -104,21 +101,30 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
         </div>
       </div>
 
-      {/* Tactile Capsule Chess Clock */}
-      <div
-        className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-lg font-mono font-black text-xs sm:text-sm tracking-tight min-w-[70px] sm:min-w-[76px] flex items-center justify-center gap-1 border transition-all ${
-          isTimeZero
-            ? 'bg-rose-950/90 text-rose-300 border-rose-600 shadow-sm animate-pulse'
-            : isLowTime && isActiveTurn
-            ? 'bg-rose-500 text-white border-rose-600 shadow-sm animate-pulse'
-            : isActiveTurn
-            ? 'bg-white text-zinc-950 border-zinc-300 shadow-sm'
-            : 'bg-[#141311] text-zinc-300 border-[#35322b]'
-        }`}
-      >
-        <Clock className={`w-3 h-3 ${isActiveTurn ? 'text-zinc-900' : 'text-zinc-500'}`} />
-        <span>{formattedTime}</span>
-      </div>
+      {/* Accuracy Badge (Review Mode: Clean Typography) OR Tactile Chess Clock (Gameplay Mode) */}
+      {accuracy !== undefined ? (
+        <div className="flex items-baseline gap-1 font-mono shrink-0 select-none px-1">
+          <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">acc</span>
+          <span className="text-xs sm:text-sm font-black text-emerald-400 tabular-nums">
+            {accuracy.toFixed(1)}%
+          </span>
+        </div>
+      ) : hasTime ? (
+        <div
+          className={`px-2.5 py-1 rounded-md font-mono font-bold text-xs sm:text-sm tracking-tight tabular-nums min-w-[66px] sm:min-w-[72px] flex items-center justify-center gap-1.5 transition-colors select-none ${
+            isTimeZero
+              ? 'bg-rose-950 text-rose-300 animate-pulse'
+              : isLowTime && isActiveTurn
+              ? 'bg-rose-600 text-white animate-pulse'
+              : isActiveTurn
+              ? 'bg-white text-zinc-950 font-black shadow-sm'
+              : 'bg-[#1f1d19] text-zinc-300'
+          }`}
+        >
+          <Clock className={`w-3 h-3 ${isActiveTurn ? 'text-zinc-900' : 'text-zinc-400'}`} />
+          <span>{formattedTime}</span>
+        </div>
+      ) : null}
     </div>
   );
 });

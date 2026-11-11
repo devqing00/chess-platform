@@ -107,17 +107,38 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
                   onClick={() => onSelectMove(turn.whiteIndex)}
                   className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-all ${
                     isWhiteActive
-                      ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_1px_0_0_#385a16] border-t border-white/20'
+                      ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_1px_0_0_#385a16] border-t border-white/40'
                       : 'text-zinc-200 hover:bg-[#33302b]'
                   }`}
                 >
-                  <span>{turn.white.san}</span>
-                  {whiteBadge && (
-                    <span
-                      className={`text-[10px] font-bold px-1 rounded ${whiteBadge.bg} ${whiteBadge.color}`}
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="truncate">{turn.white.san}</span>
+                    {whiteBadge && (
+                      <span
+                        className={`text-[10px] font-bold px-1 rounded ${whiteBadge.bg} ${whiteBadge.color}`}
+                      >
+                        {whiteBadge.label}
+                      </span>
+                    )}
+                  </div>
+
+                  {turn.white.timeSpentSeconds !== undefined && (
+                    <div
+                      className={`flex items-center gap-1 shrink-0 text-[10px] font-mono tabular-nums ${
+                        isWhiteActive ? 'text-zinc-950 font-bold' : 'text-zinc-400'
+                      }`}
                     >
-                      {whiteBadge.label}
-                    </span>
+                      <span
+                        className={`rounded-full inline-block ${
+                          isWhiteActive ? 'bg-zinc-950/70' : 'bg-white/40'
+                        }`}
+                        style={{
+                          width: `${Math.min(20, Math.max(4, turn.white.timeSpentSeconds * 1.5))}px`,
+                          height: '3px',
+                        }}
+                      />
+                      <span>{turn.white.timeSpentSeconds.toFixed(1)}s</span>
+                    </div>
                   )}
                 </button>
 
@@ -128,17 +149,38 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({
                     onClick={() => onSelectMove(turn.blackIndex)}
                     className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-all ${
                       isBlackActive
-                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black shadow-[0_1px_0_0_#385a16] border-t border-white/20'
+                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_1px_0_0_#385a16] border-t border-white/40'
                         : 'text-zinc-200 hover:bg-[#33302b]'
                     }`}
                   >
-                    <span>{turn.black.san}</span>
-                    {blackBadge && (
-                      <span
-                        className={`text-[10px] font-bold px-1 rounded ${blackBadge.bg} ${blackBadge.color}`}
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="truncate">{turn.black.san}</span>
+                      {blackBadge && (
+                        <span
+                          className={`text-[10px] font-bold px-1 rounded ${blackBadge.bg} ${blackBadge.color}`}
+                        >
+                          {blackBadge.label}
+                        </span>
+                      )}
+                    </div>
+
+                    {turn.black.timeSpentSeconds !== undefined && (
+                      <div
+                        className={`flex items-center gap-1 shrink-0 text-[10px] font-mono tabular-nums ${
+                          isBlackActive ? 'text-zinc-950 font-bold' : 'text-zinc-400'
+                        }`}
                       >
-                        {blackBadge.label}
-                      </span>
+                        <span
+                          className={`rounded-full inline-block ${
+                            isBlackActive ? 'bg-zinc-950/70' : 'bg-zinc-500'
+                          }`}
+                          style={{
+                            width: `${Math.min(20, Math.max(4, turn.black.timeSpentSeconds * 1.5))}px`,
+                            height: '3px',
+                          }}
+                        />
+                        <span>{turn.black.timeSpentSeconds.toFixed(1)}s</span>
+                      </div>
                     )}
                   </button>
                 ) : (

@@ -445,9 +445,14 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
   defeatedColor = null,
 }) {
   const safeShell = useSafeShell();
+  const effectiveOrientation: PieceColor =
+    safeShell?.whiteAlwaysOnBottom ? 'w' : (orientation || 'w');
+  const effectiveCoordinates = safeShell?.boardCoordinates || 'inside';
+  const effectiveHighlightLastMove = safeShell?.highlightLastMove ?? true;
+  const effectiveShowLegalMoves = safeShell?.showLegalMoves ?? true;
   const effectivePremoveEnabled =
     propPremoveEnabled !== undefined ? propPremoveEnabled : (safeShell?.premoveEnabled ?? false);
-  const effectivePlayerColor: PieceColor = playerColor || orientation || 'w';
+  const effectivePlayerColor: PieceColor = playerColor || effectiveOrientation;
   const isMyTurn = chess.turn() === effectivePlayerColor;
 
   // Internal premove state if not externally controlled
@@ -559,12 +564,12 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
 
   // Board layout depending on player perspective
   const ranksLayout = useMemo(() => {
-    return orientation === 'w' ? RANKS : [...RANKS].reverse();
-  }, [orientation]);
+    return effectiveOrientation === 'w' ? RANKS : [...RANKS].reverse();
+  }, [effectiveOrientation]);
 
   const filesLayout = useMemo(() => {
-    return orientation === 'w' ? FILES : [...FILES].reverse();
-  }, [orientation]);
+    return effectiveOrientation === 'w' ? FILES : [...FILES].reverse();
+  }, [effectiveOrientation]);
 
   // Calculate relative pixel/percentage translation offset for last move piece speed blur animation
   const moveDelta = useMemo(() => {
@@ -1123,7 +1128,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
             const piece = chess.get(sq);
 
             const isSelected = selectedSquare === sq;
-            const isLegalDestination = legalSquaresMap.has(sq);
+            const isLegalDestination = effectiveShowLegalMoves && legalSquaresMap.has(sq);
             const isPremoveSquare = Boolean(premove && (premove.from === sq || premove.to === sq));
             const isPremoveCandidate = premoveCandidateSquares.has(sq);
             const isCapture =
@@ -1137,8 +1142,8 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
             const isDefeatedKing = defeatedKingSquare === sq;
             const isWinningKing = winningKingSquare === sq;
 
-            const showRank = fileIdx === 0;
-            const showFile = rankIdx === 7;
+            const showRank = effectiveCoordinates === 'inside' && fileIdx === 0;
+            const showFile = effectiveCoordinates === 'inside' && rankIdx === 7;
 
             const classificationOnSquare =
               activeClassification && activeClassification.square === sq
@@ -1156,7 +1161,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
             let bgSquareColor = isLight ? colors.light : colors.dark;
             if (isSelected) {
               bgSquareColor = isLight ? '#f7f789' : '#baca2b';
-            } else if (isLastMoveFrom || isLastMoveTo) {
+            } else if (effectiveHighlightLastMove && (isLastMoveFrom || isLastMoveTo)) {
               bgSquareColor = isLight ? '#f5f682' : '#b9ca43';
             }
 
@@ -1362,6 +1367,26 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(function ChessBo
                 <BoardSquare key={`fg-${sqProps.sq}`} layer="foreground" {...sqProps} />
               ))}
             </div>
+
+            {/* Outside Coordinates Labels */}
+            {effectiveCoordinates === 'outside' && (
+              <>
+                <div className="absolute -left-4 top-0 bottom-0 flex flex-col justify-around text-[10px] font-mono font-bold text-zinc-400 select-none pointer-events-none">
+                  {ranksLayout.map((r) => (
+                    <span key={`out-rank-${r}`} className="h-[12.5%] flex items-center justify-center">
+                      {r}
+                    </span>
+                  ))}
+                </div>
+                <div className="absolute left-0 right-0 -bottom-4 flex flex-row justify-around text-[10px] font-mono font-bold text-zinc-400 select-none pointer-events-none">
+                  {filesLayout.map((f) => (
+                    <span key={`out-file-${f}`} className="w-[12.5%] flex items-center justify-center">
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         );
       })()}

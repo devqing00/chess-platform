@@ -15,11 +15,13 @@ import { GamePlayer, GameResultDetails, PieceType, PieceColor } from '@/types/ch
 import { GameOverModal } from '@/components/game/GameOverModal';
 import { MatchVersusIntro } from '@/components/game/MatchVersusIntro';
 import { CapturedPiecesBar, calculateCapturesAndAdvantage } from '@/components/game/CapturedPiecesBar';
+import { PlayerCard } from '@/components/game/PlayerCard';
 import {
   getPersistentGuestUid,
   getEffectiveUserProfile,
   isBrowserChallengeHost,
 } from '@/lib/firebase/guestAuth';
+import { getCountryFlag } from '@/lib/countryUtils';
 import {
   Clock,
   Flag,
@@ -45,7 +47,9 @@ import {
   ArrowUpDown,
   MessageSquare,
   Send,
+  BookOpen,
 } from 'lucide-react';
+import { matchEcoOpening } from '@/lib/ecoOpenings';
 
 interface LivePvPArenaProps {
   gameId: string;
@@ -168,7 +172,17 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       // Synchronize chess.js internal FEN state if different
       if (liveGame.fen && liveGame.fen !== chess.fen()) {
         try {
-          chess.load(liveGame.fen);
+          if (liveGame.moves && liveGame.moves.length > 0) {
+            chess.reset();
+            for (const m of liveGame.moves) {
+              const san = typeof m === 'string' ? m : (m as any)?.san;
+              if (san) {
+                try { chess.move(san); } catch {}
+              }
+            }
+          } else {
+            chess.load(liveGame.fen);
+          }
           if (!liveGame.moves || liveGame.moves.length === 0) {
             setLastMoveSquares(null);
           } else if (liveGame.lastMove) {
@@ -358,7 +372,10 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
 
   // Memoized two-row turn pairs (Row 1: White, Row 2: Black)
   const turnPairs = useMemo(() => {
-    const history = chess.history();
+    const rawMoves = (game?.moves && game.moves.length > 0
+      ? game.moves.map((m: any) => (typeof m === 'string' ? m : m.san))
+      : chess.history()) as string[];
+
     const pairs: Array<{
       turn: number;
       white: string;
@@ -366,17 +383,26 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       black?: string;
       blackIdx?: number;
     }> = [];
-    for (let i = 0; i < history.length; i += 2) {
+    for (let i = 0; i < rawMoves.length; i += 2) {
       pairs.push({
         turn: Math.floor(i / 2) + 1,
-        white: history[i],
+        white: rawMoves[i],
         whiteIdx: i,
-        black: history[i + 1],
-        blackIdx: i + 1 < history.length ? i + 1 : undefined,
+        black: rawMoves[i + 1],
+        blackIdx: i + 1 < rawMoves.length ? i + 1 : undefined,
       });
     }
     return pairs;
-  }, [chess.history().length]);
+  }, [game?.moves, chess]);
+
+  // Real-time Opening Detection as moves are played
+  const detectedOpening = useMemo(() => {
+    const rawMoves = (game?.moves && game.moves.length > 0
+      ? game.moves.map((m: any) => (typeof m === 'string' ? m : m.san))
+      : chess.history()) as string[];
+    if (rawMoves.length === 0) return null;
+    return matchEcoOpening(rawMoves);
+  }, [game?.moves, chess]);
 
   // Real-time chat notification sound & unread tracking
   useEffect(() => {
@@ -640,6 +666,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         isWarning: myTime < 30,
         isSearching: false,
         isDisconnected: false,
+        country: activeProfile.country || 'NG',
       }
     : {
         name: isWaitingForOpponent
@@ -653,6 +680,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         isWarning: opponentTime < 30,
         isSearching: isWaitingForOpponent,
         isDisconnected: Boolean(opponentDisconnected),
+        country: opponent?.country || 'NG',
       };
 
   const bottomPlayerInfo = userFlippedBoard
@@ -668,6 +696,7 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         isWarning: opponentTime < 30,
         isSearching: isWaitingForOpponent,
         isDisconnected: Boolean(opponentDisconnected),
+        country: opponent?.country || 'NG',
       }
     : {
         name: profile?.displayName || user?.displayName || 'You',
@@ -679,90 +708,42 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         isWarning: myTime < 30,
         isSearching: false,
         isDisconnected: false,
+        country: activeProfile.country || 'NG',
       };
 
   return (
-    <div className="w-full h-[100dvh] max-h-[100dvh] max-w-6xl mx-auto flex flex-col xl:flex-row items-center justify-between xl:justify-center p-1.5 sm:p-2.5 xl:p-6 gap-1 sm:gap-2 xl:gap-6 select-none overflow-hidden">
+    <div className="w-full h-[100dvh] max-h-[100dvh] max-w-7xl mx-auto flex flex-col xl:flex-row items-center justify-between xl:justify-center p-1.5 sm:p-2.5 xl:p-6 gap-1 sm:gap-2 xl:gap-6 select-none overflow-hidden">
       {/* ========================================================================= */}
       {/* 1. CHESSBOARD & PLAYER HUD COLUMN                                         */}
       {/* ========================================================================= */}
-      <div className="flex flex-col items-center justify-between xl:justify-start h-full max-h-[100dvh] w-full max-w-[min(calc(100vw-1rem),calc(100dvh-175px),520px)] xl:w-[min(calc(100vw-24rem),calc(100dvh-120px),520px)] shrink-0 py-0.5 xl:py-0">
+      <div className="flex flex-col items-center justify-center h-full max-h-[100dvh] w-full max-w-[min(calc(100vw-1rem),calc(100dvh-175px))] xl:w-[min(calc(100vw-26rem),calc(100dvh-150px),600px)] shrink-0 py-0.5 xl:py-0 gap-1.5">
         {/* Top Player Card & Clock */}
-        <div className="w-full px-3 py-1.5 mb-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0 shadow-md">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative w-8 h-8 rounded-lg bg-zinc-800/90 border border-white/10 flex items-center justify-center text-sm shrink-0 overflow-hidden">
-              {topPlayerInfo.isSearching ? (
-                <div className="w-full h-full bg-amber-500/10 flex items-center justify-center text-amber-400">
-                  <Search className="w-4 h-4 animate-pulse" />
-                </div>
-              ) : topPlayerInfo.avatar && topPlayerInfo.avatar.startsWith('http') ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={topPlayerInfo.avatar} alt={topPlayerInfo.name} className="w-full h-full rounded-lg object-cover" />
-              ) : (
-                <span>{topPlayerInfo.avatar || '♟️'}</span>
-              )}
-              {topPlayerInfo.isSearching ? (
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              ) : topPlayerInfo.isDisconnected ? (
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-              ) : (
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              )}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white truncate">
-                  {topPlayerInfo.name}
-                </span>
-                <span className="text-[10px] text-zinc-400 font-mono">
-                  ({topPlayerInfo.rating})
-                </span>
-              </div>
+        <div className="w-full px-0.5">
+          {topPlayerInfo.isSearching ? (
+            <div className="flex items-center justify-between px-2 py-1 select-none min-h-[32px] max-h-[36px] w-full">
               <div className="flex items-center gap-2">
-                <span className="text-[10px]">
-                  {topPlayerInfo.isSearching ? (
-                    <span className="text-amber-400/90 font-medium flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                      Waiting for player...
-                    </span>
-                  ) : topPlayerInfo.isDisconnected ? (
-                    <span className="text-rose-400 font-bold">Disconnected ({disconnectCountdown}s)</span>
-                  ) : (
-                    <span className="text-zinc-400">{topPlayerInfo.colorLabel}</span>
-                  )}
-                </span>
-                {!topPlayerInfo.isSearching && (
-                  <CapturedPiecesBar
-                    capturedPieces={topCaptured}
-                    capturedColor={topCapturedColor}
-                    materialAdvantage={topAdvantage}
-                  />
-                )}
+                <div className="w-7 h-7 rounded-md bg-[#24221f] flex items-center justify-center text-amber-400">
+                  <Search className="w-3.5 h-3.5 animate-pulse" />
+                </div>
+                <span className="text-xs text-amber-400/90 font-medium">Searching for opponent...</span>
               </div>
             </div>
-          </div>
-
-          {/* Top Digital Clock */}
-          <div className="flex items-center gap-2 shrink-0">
-            {game?.status === 'active' && firstMoveCountdown !== null && topPlayerInfo.isTurn && (
-              <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 hidden sm:inline-block">
-                Move 1: {firstMoveCountdown}s
-              </span>
-            )}
-            <div
-              className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
-                topPlayerInfo.isSearching
-                  ? 'bg-[#181714] border-white/5 text-zinc-500'
-                  : topPlayerInfo.isTurn
-                  ? topPlayerInfo.isWarning
-                    ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
-                    : 'bg-[#292621] border-amber-500/50 text-white shadow-sm'
-                  : 'bg-[#181714] border-white/5 text-zinc-400'
-              }`}
-            >
-              {formatTime(topPlayerInfo.time)}
-            </div>
-          </div>
+          ) : (
+            <PlayerCard
+              player={{
+                id: topPlayerInfo.name,
+                name: topPlayerInfo.name,
+                rating: topPlayerInfo.rating,
+                avatar: topPlayerInfo.avatar,
+                country: topPlayerInfo.country,
+              }}
+              color={playerColor === 'w' ? 'b' : 'w'}
+              timeRemainingSeconds={game?.status === 'active' ? topPlayerInfo.time : undefined}
+              isActiveTurn={topPlayerInfo.isTurn}
+              capturedPieces={topCaptured}
+              materialAdvantage={topAdvantage}
+            />
+          )}
         </div>
 
         {/* Viewport-scaling Chessboard */}
@@ -1006,63 +987,21 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
         </div>
 
         {/* Bottom Player Card & Clock */}
-        <div className="w-full px-3 py-1.5 mt-1 bg-[#1a1815] border border-white/5 rounded-xl flex items-center justify-between text-xs shrink-0 shadow-md">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-sm shrink-0 overflow-hidden">
-              {bottomPlayerInfo.isSearching ? (
-                <div className="w-full h-full bg-amber-500/10 flex items-center justify-center text-amber-400">
-                  <Search className="w-4 h-4 animate-pulse" />
-                </div>
-              ) : bottomPlayerInfo.avatar && bottomPlayerInfo.avatar.startsWith('http') ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={bottomPlayerInfo.avatar} alt={bottomPlayerInfo.name} className="w-full h-full rounded-lg object-cover" />
-              ) : (
-                <span>{bottomPlayerInfo.avatar || '♟️'}</span>
-              )}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white truncate">
-                  {bottomPlayerInfo.name}
-                </span>
-                <span className="text-[10px] text-zinc-400 font-mono">
-                  ({bottomPlayerInfo.rating})
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-zinc-400">
-                  {bottomPlayerInfo.colorLabel}
-                </span>
-                <CapturedPiecesBar
-                  capturedPieces={bottomCaptured}
-                  capturedColor={bottomCapturedColor}
-                  materialAdvantage={bottomAdvantage}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Digital Clock */}
-          <div className="flex items-center gap-2 shrink-0">
-            {game?.status === 'active' && firstMoveCountdown !== null && bottomPlayerInfo.isTurn && (
-              <span className="text-[10px] font-mono text-amber-400/90 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 hidden sm:inline-block">
-                Move 1: {firstMoveCountdown}s
-              </span>
-            )}
-            <div
-              className={`px-3 py-1 rounded-lg font-mono text-base sm:text-lg font-black border transition-all ${
-                bottomPlayerInfo.isSearching
-                  ? 'bg-[#181714] border-white/5 text-zinc-500'
-                  : bottomPlayerInfo.isTurn
-                  ? bottomPlayerInfo.isWarning
-                    ? 'bg-rose-950/40 border-rose-600 text-rose-300 animate-pulse'
-                    : 'bg-[#292621] border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/30'
-                  : 'bg-[#181714] border-white/5 text-zinc-400'
-              }`}
-            >
-              {formatTime(bottomPlayerInfo.time)}
-            </div>
-          </div>
+        <div className="w-full px-0.5">
+          <PlayerCard
+            player={{
+              id: bottomPlayerInfo.name,
+              name: bottomPlayerInfo.name,
+              rating: bottomPlayerInfo.rating,
+              avatar: bottomPlayerInfo.avatar,
+              country: bottomPlayerInfo.country,
+            }}
+            color={playerColor === 'w' ? 'w' : 'b'}
+            timeRemainingSeconds={game?.status === 'active' ? bottomPlayerInfo.time : undefined}
+            isActiveTurn={bottomPlayerInfo.isTurn}
+            capturedPieces={bottomCaptured}
+            materialAdvantage={bottomAdvantage}
+          />
         </div>
 
         {/* Mobile/Tablet Compact Action Bar & 2-Row Move Notation Strip (Strictly locked inside 100dvh without page scroll) */}
@@ -1593,11 +1532,36 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
           )}
         </div>
 
+        {/* Dynamic Opening Name Banner (Clickable to Opening Explorer) */}
+        {detectedOpening && (
+          <button
+            onClick={() =>
+              router.push(
+                `/openings?eco=${encodeURIComponent(detectedOpening.eco)}&name=${encodeURIComponent(
+                  detectedOpening.name
+                )}`
+              )
+            }
+            className="w-full px-3 py-1.5 bg-[#181614] hover:bg-[#221f1c] border border-white/5 hover:border-amber-500/30 rounded-xl flex items-center justify-between text-xs shrink-0 cursor-pointer transition-all text-left group"
+            title="Study this opening in Opening Explorer"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:scale-105 transition-transform" />
+              <span className="font-bold text-white truncate text-[11px] group-hover:text-amber-300 transition-colors">
+                {detectedOpening.name}
+              </span>
+            </div>
+            <span className="text-[10px] text-zinc-400 group-hover:text-amber-400 font-bold transition-colors shrink-0">
+              Study &rarr;
+            </span>
+          </button>
+        )}
+
         {/* Real-time Move Notation (Two Rows: White & Black) */}
         <div className="p-3 bg-[#1c1a17] border border-white/5 rounded-2xl flex flex-col gap-2 shadow-xl shrink-0">
           <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
             <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-              Move Notation ({chess.history().length} Plies)
+              Move Notation ({game?.moves?.length || chess.history().length} Plies)
             </span>
             <span className="text-[10px] font-mono text-zinc-500 font-bold">2 Rows (W / B)</span>
           </div>
@@ -1725,34 +1689,41 @@ export const LivePvPArena: React.FC<LivePvPArenaProps> = ({ gameId }) => {
       {/* ========================================================================= */}
       {/* 4. HIGH-ELEVATION GAME OVER MODAL (z-[100] OUTSIDE BOARD PIECES)          */}
       {/* ========================================================================= */}
-      {resultDetails && (
-        <GameOverModal
-          isOpen={isGameOverModalOpen && game?.status === 'completed'}
-          onClose={() => setIsGameOverModalOpen(false)}
-          result={resultDetails}
-          whitePlayer={{
-            id: game?.whitePlayer?.uid || 'w',
-            name: game?.whitePlayer?.name || 'White',
-            rating: game?.whitePlayer?.rating || 1200,
-            avatar: game?.whitePlayer?.avatar || '♟️',
-            country: game?.whitePlayer?.country || 'US',
-          }}
-          blackPlayer={{
-            id: game?.blackPlayer?.uid || 'b',
-            name: game?.blackPlayer?.name || 'Black',
-            rating: game?.blackPlayer?.rating || 1200,
-            avatar: game?.blackPlayer?.avatar || '♟️',
-            country: game?.blackPlayer?.country || 'US',
-          }}
-          userColor={playerColor}
-          onReviewGame={() => router.push(`/game/review/${gameId}`)}
-          rematchRequestedBy={game?.rematchRequestedBy}
-          onRematch={() => GameSyncService.requestRematch(gameId, playerColor)}
-          onAcceptRematch={() => GameSyncService.acceptRematch(gameId, true)}
-          onDeclineRematch={() => GameSyncService.declineRematch(gameId)}
-          onNewGame={() => router.push('/play')}
-        />
-      )}
+      <GameOverModal
+        isOpen={Boolean(resultDetails && isGameOverModalOpen && game?.status === 'completed')}
+        onClose={() => setIsGameOverModalOpen(false)}
+        result={
+          resultDetails || {
+            winner: 'draw',
+            reason: 'concluded',
+            ratingDelta: 0,
+            newRating: 1200,
+            league: 'Bronze III',
+            trophiesDelta: 0,
+          }
+        }
+        whitePlayer={{
+          id: game?.whitePlayer?.uid || 'w',
+          name: game?.whitePlayer?.name || 'White',
+          rating: game?.whitePlayer?.rating || 1200,
+          avatar: game?.whitePlayer?.avatar || '♟️',
+          country: game?.whitePlayer?.country || 'NG',
+        }}
+        blackPlayer={{
+          id: game?.blackPlayer?.uid || 'b',
+          name: game?.blackPlayer?.name || 'Black',
+          rating: game?.blackPlayer?.rating || 1200,
+          avatar: game?.blackPlayer?.avatar || '♟️',
+          country: game?.blackPlayer?.country || 'NG',
+        }}
+        userColor={playerColor}
+        onReviewGame={() => router.push(`/game/review/${gameId}`)}
+        rematchRequestedBy={game?.rematchRequestedBy}
+        onRematch={() => GameSyncService.requestRematch(gameId, playerColor)}
+        onAcceptRematch={() => GameSyncService.acceptRematch(gameId, true)}
+        onDeclineRematch={() => GameSyncService.declineRematch(gameId)}
+        onNewGame={() => router.push('/play')}
+      />
 
       {/* ========================================================================= */}
       {/* 5. REAL-TIME LIVE MATCH CHAT MODAL / DRAWER                               */}

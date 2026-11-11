@@ -61,7 +61,7 @@ export const CapturedPiecesBar: React.FC<CapturedPiecesBarProps> = React.memo(
         </div>
 
         {materialAdvantage > 0 && (
-          <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 rounded-sm ml-0.5 leading-tight">
+          <span className="text-[10px] font-mono font-bold text-zinc-300 ml-1 select-none">
             +{materialAdvantage}
           </span>
         )}

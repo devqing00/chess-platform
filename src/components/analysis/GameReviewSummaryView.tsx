@@ -17,9 +17,7 @@ import {
   MoveClassification,
   EngineStrengthTier,
   ENGINE_STRENGTH_CONFIGS,
-  AntiCheatReport,
 } from '@/types/chess';
-import { AntiCheatReportModal } from './AntiCheatReportModal';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -44,13 +42,14 @@ import {
   Trophy,
   Flag,
   Clock,
-  Shield,
   ChevronLeft,
   ChevronRight,
   Zap,
   Check,
   Star,
+  BookOpen,
 } from 'lucide-react';
+import { matchEcoOpening } from '@/lib/ecoOpenings';
 import { formatGameOutcomeDescription, extractTerminationReason, isSessionUserWhite } from '@/lib/gameSessionStore';
 import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import { soundService } from '@/lib/audioService';
@@ -102,14 +101,27 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   // Authoritative Game Outcome details
   const gameOutcome = React.useMemo(() => {
     const lastMove = moves && moves.length > 0 ? moves[moves.length - 1] : undefined;
-    const isCheckmateLast = Boolean(lastMove?.san?.includes('#'));
+    let isCheckmateFen = false;
+    if (lastMove?.fenAfter) {
+      try {
+        isCheckmateFen = new Chess(lastMove.fenAfter).isCheckmate();
+      } catch {}
+    }
+    const isCheckmateLast =
+      Boolean(lastMove?.san?.includes('#')) ||
+      isCheckmateFen ||
+      report.resultDetails?.reason === 'checkmate';
 
     let winner: 'w' | 'b' | 'draw';
     let reason: string;
 
     if (isCheckmateLast) {
-      // Move odd (1, 3, 5...) is White; Move even (2, 4, 6...) is Black
-      winner = moves.length % 2 === 1 ? 'w' : 'b';
+      winner =
+        report.resultDetails?.winner && ['w', 'b'].includes(report.resultDetails.winner)
+          ? (report.resultDetails.winner as 'w' | 'b')
+          : moves.length % 2 === 1
+          ? 'w'
+          : 'b';
       reason = 'checkmate';
     } else {
       const termLower = (report.termination || '').toLowerCase();
@@ -208,49 +220,17 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
     return list;
   }, [moves, isUserWhite, report.blunderRetryPuzzle]);
 
+  const detectedOpening = React.useMemo(() => {
+    if (report.opening && report.opening.name) return report.opening;
+    const sanList = moves.map((m) => m.san);
+    return matchEcoOpening(sanList);
+  }, [report.opening, moves]);
+
   const [currentMistakeIndex, setCurrentMistakeIndex] = useState(0);
   const [solvedMistakes, setSolvedMistakes] = useState<Set<number>>(new Set());
   const [isBlunderModalOpen, setIsBlunderModalOpen] = useState(false);
   const [blunderStatus, setBlunderStatus] = useState<'idle' | 'correct' | 'wrong' | 'revealed'>('idle');
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-
-  // Fair-Play & Anti-Cheat Audit State
-  const [isAntiCheatModalOpen, setIsAntiCheatModalOpen] = useState(false);
-  const [antiCheatReport, setAntiCheatReport] = useState<AntiCheatReport | null>(null);
-  const [isLoadingAntiCheat, setIsLoadingAntiCheat] = useState(false);
-
-  const handleOpenAntiCheat = async () => {
-    if (antiCheatReport) {
-      setIsAntiCheatModalOpen(true);
-      return;
-    }
-
-    setIsLoadingAntiCheat(true);
-    try {
-      const res = await fetch('/api/anti-cheat/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          moves: report.moves,
-          whiteAccuracy: report.whiteAccuracy,
-          blackAccuracy: report.blackAccuracy,
-        }),
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.report) {
-          setAntiCheatReport(json.report);
-          setIsAntiCheatModalOpen(true);
-          return;
-        }
-      }
-    } catch {
-      // fallback
-    } finally {
-      setIsLoadingAntiCheat(false);
-    }
-  };
 
   const activeMistakePuzzle = userMistakesPuzzles[currentMistakeIndex] || userMistakesPuzzles[0];
 
@@ -500,6 +480,38 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </span>
         </div>
 
+        {/* Identified Master Opening Card (Clickable to Opening Explorer) */}
+        {detectedOpening && (
+          <button
+            onClick={() =>
+              router.push(
+                `/openings?eco=${encodeURIComponent(detectedOpening.eco)}&name=${encodeURIComponent(
+                  detectedOpening.name
+                )}`
+              )
+            }
+            className="w-full flex items-center justify-between px-3 py-2 bg-[#1b1916] hover:bg-[#24211d] rounded-xl border border-white/5 hover:border-amber-500/30 transition-all text-left cursor-pointer group"
+            title="Explore this opening in Opening Explorer"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[9px] font-bold uppercase text-zinc-400 tracking-wider">
+                  Opening Theory
+                </span>
+                <span className="text-xs font-black text-white truncate group-hover:text-amber-300 transition-colors" title={detectedOpening.name}>
+                  {detectedOpening.name}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] text-zinc-400 group-hover:text-amber-400 font-bold transition-colors shrink-0">
+              Study &rarr;
+            </span>
+          </button>
+        )}
+
         {/* Players Row */}
         <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
           <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
@@ -687,15 +699,6 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </div>
         )}
 
-        {/* Fair-Play & Anti-Cheat Screening Button */}
-        <button
-          onClick={handleOpenAntiCheat}
-          disabled={isLoadingAntiCheat}
-          className="w-full py-1.5 px-3 rounded-lg bg-[#24221e] hover:bg-[#2e2a25] text-zinc-300 hover:text-white font-bold uppercase tracking-wider text-[11px] border border-white/5 shadow-[0_2px_0_0_#141311] active:translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-2"
-        >
-          <Shield className="w-3.5 h-3.5 text-purple-400" />
-          <span>{isLoadingAntiCheat ? 'Auditing Fair-Play...' : 'Fair-Play & Anti-Cheat Audit'}</span>
-        </button>
 
         {/* Hub Bridges */}
         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#2d2a26]">
@@ -1309,13 +1312,6 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* Fair-Play & Anti-Cheat Audit Modal */}
-      <AntiCheatReportModal
-        isOpen={isAntiCheatModalOpen}
-        onClose={() => setIsAntiCheatModalOpen(false)}
-        report={antiCheatReport}
-      />
     </div>
   );
 };

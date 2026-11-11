@@ -37,6 +37,7 @@ import {
   Target,
   Flame,
   Globe,
+  Settings,
 } from 'lucide-react';
 import { soundService } from '@/lib/audioService';
 import { useShell } from '@/context/ShellContext';
@@ -108,7 +109,15 @@ type AnalysisScreen = 'sandbox' | 'theory' | 'tablebase' | 'vault';
 function AnalysisStudioContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { boardTheme, pieceTheme, openChessComSync } = useShell();
+  const {
+    boardTheme,
+    pieceTheme,
+    openChessComSync,
+    openSettings,
+    analysisEngineType,
+    analysisMultiPv,
+    pieceNotation,
+  } = useShell();
   const { effectiveDisplayName, syncedChessCom, syncedLichess } = useAuth();
 
   // Sub-screen navigation ("Screens, Not Pages" architecture)
@@ -150,6 +159,66 @@ function AnalysisStudioContent() {
     arrow: ArrowAnnotation | null;
   } | null>(null);
   const [isDetectingThreat, setIsDetectingThreat] = useState(false);
+
+  // Engine display label driven by settings
+  const engineDisplayLabel = useMemo(() => {
+    switch (analysisEngineType) {
+      case 'coach_danny':
+        return 'Coach Danny AI';
+      case 'backend_pool':
+        return 'Deep Stockfish Pool';
+      case 'engine_off':
+        return 'Engine Off';
+      case 'stockfish_wasm':
+      default:
+        return 'Stockfish 19 Lite';
+    }
+  }, [analysisEngineType]);
+
+  // Detected opening based on moves played
+  const detectedOpening = useMemo(() => {
+    if (sanHistory.length === 0) return { name: 'Starting Position', eco: '' };
+    const matched = matchOpeningFromMoves(sanHistory.slice(0, historyIndex));
+    return matched || { name: "King's Pawn Opening", eco: 'B00' };
+  }, [sanHistory, historyIndex]);
+
+  // Notation formatter honoring figurine setting
+  const formatNotation = useCallback(
+    (san: string) => {
+      if (!san) return '';
+      if (pieceNotation !== 'figurine') return san;
+      return san
+        .replace(/^N/, '♞')
+        .replace(/^B/, '♝')
+        .replace(/^R/, '♜')
+        .replace(/^Q/, '♛')
+        .replace(/^K/, '♚');
+    },
+    [pieceNotation]
+  );
+
+  // Grouped move pairs for notation table
+  const movePairs = useMemo(() => {
+    const pairs: Array<{
+      num: number;
+      white?: { san: string; ply: number };
+      black?: { san: string; ply: number };
+    }> = [];
+    for (let i = 0; i < sanHistory.length; i += 2) {
+      pairs.push({
+        num: Math.floor(i / 2) + 1,
+        white: { san: sanHistory[i], ply: i + 1 },
+        black: sanHistory[i + 1] ? { san: sanHistory[i + 1], ply: i + 2 } : undefined,
+      });
+    }
+    return pairs;
+  }, [sanHistory]);
+
+  // Sliced PV lines honoring multiPV setting
+  const visiblePvLines = useMemo(() => {
+    const count = analysisMultiPv || 1;
+    return pvLines.slice(0, count);
+  }, [pvLines, analysisMultiPv]);
 
   // Vault / Import state
   const [importText, setImportText] = useState('');
@@ -895,33 +964,98 @@ function AnalysisStudioContent() {
               </div>
             </div>
 
-            {/* Right: Multi-PV Lines & Launch Game Review */}
+            {/* Right: Analysis & Move Notation Studio */}
             <div className="w-full lg:w-96 flex flex-col gap-2.5 min-h-0 bg-[#181614] p-3 rounded-2xl border border-white/5">
-              {/* Engine Assessment Header */}
-              <div className="flex items-center justify-between border-b border-white/5 pb-2 shrink-0">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    Stockfish 18 WASM
-                  </span>
+              {/* Engine Status Lockup Bar adhering to Chess.com Ergonomics */}
+              <div className="flex items-center justify-between py-1.5 px-2.5 bg-[#201e1a] rounded-xl border border-white/5 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[#81b64c] font-black text-sm">*</span>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Analysis</span>
+                  <span className="text-zinc-600">|</span>
+                  <span className="text-xs font-mono font-bold text-zinc-300 truncate">{engineDisplayLabel}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-mono text-zinc-400">
-                    Depth {engineDepth || targetDepth} &bull; {nodesCount ? `${(nodesCount / 1000).toFixed(0)}k` : 'instant'}
-                  </span>
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => {
                       soundService.playTactilePop();
                       setIsEngineActive(!isEngineActive);
                     }}
-                    className="p-1 rounded text-zinc-400 hover:text-white cursor-pointer"
+                    title={isEngineActive ? 'Pause Engine Calculation' : 'Resume Engine Calculation'}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     {isEngineActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-400" />}
+                  </button>
+                  <button
+                    onClick={() => openSettings('analysis')}
+                    title="Engine & Analysis Settings"
+                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              {/* Score Display Card */}
+              {/* Detected Opening Name Banner */}
+              <div className="flex items-center justify-between px-2.5 py-1.5 bg-[#201e1a]/60 rounded-xl border border-white/5 shrink-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-xs font-bold text-white truncate">
+                    {detectedOpening.name}
+                  </span>
+                </div>
+                {detectedOpening.eco && (
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 shrink-0">
+                    {detectedOpening.eco}
+                  </span>
+                )}
+              </div>
+
+              {/* Notation Move History List (Scrollable) */}
+              <div className="flex-1 min-h-[120px] max-h-[190px] overflow-y-auto bg-[#141311] p-2.5 rounded-xl border border-white/5 font-mono text-xs scrollbar-thin scrollbar-thumb-zinc-700">
+                {movePairs.length > 0 ? (
+                  <div className="grid grid-cols-[32px_1fr_1fr] gap-y-1 gap-x-2 items-center">
+                    {movePairs.map((pair) => (
+                      <React.Fragment key={`pair-${pair.num}`}>
+                        <span className="text-zinc-500 font-semibold select-none text-[11px]">{pair.num}.</span>
+                        {pair.white ? (
+                          <button
+                            onClick={() => jumpToMove(pair.white!.ply)}
+                            className={`px-2 py-0.5 rounded text-left transition-colors cursor-pointer truncate ${
+                              historyIndex === pair.white!.ply
+                                ? 'bg-[#36342e] text-[#81b64c] font-black border border-[#81b64c]/40'
+                                : 'text-zinc-200 hover:bg-white/5'
+                            }`}
+                          >
+                            {formatNotation(pair.white!.san)}
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        {pair.black ? (
+                          <button
+                            onClick={() => jumpToMove(pair.black!.ply)}
+                            className={`px-2 py-0.5 rounded text-left transition-colors cursor-pointer truncate ${
+                              historyIndex === pair.black!.ply
+                                ? 'bg-[#36342e] text-[#81b64c] font-black border border-[#81b64c]/40'
+                                : 'text-zinc-200 hover:bg-white/5'
+                            }`}
+                          >
+                            {formatNotation(pair.black!.san)}
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-zinc-500 text-[11px] italic">
+                    Play moves on the board to build analysis tree
+                  </div>
+                )}
+              </div>
+
+              {/* Evaluation Score & Depth Bar */}
               <div className="p-2.5 rounded-xl bg-[#201e1a] border border-white/5 flex items-center justify-between shrink-0">
                 <div>
                   <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Evaluation</span>
@@ -951,9 +1085,9 @@ function AnalysisStudioContent() {
               </div>
 
               {/* Multi-PV Candidates List */}
-              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-0.5">
-                {pvLines.length > 0 ? (
-                  pvLines.map((line) => (
+              <div className="flex-1 min-h-[90px] overflow-y-auto flex flex-col gap-1.5 pr-0.5 scrollbar-thin scrollbar-thumb-zinc-700">
+                {visiblePvLines.length > 0 ? (
+                  visiblePvLines.map((line) => (
                     <div
                       key={line.rank}
                       onMouseEnter={() => setHoveredPvUci(line.bestMoveUci)}
@@ -975,7 +1109,7 @@ function AnalysisStudioContent() {
                             #{line.rank}
                           </span>
                           <span className="text-xs font-black text-white font-mono flex items-center gap-1">
-                            {line.bestMoveSan}
+                            {formatNotation(line.bestMoveSan)}
                             <PlayCircle className="w-3 h-3 text-emerald-400" />
                           </span>
                         </div>
@@ -988,30 +1122,38 @@ function AnalysisStudioContent() {
                         </span>
                       </div>
                       <div className="text-[10px] font-mono text-zinc-400 truncate">
-                        {line.pvSan && line.pvSan.length > 0 ? line.pvSan.slice(0, 7).join(' ') : line.bestMoveSan}
+                        {line.pvSan && line.pvSan.length > 0
+                          ? line.pvSan.slice(0, 7).map(formatNotation).join(' ')
+                          : formatNotation(line.bestMoveSan)}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-xs text-zinc-500 flex items-center justify-center gap-2">
+                  <div className="p-3 text-center text-xs text-zinc-500 flex items-center justify-center gap-2">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Evaluating candidate moves with Stockfish...</span>
+                    <span>Evaluating position with {engineDisplayLabel}...</span>
                   </div>
                 )}
               </div>
 
-              {/* Exactly ONE P1 Anchor Button */}
-              <div className="pt-2 border-t border-white/5 shrink-0">
-                <Button
-                  variant="primary"
-                  size="md"
-                  rounded="xl"
-                  onClick={handleGoToGameReview}
-                  className="w-full flex items-center justify-center gap-2 font-black"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Launch Stockfish 18 Game Review</span>
-                </Button>
+              {/* Bottom Action Footer with Game Review & New Game */}
+              <div className="pt-2 border-t border-white/5 flex flex-col gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#262421] hover:bg-[#2e2c28] text-zinc-200 font-bold text-xs transition-all border border-[#3d3932] shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>New Setup</span>
+                  </button>
+                  <button
+                    onClick={handleGoToGameReview}
+                    className="flex-[1.5] py-2 px-3 rounded-xl bg-[#81b64c] hover:bg-[#8ecb53] active:bg-[#72a143] text-white font-extrabold text-xs transition-all shadow-[0_2px_0_0_#4d7524] flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Game Review</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

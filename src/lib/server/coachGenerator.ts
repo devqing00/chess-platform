@@ -352,7 +352,7 @@ export function generateCoachExplanation(params: {
       return `Good move. A completely sound and solid continuation that maintains the balance of the position.`;
 
     case 'book':
-      return `${moveSan} is standard grandmaster opening theory, following time-tested principles for piece development.`;
+      return `${moveSan} is standard opening theory, following time-tested principles for piece development.`;
 
     case 'inaccuracy':
       return betterMoveText

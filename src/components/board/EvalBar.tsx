@@ -60,12 +60,12 @@ export const EvalBar: React.FC<EvalBarProps> = ({
       >
         {isWhiteOnBottom
           ? isBlackAhead && (
-              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-300 tracking-tighter leading-none px-0.5 text-center truncate">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-300 tracking-tighter leading-none px-0.5 text-center whitespace-nowrap">
                 {label}
               </span>
             )
           : isWhiteAhead && (
-              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-900 tracking-tighter leading-none px-0.5 text-center truncate">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-900 tracking-tighter leading-none px-0.5 text-center whitespace-nowrap">
                 {label}
               </span>
             )}
@@ -80,12 +80,12 @@ export const EvalBar: React.FC<EvalBarProps> = ({
       >
         {isWhiteOnBottom
           ? isWhiteAhead && (
-              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-900 tracking-tighter leading-none px-0.5 text-center truncate">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-900 tracking-tighter leading-none px-0.5 text-center whitespace-nowrap">
                 {label}
               </span>
             )
           : isBlackAhead && (
-              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-300 tracking-tighter leading-none px-0.5 text-center truncate">
+              <span className="text-[9px] sm:text-[10px] font-mono font-black text-zinc-300 tracking-tighter leading-none px-0.5 text-center whitespace-nowrap">
                 {label}
               </span>
             )}

@@ -15,12 +15,70 @@ import { CHESS_BOTS } from './botsData';
 import { calculateGameAdvancedStats } from './advancedStatsCalculator';
 import { FirestoreService } from './firebase/firestoreService';
 
+function parseClockSeconds(clockStr: string): number | null {
+  if (!clockStr) return null;
+  const parts = clockStr.split(':').map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return null;
+}
+
+function extractMoveDurationsFromPgn(pgn: string): (number | undefined)[] {
+  const durations: (number | undefined)[] = [];
+  const clkRegex = /\{[^}]*(?:\[%clk\s+([\d:.]+)|\[%emt\s+([\d:.]+))[^}]*\}/g;
+  let match;
+  let prevWhiteClock: number | null = null;
+  let prevBlackClock: number | null = null;
+  let ply = 0;
+
+  while ((match = clkRegex.exec(pgn)) !== null) {
+    const clkVal = match[1];
+    const emtVal = match[2];
+
+    if (emtVal) {
+      const emtSec = parseClockSeconds(emtVal);
+      durations.push(emtSec !== null ? Number(emtSec.toFixed(1)) : undefined);
+    } else if (clkVal) {
+      const currentClock = parseClockSeconds(clkVal);
+      const isWhite = ply % 2 === 0;
+
+      if (currentClock !== null) {
+        if (isWhite) {
+          if (prevWhiteClock !== null && prevWhiteClock >= currentClock) {
+            durations.push(Number((prevWhiteClock - currentClock).toFixed(1)));
+          } else {
+            durations.push(undefined);
+          }
+          prevWhiteClock = currentClock;
+        } else {
+          if (prevBlackClock !== null && prevBlackClock >= currentClock) {
+            durations.push(Number((prevBlackClock - currentClock).toFixed(1)));
+          } else {
+            durations.push(undefined);
+          }
+          prevBlackClock = currentClock;
+        }
+      } else {
+        durations.push(undefined);
+      }
+    }
+    ply++;
+  }
+
+  return durations;
+}
+
 /**
  * Robustly parses a PGN string into a complete array of MoveRecord objects
  */
 export function parsePgnToMoveRecords(pgn: string): MoveRecord[] {
   if (!pgn || typeof pgn !== 'string') return [];
   try {
+    const parsedDurations = extractMoveDurationsFromPgn(pgn);
+
     // 1. Sanitize PGN comments and variations
     const cleaned = pgn
       .replace(/\{[^}]*\}/g, ' ') // Strip { [%clk ...] } or inline commentary
@@ -106,6 +164,7 @@ export function parsePgnToMoveRecords(pgn: string): MoveRecord[] {
         classification: i < 8 ? 'book' : 'good',
         coachComment: '',
         isCheck: runner.inCheck(),
+        timeSpentSeconds: parsedDurations[i],
       });
     }
 
@@ -368,10 +427,11 @@ export function formatGameOutcomeDescription(params: {
   const userLost = (winner === 'w' && isUserWhite === false) || (winner === 'b' && isUserWhite === true);
 
   if (winner === 'draw') {
+    const subtitle = reason && reason !== 'concluded' ? `by ${capitalizedReason}` : 'by Agreement';
     return {
       title: 'Game Drawn',
-      subtitle: `by ${capitalizedReason}`,
-      fullSentence: `Game drawn by ${capitalizedReason}`,
+      subtitle,
+      fullSentence: `Game drawn ${subtitle.toLowerCase()}`,
       winnerName: 'Draw',
       loserName: 'Draw',
       badgeType: 'draw',
@@ -432,7 +492,18 @@ export function generateGameReviewReport(
 
   // Deeply analyze game history with engine evaluator unless complete evaluations exist
   let analyzedMoves: MoveRecord[] = [];
-  if (skipReanalysis && hasCompleteEvaluations) {
+  if (skipReanalysis) {
+    // CRITICAL: When skipReanalysis is true, do NOT block the main JavaScript UI thread
+    // with synchronous multi-ply minimax tree searches!
+    // Construct the baseline report with lightweight classifications or existing evaluations in 0ms.
+    // Deep engine evaluations are computed asynchronously via /api/engine/review.
+    analyzedMoves = moves.map((m, idx) => ({
+      ...m,
+      evalBefore: m.evalBefore ?? 0,
+      evalAfter: m.evalAfter ?? (m.san.includes('#') ? (idx % 2 === 0 ? 1000 : -1000) : 0),
+      classification: m.classification ?? (m.san.includes('#') ? 'best' : 'book'),
+    }));
+  } else if (hasCompleteEvaluations) {
     analyzedMoves = moves;
   } else if (moves.length > 0) {
     analyzedMoves = ChessEvaluator.analyzeGameHistory(moves);
@@ -781,10 +852,9 @@ export class GameSessionStore {
       session = this.createSession(defaultWhite, defaultBlack, 600);
     }
 
-    const hasEvaluations =
-      moves.length > 0 &&
-      moves.every((m) => m.evalAfter !== undefined && m.classification !== undefined);
-    const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves, hasEvaluations);
+    // Pass skipReanalysis = true to prevent blocking the main UI thread with synchronous multi-ply minimax.
+    // Deep engine evaluations are computed asynchronously via /api/engine/review or the review page.
+    const report = generateGameReviewReport(id, session.whitePlayer, session.blackPlayer, moves, true);
     report.gameResult = gameResult;
     report.resultDetails = resultDetails;
     report.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;

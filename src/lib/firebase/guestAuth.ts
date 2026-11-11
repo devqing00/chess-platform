@@ -1,5 +1,6 @@
 import { UserProfile } from './types';
 import { User as FirebaseUser } from 'firebase/auth';
+import { detectBrowserCountry } from '../countryUtils';
 
 const GUEST_UID_STORAGE_KEY = 'checkmate_guest_uid';
 const GUEST_NAME_STORAGE_KEY = 'checkmate_guest_name';
@@ -59,7 +60,7 @@ export function getEffectiveUserProfile(
       displayName: fallbackDisplayName || user.displayName || 'Player',
       avatar: user.photoURL || '♟️',
       tier: 'free',
-      country: 'US',
+      country: detectBrowserCountry(),
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
       isAnonymous: user.isAnonymous,
@@ -90,7 +91,7 @@ export function getEffectiveUserProfile(
     displayName: guestName,
     avatar: '♟️',
     tier: 'free',
-    country: 'US',
+    country: detectBrowserCountry(),
     createdAt: new Date().toISOString(),
     lastLoginAt: new Date().toISOString(),
     isAnonymous: true,

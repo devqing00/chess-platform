@@ -3,6 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { GameSessionStore, parsePgnToMoveRecords, extractTerminationReason } from '@/lib/gameSessionStore';
 import { ChessEvaluator } from '@/lib/chessEngine';
+import { mergeMoveTimesIntoReport } from '@/lib/pgnTimeParser';
 import { GameReviewSummaryView } from '@/components/analysis/GameReviewSummaryView';
 import { GameReviewView } from '@/components/analysis/GameReviewView';
 import { GameReviewReport, GameSession, EngineStrengthTier } from '@/types/chess';
@@ -306,6 +307,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
             aligned.gameResult = session.gameResult || aligned.gameResult;
             aligned.resultDetails = session.resultDetails || aligned.resultDetails;
             aligned.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
+            mergeMoveTimesIntoReport(aligned.moves, session.moves, session.pgn);
             setReport(aligned);
             setIsLoading(false);
           }
@@ -332,7 +334,10 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 gameId,
-                moves: session.moves.map((m) => m.san),
+                moves: session.moves.map((m) => ({
+                  san: m.san,
+                  timeSpentSeconds: m.timeSpentSeconds,
+                })),
                 whitePlayer: session.whitePlayer,
                 blackPlayer: session.blackPlayer,
                 strengthTier: engineStrength || 'fast',
@@ -382,6 +387,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
                     finalReport.termination = session.pgn
                       ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
                       : undefined;
+                    mergeMoveTimesIntoReport(finalReport.moves, session.moves, session.pgn);
                     session.reviewReport = finalReport;
                     session.engineMode = analysisEngine || 'torch_human';
                     GameSessionStore.saveSession(session);
@@ -405,7 +411,10 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 gameId,
-                moves: session.moves.map((m) => m.san),
+                moves: session.moves.map((m) => ({
+                  san: m.san,
+                  timeSpentSeconds: m.timeSpentSeconds,
+                })),
                 whitePlayer: session.whitePlayer,
                 blackPlayer: session.blackPlayer,
                 strengthTier: engineStrength || 'fast',
@@ -427,6 +436,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
                 data.report.termination = session.pgn
                   ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
                   : undefined;
+                mergeMoveTimesIntoReport(data.report.moves, session.moves, session.pgn);
                 session.reviewReport = data.report;
                 session.engineMode = analysisEngine || 'torch_human';
                 GameSessionStore.saveSession(session);
@@ -466,6 +476,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
           }
         );
         const aligned = reclassifyReportWithEngine(generated, analysisEngine || 'torch_human');
+        mergeMoveTimesIntoReport(aligned.moves, session.moves, session.pgn);
         const fallbackIsCorrupted = isCorruptedReport(aligned, session.moves.length);
         if (!fallbackIsCorrupted) {
           aligned.isDeepReview = true;
@@ -602,7 +613,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:max-h-[100dvh] bg-[#161512] overflow-y-auto xl:overflow-hidden min-w-0 justify-start pb-16 xl:pb-0">
+    <div className="flex-1 flex flex-col min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] bg-[#161512] overflow-y-auto md:overflow-hidden min-w-0 justify-start pb-16 md:pb-0">
       {reviewStage === 'summary' ? (
         <GameReviewSummaryView
           report={report}

@@ -24,10 +24,13 @@ import {
   ENGINE_STRENGTH_CONFIGS,
 } from '@/types/chess';
 import { OPENINGS_DATABASE } from '@/lib/openingsData';
+import { isEcoBookMove, matchEcoOpening } from '@/lib/ecoOpenings';
 import {
   detectTacticalMotifs as detectDeepTacticalMotifs,
   buildRefutations,
 } from '@/lib/tacticalMotifDetector';
+
+import { extractMoveTimesFromPgn } from '@/lib/pgnTimeParser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,7 +82,13 @@ export async function POST(req: NextRequest) {
   }
 
   let sanMoves: string[] = [];
+  const inputTimeMap: Record<number, number> = {};
   if (Array.isArray(inputMoves)) {
+    inputMoves.forEach((m: any, idx: number) => {
+      if (m && typeof m === 'object' && typeof m.timeSpentSeconds === 'number') {
+        inputTimeMap[idx] = m.timeSpentSeconds;
+      }
+    });
     if (typeof inputMoves[0] === 'string') {
       sanMoves = inputMoves as string[];
     } else if (inputMoves[0] && typeof inputMoves[0] === 'object' && inputMoves[0].san) {
@@ -88,6 +97,8 @@ export async function POST(req: NextRequest) {
   } else if (pgn) {
     sanMoves = runner.history();
   }
+
+  const pgnTimeMap = pgn ? extractMoveTimesFromPgn(pgn) : {};
 
   const customStream = new ReadableStream({
     async start(controller) {
@@ -164,16 +175,11 @@ export async function POST(req: NextRequest) {
 
           const fenAfter = simChess.fen();
 
-          // Check opening book
+          // Authentically check opening theory against master 3,800+ ECO opening database
           let isBookMove = false;
-          if (inBook && ply <= 16) {
+          if (inBook && ply <= 24) {
             const currentPrefix = sanMoves.slice(0, ply + 1);
-            const matchesBook = OPENINGS_DATABASE.some((op) => {
-              const tokens = op.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
-              if (tokens.length < currentPrefix.length) return false;
-              return currentPrefix.every((t, i) => t === tokens[i]);
-            });
-            if (matchesBook) {
+            if (isEcoBookMove(currentPrefix)) {
               isBookMove = true;
             } else {
               inBook = false;
@@ -384,6 +390,7 @@ export async function POST(req: NextRequest) {
             accuracy: classificationResult.accuracy,
             winProbLoss: classificationResult.winProbLoss,
             isCheck,
+            timeSpentSeconds: inputTimeMap[ply] ?? pgnTimeMap[ply] ?? undefined,
             motif: activeMotif
               ? {
                   type: activeMotif.name || activeMotif.type,
@@ -487,6 +494,8 @@ export async function POST(req: NextRequest) {
           moveCount: Math.ceil(sanMoves.length / 2),
         });
 
+        const matchedEco = matchEcoOpening(sanMoves);
+
         const report: GameReviewReport = {
           id: `review-${gameId}`,
           gameId,
@@ -507,6 +516,9 @@ export async function POST(req: NextRequest) {
           moves: analyzedMoves,
           summaryComment: `Game analyzed with Stockfish 19 (${whiteAccuracy}% vs ${blackAccuracy}%).`,
           isDeepReview: true,
+          opening: matchedEco
+            ? { eco: matchedEco.eco, name: matchedEco.name, moves: matchedEco.moves, variation: '' }
+            : undefined,
           gameResult,
           resultDetails,
         };
