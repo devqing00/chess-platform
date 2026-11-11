@@ -44,7 +44,7 @@ export const PwaUpdateToast: React.FC<PwaUpdateToastProps> = ({
           <button
             type="button"
             onClick={onApplyUpdate}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black text-xs hover:brightness-105 active:scale-95 shadow-[0_2px_0_0_#385a16] transition cursor-pointer shrink-0"
+            className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs active:scale-[0.98] shadow-sm transition cursor-pointer shrink-0"
           >
             Update Now
           </button>

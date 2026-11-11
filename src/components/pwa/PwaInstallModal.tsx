@@ -46,20 +46,20 @@ export const PwaInstallModal: React.FC<PwaInstallModalProps> = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none">
       {/* Modal Card */}
-      <div className="w-full max-w-lg bg-[#211f1c] border-2 border-[#38342c] rounded-3xl shadow-[0_12px_32px_rgba(0,0,0,0.8),0_6px_0_0_#141311] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] relative my-auto animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg bg-[#1c1a17] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] relative my-auto animate-in zoom-in-95 duration-200">
         {/* Subtle Ambient Radial Glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#2d2a24] relative z-10 shrink-0 bg-[#262420]">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 relative z-10 shrink-0 bg-[#161512]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#282622] border-2 border-[#3d3a34] flex items-center justify-center text-emerald-400 shadow-inner shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
               <Download className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-2 flex-wrap">
                 <span>Install Check.mate</span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 uppercase font-mono font-bold">
+                <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded uppercase font-mono font-bold">
                   PWA App
                 </span>
               </h2>
@@ -215,7 +215,7 @@ export const PwaInstallModal: React.FC<PwaInstallModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-3.5 sm:p-5 border-t border-[#2d2a24] bg-[#1a1916] flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+        <div className="p-3.5 sm:p-5 border-t border-white/10 bg-[#161512] flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
           <Button
             variant="subtle"
             size="md"

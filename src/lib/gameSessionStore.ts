@@ -427,11 +427,12 @@ export function formatGameOutcomeDescription(params: {
   const userLost = (winner === 'w' && isUserWhite === false) || (winner === 'b' && isUserWhite === true);
 
   if (winner === 'draw') {
-    const subtitle = reason && reason !== 'concluded' ? `by ${capitalizedReason}` : 'by Agreement';
+    const isActuallyConcluded = reason === 'concluded' || !reason;
+    const subtitle = isActuallyConcluded ? 'Session Complete' : `by ${capitalizedReason}`;
     return {
-      title: 'Game Drawn',
+      title: isActuallyConcluded ? 'Game Concluded' : 'Game Drawn',
       subtitle,
-      fullSentence: `Game drawn ${subtitle.toLowerCase()}`,
+      fullSentence: isActuallyConcluded ? 'Game analysis concluded' : `Game drawn ${subtitle.toLowerCase()}`,
       winnerName: 'Draw',
       loserName: 'Draw',
       badgeType: 'draw',

@@ -135,14 +135,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           {/* Dual-Themed Matchup Bar: White Left | Score Center | Black Right (Compact & Clean) */}
           <div className="w-full flex items-center justify-between gap-2">
             {/* White Player: Gradient White Tile */}
-            <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-white via-zinc-100 to-zinc-200 border border-white/80 shadow-sm flex items-center gap-2 min-w-0">
+            <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-white via-zinc-100 to-zinc-200 shadow-sm flex items-center gap-2 min-w-0">
               {/* White Avatar */}
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-lg shrink-0 shadow-xs">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white flex items-center justify-center text-lg shrink-0 shadow-xs">
                 {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover rounded-lg" />
                 ) : (
-                  <span className="text-zinc-900">{whitePlayer.avatar || '🧑‍💻'}</span>
+                  <span className="text-zinc-900">{whitePlayer.avatar || '♔'}</span>
                 )}
               </div>
 
@@ -158,8 +158,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-zinc-600 font-semibold">
-                  <span>White ⚪</span>
+                <div className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-600">
+                  <span>White</span>
                   {whitePlayer.country && (
                     <span className="text-[11px] shrink-0" title={whitePlayer.country}>
                       {getCountryFlag(whitePlayer.country)}
@@ -170,20 +170,20 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             </div>
 
             {/* Score Pill in Center */}
-            <div className="shrink-0 px-2.5 py-1 rounded-full bg-[#24221f] text-zinc-200 border border-white/10 font-mono font-black text-xs shadow-sm">
+            <div className="shrink-0 px-2.5 py-1 rounded-full bg-[#24221f] text-zinc-200 font-mono font-black text-xs shadow-sm">
               {result.winner === 'w' ? '1 - 0' : result.winner === 'b' ? '0 - 1' : '½ - ½'}
             </div>
 
             {/* Black Player: Gradient Obsidian Tile */}
-            <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-[#24221f] via-[#1a1815] to-[#12110f] border border-white/10 shadow-sm flex items-center gap-2 min-w-0">
+            <div className="flex-1 p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-[#24221f] via-[#1a1815] to-[#12110f] shadow-sm flex items-center gap-2 min-w-0">
               {/* Black Avatar */}
               <div className="relative shrink-0">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#141311] border border-white/10 flex items-center justify-center text-lg shadow-xs">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#141311] flex items-center justify-center text-lg shadow-xs">
                   {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover rounded-lg" />
                   ) : (
-                    <span>{blackPlayer.avatar || '♟️'}</span>
+                    <span>{blackPlayer.avatar || '♚'}</span>
                   )}
                 </div>
                 {blackPlayer.title && (
@@ -205,8 +205,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-semibold">
-                  <span>Black ⚫</span>
+                <div className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">
+                  <span>Black</span>
                   {blackPlayer.country && (
                     <span className="text-[11px] shrink-0" title={blackPlayer.country}>
                       {getCountryFlag(blackPlayer.country)}

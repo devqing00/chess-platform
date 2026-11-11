@@ -273,10 +273,10 @@ function ComputerBotsContent() {
                   soundService.playTactilePop();
                   setActiveScreen(screen.id);
                 }}
-                className={`tactile-btn flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs select-none ${
+                className={`tactile-btn flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center text-xs select-none active:scale-[0.98] ${
                   isActive
-                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                    ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 {screen.label}
@@ -517,9 +517,9 @@ function ComputerBotsContent() {
                     soundService.playTactilePop();
                     setRosterCategory(cat.id as typeof rosterCategory);
                   }}
-                  className={`tactile-btn text-xs font-bold px-3 py-1.5 rounded-xl border transition cursor-pointer whitespace-nowrap ${
+                  className={`tactile-btn text-xs font-bold px-3 py-1.5 rounded-lg border transition cursor-pointer whitespace-nowrap active:scale-[0.98] ${
                     rosterCategory === cat.id
-                      ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_2px_0_0_#385a16]'
+                      ? 'bg-[#272522] text-white font-bold border-white/15 shadow-sm'
                       : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -543,9 +543,9 @@ function ComputerBotsContent() {
                       setSelectedBotId(bot.id);
                       setActiveScreen('ring');
                     }}
-                    className={`tactile-btn p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                    className={`tactile-btn p-3 rounded-xl border flex items-center gap-3 transition-all cursor-pointer active:scale-[0.98] ${
                       isSelected
-                        ? 'bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_12px_rgba(34,197,94,0.15)]'
+                        ? 'bg-emerald-500/10 border-emerald-500/50 shadow-sm'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/15'
                     }`}
                   >
@@ -557,7 +557,7 @@ function ComputerBotsContent() {
                         <span>{bot.avatar}</span>
                       )}
                       {isDefeated && (
-                        <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_1px_0_0_#385a16] rounded-full flex items-center justify-center text-white text-[8px] font-black">
+                        <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center text-zinc-950 text-[8px] font-black">
                           ✓
                         </span>
                       )}
@@ -654,9 +654,9 @@ function ComputerBotsContent() {
                       soundService.playTactilePop();
                       setActiveCustomFen(pos.fen);
                     }}
-                    className={`tactile-btn p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                    className={`tactile-btn p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer active:scale-[0.98] ${
                       isSelected
-                        ? 'bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_12px_rgba(34,197,94,0.15)]'
+                        ? 'bg-emerald-500/10 border-emerald-500/50 shadow-sm'
                         : 'bg-[#1c1a17] border-white/5 hover:border-white/10'
                     }`}
                   >

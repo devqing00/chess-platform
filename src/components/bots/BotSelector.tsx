@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { BotPersonality } from '@/types/chess';
 import { CHESS_BOTS } from '@/lib/botsData';
-import { Bot, Swords, Sparkles, Star, Award, CheckCircle, Search, Play } from 'lucide-react';
+import { Bot, Swords, Sparkles, Star, Award, CheckCircle, Search, Play, Shuffle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { FirestoreService } from '@/lib/firebase/firestoreService';
 import { Button } from '@/components/ui/button';
@@ -82,7 +82,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
 
           {/* Bot Avatar & Bio Card */}
           <div className="p-4 rounded-2xl bg-[#141311] border border-white/5 flex flex-col items-center text-center gap-3">
-            <div className="w-20 h-20 rounded-2xl bg-[#262420] border-2 border-white/10 overflow-hidden flex items-center justify-center text-3xl shadow-lg relative">
+            <div className="w-20 h-20 rounded-xl bg-[#24221f] border border-white/10 overflow-hidden flex items-center justify-center text-3xl shadow-lg relative">
               {selectedBot.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={selectedBot.avatar} alt={selectedBot.name} className="w-full h-full object-cover" />
@@ -90,7 +90,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                 <span>{selectedBot.avatar}</span>
               )}
               {selectedStars > 0 && (
-                <span className="absolute top-1 right-1 w-5 h-5 bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_2px_0_0_#385a16] border border-white/35 rounded-full flex items-center justify-center text-white text-[10px] font-black">
+                <span className="absolute top-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-zinc-950 text-[10px] font-black shadow-sm">
                   ✓
                 </span>
               )}
@@ -99,7 +99,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             <div>
               <div className="flex items-center justify-center gap-2">
                 <h3 className="text-base font-extrabold text-white">{selectedBot.name}</h3>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">
                   {selectedBot.rating} Elo
                 </span>
               </div>
@@ -119,47 +119,50 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               Your Color
             </span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 bg-[#141311] p-1 rounded-xl border border-white/5">
               <button
+                type="button"
                 onClick={() => {
                   soundService.playTactilePop();
                   setPlayAsColor('w');
                 }}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] ${
                   playAsColor === 'w'
-                    ? 'bg-white/15 border-white text-white'
-                    : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                    ? 'bg-white text-zinc-950 shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                <span>⚪</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-white border border-black/20 shrink-0" />
                 <span>White</span>
               </button>
               <button
+                type="button"
                 onClick={() => {
                   soundService.playTactilePop();
                   setPlayAsColor('random');
                 }}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] ${
                   playAsColor === 'random'
-                    ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400'
-                    : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                    ? 'bg-emerald-500 text-zinc-950 font-black shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                <span>🌓</span>
+                <Shuffle className="w-3.5 h-3.5" />
                 <span>Random</span>
               </button>
               <button
+                type="button"
                 onClick={() => {
                   soundService.playTactilePop();
                   setPlayAsColor('b');
                 }}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] ${
                   playAsColor === 'b'
-                    ? 'bg-white/15 border-zinc-400 text-white'
-                    : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                    ? 'bg-[#272522] text-white border border-white/20 shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                <span>⚫</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-500 shrink-0" />
                 <span>Black</span>
               </button>
             </div>
@@ -201,7 +204,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none p-1 bg-[#141311] rounded-xl border border-white/5">
             {[
               { id: 'all', label: 'All' },
               { id: 'beginner', label: 'Beginner' },
@@ -212,14 +215,15 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
             ].map((cat) => (
               <button
                 key={cat.id}
+                type="button"
                 onClick={() => {
                   soundService.playTactilePop();
                   setFilter(cat.id as typeof filter);
                 }}
-                className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg transition cursor-pointer shrink-0 ${
+                className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition cursor-pointer shrink-0 active:scale-[0.98] ${
                   filter === cat.id
-                    ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white shadow-[0_2px_0_0_#385a16] border-t border-white/35 font-black'
-                    : 'bg-white/5 border border-white/5 text-zinc-400 hover:text-white'
+                    ? 'bg-[#272522] text-white font-black border border-white/15 shadow-sm'
+                    : 'bg-transparent text-zinc-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {cat.label}
@@ -228,7 +232,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
           </div>
         </div>
 
-        {/* Internal Scrollable Bot Grid - NO duplicate green buttons shouting */}
+        {/* Internal Scrollable Bot Grid - Clean Obsidian Surfaces */}
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {filteredBots.map((bot) => {
             const isSelected = selectedBot.id === bot.id;
@@ -242,13 +246,13 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                   soundService.playTactilePop();
                   onSelectBot(bot);
                 }}
-                className={`p-3 rounded-xl border flex items-center gap-3 transition-all cursor-pointer ${
+                className={`p-3 rounded-xl border flex items-center gap-3 transition-all cursor-pointer active:scale-[0.98] ${
                   isSelected
-                    ? 'bg-emerald-500/15 border-emerald-500/60 shadow-sm'
-                    : 'bg-white/5 border-white/5 hover:bg-white/10'
+                    ? 'bg-[#24221f] border-emerald-500/50 shadow-sm'
+                    : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
                 }`}
               >
-                <div className="w-11 h-11 rounded-xl bg-black/40 overflow-hidden flex items-center justify-center text-xl shrink-0 relative">
+                <div className="w-11 h-11 rounded-lg bg-black/40 overflow-hidden flex items-center justify-center text-xl shrink-0 relative">
                   {bot.avatar.startsWith('http') ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={bot.avatar} alt={bot.name} className="w-full h-full object-cover" />
@@ -256,7 +260,7 @@ export const BotSelector: React.FC<BotSelectorProps> = ({
                     <span>{bot.avatar}</span>
                   )}
                   {isDefeated && (
-                    <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-gradient-to-b from-[#8fd649] to-[#699c30] shadow-[0_1px_0_0_#385a16] rounded-full flex items-center justify-center text-white text-[8px] font-black">
+                    <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center text-zinc-950 text-[8px] font-black">
                       ✓
                     </span>
                   )}

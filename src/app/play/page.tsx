@@ -37,6 +37,7 @@ import {
   Link as LinkIcon,
   AlertCircle,
   X,
+  Shuffle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -285,7 +286,7 @@ export default function PlayLobbyPage() {
         gameId,
         shareUrl,
         timeControlLabel: `${selectedTimeControl.label} ${selectedTimeControl.sub}`,
-        colorChoice: playAsColor === 'w' ? 'White ⚪' : playAsColor === 'b' ? 'Black ⚫' : 'Random 🌓',
+        colorChoice: playAsColor === 'w' ? 'White' : playAsColor === 'b' ? 'Black' : 'Random',
       });
       setIsCreatingChallenge(false);
     } catch (err) {
@@ -363,7 +364,7 @@ export default function PlayLobbyPage() {
         <div className="flex items-center justify-between gap-2">
           {/* Left: Branding & Status */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/35 flex items-center justify-center text-emerald-400 shadow-[0_2px_0_0_#14532d] shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
               <Swords className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -377,49 +378,49 @@ export default function PlayLobbyPage() {
           </div>
 
           {/* Center on Large Desktop: Screen Tabs */}
-          <nav className="hidden xl:flex items-center gap-1 p-1 bg-[#141311] rounded-2xl border border-white/5">
+          <nav className="hidden xl:flex items-center gap-1 p-1 bg-[#141311] rounded-xl border border-white/5">
             <button
               onClick={() => setActiveScreen('arena')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
                 activeScreen === 'arena'
-                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
+                  ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Swords className="w-3.5 h-3.5" />
+              <Swords className="w-3.5 h-3.5 text-emerald-400" />
               <span>Play Arena</span>
             </button>
             <button
               onClick={() => setActiveScreen('bots')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
                 activeScreen === 'bots'
-                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
+                  ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Bot className="w-3.5 h-3.5" />
+              <Bot className="w-3.5 h-3.5 text-emerald-400" />
               <span>Choose Bot</span>
             </button>
             <button
               onClick={() => setActiveScreen('clocks')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
                 activeScreen === 'clocks'
-                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
+                  ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Clock className="w-3.5 h-3.5" />
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
               <span>Clocks</span>
             </button>
             <button
               onClick={() => setActiveScreen('history')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
                 activeScreen === 'history'
-                  ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16] border-t border-white/25'
+                  ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <History className="w-3.5 h-3.5" />
+              <History className="w-3.5 h-3.5 text-emerald-400" />
               <span>History</span>
             </button>
           </nav>
@@ -450,52 +451,52 @@ export default function PlayLobbyPage() {
         </div>
 
         {/* Mobile & Tablet Dedicated Screen Tabs Row (Horizontal Touch Scroll, Zero Collision, No Header Jam) */}
-        <nav className="flex xl:hidden items-center gap-1.5 p-1 bg-[#141311] rounded-2xl border border-white/5 overflow-x-auto scrollbar-none w-full">
+        <nav className="flex xl:hidden items-center gap-1.5 p-1 bg-[#141311] rounded-xl border border-white/5 overflow-x-auto scrollbar-none w-full">
           <button
             onClick={() => setActiveScreen('arena')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] ${
               activeScreen === 'arena'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
+                ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Swords className="w-3.5 h-3.5" />
+            <Swords className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden sm:inline">Play Arena</span>
             <span className="sm:hidden">Arena</span>
           </button>
           <button
             onClick={() => setActiveScreen('bots')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] ${
               activeScreen === 'bots'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
+                ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
+            <Bot className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden sm:inline">Choose Bot</span>
             <span className="sm:hidden">Bots</span>
           </button>
           <button
             onClick={() => setActiveScreen('clocks')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] ${
               activeScreen === 'clocks'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
+                ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">Clock Controls</span>
             <span className="sm:hidden">Clocks</span>
           </button>
           <button
             onClick={() => setActiveScreen('history')}
-            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 sm:py-2 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.98] ${
               activeScreen === 'history'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
+                ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <History className="w-3.5 h-3.5" />
+            <History className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden sm:inline">Match History</span>
             <span className="sm:hidden">History</span>
           </button>
@@ -520,49 +521,49 @@ export default function PlayLobbyPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-[#141311] p-1 rounded-xl border border-white/5">
                     <button
                       onClick={() => setSelectedMode('bot')}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
                         selectedMode === 'bot'
-                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 shadow-[0_2px_0_0_#385a16] font-black'
+                          ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <Bot className="w-3.5 h-3.5" />
+                      <Bot className={`w-3.5 h-3.5 ${selectedMode === 'bot' ? 'text-emerald-400' : ''}`} />
                       <span>vs Bot</span>
                     </button>
 
                     <button
                       onClick={() => setSelectedMode('online_pvp')}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
                         selectedMode === 'online_pvp'
-                          ? 'bg-amber-600 text-white shadow-sm font-black'
+                          ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <Globe className="w-3.5 h-3.5" />
+                      <Globe className={`w-3.5 h-3.5 ${selectedMode === 'online_pvp' ? 'text-amber-400' : ''}`} />
                       <span>Online 1v1</span>
                     </button>
 
                     <button
                       onClick={() => setSelectedMode('friend_challenge')}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
                         selectedMode === 'friend_challenge'
-                          ? 'bg-blue-600 text-white shadow-sm font-black'
+                          ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <Share2 className="w-3.5 h-3.5" />
+                      <Share2 className={`w-3.5 h-3.5 ${selectedMode === 'friend_challenge' ? 'text-blue-400' : ''}`} />
                       <span>Friend Link</span>
                     </button>
 
                     <button
                       onClick={() => setSelectedMode('pass_and_play')}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
                         selectedMode === 'pass_and_play'
-                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <Users className="w-3.5 h-3.5" />
+                      <Users className={`w-3.5 h-3.5 ${selectedMode === 'pass_and_play' ? 'text-purple-400' : ''}`} />
                       <span>Pass &amp; Play</span>
                     </button>
                   </div>
@@ -610,40 +611,43 @@ export default function PlayLobbyPage() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                     Play As Color
                   </span>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 bg-[#141311] p-1 rounded-xl border border-white/5">
                     <button
+                      type="button"
                       onClick={() => setPlayAsColor('w')}
-                      className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                      className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] ${
                         playAsColor === 'w'
-                          ? 'bg-white/15 border-white text-white shadow-sm'
-                          : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                          ? 'bg-white text-zinc-950 shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <span>⚪</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-white border border-black/20 shrink-0" />
                       <span>White</span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setPlayAsColor('random')}
-                      className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                      className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] ${
                         playAsColor === 'random'
-                          ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-400 shadow-xs'
-                          : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                          ? 'bg-emerald-500 text-zinc-950 font-black shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <span>🌓</span>
+                      <Shuffle className="w-3.5 h-3.5" />
                       <span>Random</span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setPlayAsColor('b')}
-                      className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                      className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] ${
                         playAsColor === 'b'
-                          ? 'bg-white/15 border-zinc-400 text-white shadow-sm'
-                          : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                          ? 'bg-[#272522] text-white border border-white/20 shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <span>⚫</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-500 shrink-0" />
                       <span>Black</span>
                     </button>
                   </div>
@@ -754,7 +758,7 @@ export default function PlayLobbyPage() {
 
                   {/* Bot Profile Card */}
                   <div className="p-4 rounded-2xl bg-[#141311] border border-white/5 flex flex-col items-center text-center gap-3">
-                    <div className="w-20 h-20 rounded-2xl bg-[#262420] border-2 border-white/10 overflow-hidden flex items-center justify-center text-3xl shadow-lg relative">
+                    <div className="w-20 h-20 rounded-xl bg-[#24221f] border border-white/10 overflow-hidden flex items-center justify-center text-3xl shadow-lg relative">
                       {chosenBot.avatar.startsWith('http') ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={chosenBot.avatar} alt={chosenBot.name} className="w-full h-full object-cover" />
@@ -824,8 +828,8 @@ export default function PlayLobbyPage() {
                     </div>
                     <div className="w-full p-2.5 rounded-xl bg-white/5 border border-white/5 text-xs text-zinc-300 flex items-center justify-around font-mono">
                       <span>Format: {selectedTimeControl.label}</span>
-                      <span>&bull;</span>
-                      <span>Color: {playAsColor === 'w' ? 'White ⚪' : playAsColor === 'b' ? 'Black ⚫' : 'Random 🌓'}</span>
+                      <span className="text-zinc-600">|</span>
+                      <span>Color: {playAsColor === 'w' ? 'White' : playAsColor === 'b' ? 'Black' : 'Random'}</span>
                     </div>
                   </div>
                 </div>
@@ -887,7 +891,7 @@ export default function PlayLobbyPage() {
 
             {/* Filter Pills & Search */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
-              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none w-full sm:w-auto">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none p-1 bg-[#141311] rounded-xl border border-white/5 w-full sm:w-auto">
                 {[
                   { id: 'all', label: 'All' },
                   { id: 'beginner', label: 'Beginner' },
@@ -899,10 +903,10 @@ export default function PlayLobbyPage() {
                   <button
                     key={cat.id}
                     onClick={() => setBotFilter(cat.id as typeof botFilter)}
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border transition cursor-pointer shrink-0 ${
+                    className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition cursor-pointer shrink-0 active:scale-[0.98] ${
                       botFilter === cat.id
-                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black border-[#385a16] shadow-[0_2px_0_0_#385a16]'
-                        : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white'
+                        ? 'bg-[#272522] text-white font-black border border-white/15 shadow-sm'
+                        : 'bg-transparent text-zinc-400 hover:text-white'
                     }`}
                   >
                     {cat.label}
@@ -1164,9 +1168,9 @@ export default function PlayLobbyPage() {
                 <div className="w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar scrollbar-none flex items-center gap-1 p-1 bg-[#141311] rounded-xl border border-white/5 text-xs font-bold shrink-0">
                   <button
                     onClick={() => setHistoryProvider('all')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] ${
                       historyProvider === 'all'
-                        ? 'bg-white/10 text-white'
+                        ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -1174,9 +1178,9 @@ export default function PlayLobbyPage() {
                   </button>
                   <button
                     onClick={() => setHistoryProvider('checkmate')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] ${
                       historyProvider === 'checkmate'
-                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-zinc-950 font-black shadow-[0_2px_0_0_#385a16]'
+                        ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -1184,9 +1188,9 @@ export default function PlayLobbyPage() {
                   </button>
                   <button
                     onClick={() => setHistoryProvider('chesscom')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap active:scale-[0.98] ${
                       historyProvider === 'chesscom'
-                        ? 'bg-emerald-600 text-white font-black'
+                        ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -1194,9 +1198,9 @@ export default function PlayLobbyPage() {
                   </button>
                   <button
                     onClick={() => setHistoryProvider('lichess')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap active:scale-[0.98] ${
                       historyProvider === 'lichess'
-                        ? 'bg-amber-600 text-white font-black'
+                        ? 'bg-[#272522] text-white border border-white/15 shadow-sm'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -1240,15 +1244,15 @@ export default function PlayLobbyPage() {
                   const isLichess = game.source === 'lichess' || game.id.startsWith('lichess-');
                   const providerLabel = isChessCom ? 'Chess.com' : isLichess ? 'Lichess' : 'Check.mate';
                   const providerBadgeColor = isChessCom
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    ? 'bg-emerald-500/15 text-emerald-400'
                     : isLichess
-                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'bg-emerald-500/15 text-emerald-400';
 
                   return (
                     <div
                       key={game.id}
-                      className="p-3 rounded-2xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 hover:border-white/10 transition-colors"
+                      className="p-3 rounded-xl bg-[#1c1a17] border border-white/5 flex items-center justify-between gap-3 hover:border-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Outcome Pill */}
@@ -1269,12 +1273,12 @@ export default function PlayLobbyPage() {
                             <span className="text-xs font-bold text-white truncate">
                               {game.whitePlayer.name} vs {game.blackPlayer.name}
                             </span>
-                            <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${providerBadgeColor}`}>
+                            <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${providerBadgeColor}`}>
                               {providerLabel}
                             </span>
                           </div>
                           <span className="text-[11px] font-mono text-zinc-400">
-                            {game.gameResult || 'Finished'} &bull; {Math.floor(game.timeControl / 60)}m clock &bull;{' '}
+                            {game.gameResult || 'Finished'} | {Math.floor(game.timeControl / 60)}m clock |{' '}
                             {new Date(game.createdAt).toLocaleDateString()}
                           </span>
                         </div>
@@ -1344,7 +1348,7 @@ export default function PlayLobbyPage() {
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 <span>{createdChallenge.timeControlLabel}</span>
               </div>
-              <span>&bull;</span>
+              <span className="text-zinc-600">|</span>
               <span>Playing as: <strong className="text-white">{createdChallenge.colorChoice}</strong></span>
             </div>
 

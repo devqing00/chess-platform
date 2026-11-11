@@ -34,6 +34,7 @@ export interface EngineEvaluation {
     bestMoveUci?: string;
     bestMoveSan?: string;
   };
+  isFallback?: boolean;
 }
 
 /**
@@ -66,6 +67,7 @@ export function buildFallbackEvaluation(
     bestMoveSan: evalBest.bestMoveSan,
     pvUci: [evalBest.bestMoveUci],
     pvSan: [evalBest.bestMoveSan],
+    isFallback: true,
     lines: [
       {
         rank: 1,
@@ -142,7 +144,28 @@ class StockfishWorker {
   }
 
   public isAlive(): boolean {
-    return Boolean(this.process && !this.process.killed && !this.hasFailed);
+    return Boolean(this.process && !this.process.killed);
+  }
+
+  public destroy() {
+    if (this.bootTimer) {
+      clearTimeout(this.bootTimer);
+      this.bootTimer = null;
+    }
+    if (this.process) {
+      try {
+        if (this.process.stdin) {
+          this.process.stdin.write('quit\n');
+        }
+        this.process.kill();
+      } catch {
+        // ignore
+      }
+      this.process = null;
+    }
+    this.isReady = false;
+    this.isBusy = false;
+    this.currentHandler = null;
   }
 
   public initProcess() {
@@ -152,6 +175,9 @@ class StockfishWorker {
     }
     if (this.process) {
       try {
+        if (this.process.stdin) {
+          this.process.stdin.write('quit\n');
+        }
         this.process.kill();
       } catch {
         // ignore
@@ -169,6 +195,13 @@ class StockfishWorker {
 
     const rootDir = process.cwd();
     const scriptPath = path.resolve(rootDir, 'scripts', 'engine-cli.js');
+    const fs = typeof require !== 'undefined' ? eval("require('fs')") : null;
+    if (!fs || !fs.existsSync(scriptPath)) {
+      this.hasFailed = true;
+      this.isReady = false;
+      this.onReadyCallback?.();
+      return;
+    }
 
     try {
       this.process = cp.spawn('node', [scriptPath], {
@@ -190,13 +223,14 @@ class StockfishWorker {
       return;
     }
 
-    // Safety timeout: If worker does not report ready within 1200ms, mark failed so pool can fallback immediately
+    // Safety timeout: If worker does not report ready within 15000ms, mark failed so pool can fallback safely
     this.bootTimer = setTimeout(() => {
       if (!this.isReady) {
+        console.warn(`[StockfishWorker ${this.id}] Boot timed out after 15s`);
         this.hasFailed = true;
         this.onReadyCallback?.();
       }
-    }, 1200);
+    }, 15000);
 
     this.process.stdout?.on('data', (chunk: Buffer) => {
       this.buffer += chunk.toString();
@@ -237,14 +271,17 @@ class StockfishWorker {
       this.isReady = false;
       this.isBusy = false;
       this.hasFailed = true;
+      this.currentHandler = null;
       this.onReadyCallback?.();
     });
 
-    this.process.on('exit', () => {
+    this.process.on('exit', (code, signal) => {
+      console.warn(`[StockfishWorker ${this.id}] Process exited with code ${code}, signal ${signal}`);
       this.isReady = false;
       this.isBusy = false;
       this.hasFailed = true;
       this.process = null;
+      this.currentHandler = null;
       this.onReadyCallback?.();
     });
 
@@ -333,9 +370,14 @@ class StockfishWorker {
         return;
       }
 
-      // If process died, restart it
-      if (!this.process || !this.process.stdin) {
+      // If process failed or is unavailable, attempt to revive it
+      if (this.hasFailed || !this.process || !this.process.stdin) {
         this.initProcess();
+        if (!this.process || !this.process.stdin) {
+          const best = ChessEvaluator.findBestMoveAndScore(chess);
+          resolve(buildFallbackEvaluation(fen, depth, best));
+          return;
+        }
       }
 
       const isWhiteTurn = chess.turn() === 'w';
@@ -443,11 +485,11 @@ class StockfishWorker {
         }
       };
 
-      const timeCap = Math.max(40, timeoutMs || 1500);
+      const timeCap = Math.max(50, timeoutMs || 100);
 
       timer = setTimeout(() => {
         if (searchFinished) return;
-        // Stop current engine search; it will emit bestmove momentarily
+        // Stop current engine search if it hasn't emitted bestmove within budget + 350ms
         if (this.process?.stdin) {
           try {
             this.process.stdin.write('stop\n');
@@ -479,32 +521,9 @@ class StockfishWorker {
           }
 
           const best = ChessEvaluator.findBestMoveAndScore(chess);
-          finishAndResolve({
-            fen,
-            depth: maxDepth || depth,
-            seldepth,
-            nodes: nodes || 1800,
-            nps: nps || 45000,
-            scoreCp: best.score,
-            scoreFormatted: formatEngineScore(best.score),
-            bestMoveUci: best.bestMoveUci,
-            bestMoveSan: best.bestMoveSan,
-            pvUci: [best.bestMoveUci],
-            pvSan: [best.bestMoveSan],
-            lines: [
-              {
-                rank: 1,
-                scoreCp: best.score,
-                scoreFormatted: formatEngineScore(best.score),
-                bestMoveUci: best.bestMoveUci,
-                bestMoveSan: best.bestMoveSan,
-                pvUci: [best.bestMoveUci],
-                pvSan: [best.bestMoveSan],
-              },
-            ],
-          });
-        }, 500);
-      }, timeCap + 400);
+          finishAndResolve(buildFallbackEvaluation(fen, depth, best));
+        }, 300);
+      }, timeCap + 350);
 
       this.currentHandler = handleUciLine;
 
@@ -578,6 +597,14 @@ class StockfishProcessPool {
     }
   }
 
+  public destroy() {
+    for (const w of this.workers) {
+      w.destroy();
+    }
+    this.workers = [];
+    this.queue = [];
+  }
+
   public async evaluate(
     fen: string,
     depth: number = 8,
@@ -608,6 +635,13 @@ class StockfishProcessPool {
       }
     }
 
+    const allDead = this.workers.length > 0 && this.workers.every((w) => !w.isAlive());
+    if (allDead) {
+      for (const w of this.workers) {
+        w.initProcess();
+      }
+    }
+
     return new Promise<EngineEvaluation>((resolve) => {
       const task: QueuedTask = {
         fen,
@@ -616,15 +650,16 @@ class StockfishProcessPool {
         timeoutMs,
         resolve: (result: EngineEvaluation) => {
           if (task.timer) clearTimeout(task.timer);
-          // Store in cache with LRU eviction
-          if (this.cache.size >= this.maxCacheSize) {
-            const firstKey = this.cache.keys().next().value;
-            if (firstKey) this.cache.delete(firstKey);
-          }
-          this.cache.set(cacheKey, result);
-          // Also store under exact FEN for direct hits
-          if (normalizedFen !== fen) {
-            this.cache.set(`${fen}|d=${depth}|pv=${multiPv}`, result);
+          // Store in cache with LRU eviction ONLY if it is a genuine Stockfish evaluation (not a dummy fallback)
+          if (!result.isFallback) {
+            if (this.cache.size >= this.maxCacheSize) {
+              const firstKey = this.cache.keys().next().value;
+              if (firstKey) this.cache.delete(firstKey);
+            }
+            this.cache.set(cacheKey, result);
+            if (normalizedFen !== fen) {
+              this.cache.set(`${fen}|d=${depth}|pv=${multiPv}`, result);
+            }
           }
           resolve(result);
         },
@@ -635,8 +670,8 @@ class StockfishProcessPool {
         },
       };
 
-      // Infallible hard timeout: Never let a task sit pending indefinitely!
-      const timeLimit = Math.max(1000, timeoutMs + 400);
+      // Infallible hard timeout: Never let a task sit pending indefinitely
+      const timeLimit = Math.max(3000, timeoutMs + 1500);
       task.timer = setTimeout(() => {
         const qIdx = this.queue.indexOf(task);
         if (qIdx !== -1) {
@@ -653,22 +688,20 @@ class StockfishProcessPool {
   private dispatchNext() {
     if (this.queue.length === 0) return;
 
-    // Check if all workers have failed or exited
-    const allWorkersDead = this.workers.every((w) => w.hasFailed || !w.isAlive());
-    if (allWorkersDead && this.workers.length > 0) {
-      // Drain entire queue immediately using fast local evaluator
-      while (this.queue.length > 0) {
-        const task = this.queue.shift();
-        if (!task) break;
-        if (task.timer) clearTimeout(task.timer);
-        task.resolve(buildFallbackEvaluation(task.fen, task.depth));
+    // If workers are dead or failed, attempt to revive them
+    const allWorkersDead = this.workers.length > 0 && this.workers.every((w) => !w.isAlive());
+    if (allWorkersDead) {
+      for (const w of this.workers) {
+        w.initProcess();
       }
       return;
     }
 
     // Find an idle ready worker
-    const idleWorker = this.workers.find((w) => !w.isBusy && w.isReady);
-    if (!idleWorker) return;
+    const idleWorker = this.workers.find((w) => !w.isBusy && w.isReady && w.isAlive());
+    if (!idleWorker) {
+      return;
+    }
 
     const task = this.queue.shift();
     if (!task) return;
@@ -689,14 +722,14 @@ class StockfishProcessPool {
   }
 }
 
-// Global persistent pool instance
-let globalPool: StockfishProcessPool | null = null;
+// Global persistent pool instance across Next.js Turbopack / HMR reloads
+const globalForStockfish = globalThis as unknown as { stockfishPool?: StockfishProcessPool };
 
 function getGlobalPool(): StockfishProcessPool {
-  if (!globalPool) {
-    globalPool = new StockfishProcessPool(2);
+  if (!globalForStockfish.stockfishPool) {
+    globalForStockfish.stockfishPool = new StockfishProcessPool(2);
   }
-  return globalPool;
+  return globalForStockfish.stockfishPool;
 }
 
 export async function evaluatePositionStockfish(

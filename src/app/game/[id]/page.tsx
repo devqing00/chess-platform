@@ -646,7 +646,8 @@ export default function GameRoomPage({ params }: GamePageProps) {
         setMoveHistory(nextMoves);
         moveHistoryRef.current = nextMoves;
         setCurrentMoveIndex(nextMoves.length - 1);
-        setChess(new Chess(fenAfter));
+        const nextChessInstance = new Chess(fenAfter);
+        setChess(nextChessInstance);
 
         // Sync storage with the full move history including this move
         GameSessionStore.updateSessionMoves(gameId, nextMoves);
@@ -661,15 +662,15 @@ export default function GameRoomPage({ params }: GamePageProps) {
         }
 
         // Play appropriate tactile sound instantly & handle game conclusion
-        if (chess.isCheckmate()) {
+        if (nextChessInstance.isCheckmate()) {
           triggerGameOver(
             turnBefore === 'w' ? 'w' : 'b',
             'checkmate',
             `${turnBefore === 'w' ? 'White' : 'Black'} wins by Checkmate!`
           );
           return;
-        } else if (chess.isDraw() || chess.isStalemate()) {
-          triggerGameOver('draw', 'stalemate', 'Game drawn by stalemate! (½-½)');
+        } else if (nextChessInstance.isDraw() || nextChessInstance.isStalemate()) {
+          triggerGameOver('draw', nextChessInstance.isStalemate() ? 'stalemate' : 'agreement', 'Game drawn (½-½)');
           return;
         } else if (isCheckNow) {
           soundService.playCheck();
@@ -826,7 +827,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
 
           {/* Edge-to-Edge Chessboard (Strictly bounded by 100dvh, perfectly sized without pushing cards off) */}
           <div
-            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-hidden w-[min(calc(100vw-1rem),calc(100dvh-180px))] h-[min(calc(100vw-1rem),calc(100dvh-180px))] md:w-[min(calc(100vw-24rem),calc(100dvh-165px),580px)] md:h-[min(calc(100vw-24rem),calc(100dvh-165px),580px)] lg:w-[min(calc(100vw-28rem),calc(100dvh-160px),600px)] lg:h-[min(calc(100vw-28rem),calc(100dvh-160px),600px)]"
+            className="shrink-0 aspect-square flex items-center justify-center relative select-none overflow-hidden w-[min(calc(100vw-1.5rem),calc(100dvh-220px))] h-[min(calc(100vw-1.5rem),calc(100dvh-220px))] md:w-[min(calc(100vw-26rem),calc(100dvh-180px),540px)] md:h-[min(calc(100vw-26rem),calc(100dvh-180px),540px)] lg:w-[min(calc(100vw-30rem),calc(100dvh-175px),580px)] lg:h-[min(calc(100vw-30rem),calc(100dvh-175px),580px)]"
           >
             <ChessBoard
               chess={chess}
@@ -1107,7 +1108,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
                         soundService.playTactilePop();
                         handleSendChat(chatInput);
                       }}
-                      className="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors cursor-pointer shadow-[0_2px_0_0_#065f46] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-[0_1px_0_0_#065f46]"
+                      className="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 transition-all cursor-pointer shadow-sm active:scale-95"
                     >
                       <Send className="w-3.5 h-3.5" />
                     </button>
@@ -1118,7 +1119,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
           </div>
 
           {/* Bottom Desktop Actions Bar: Undo, Flip, Draw, Resign */}
-          <div className="p-1.5 bg-[#211f1c] rounded-xl border border-[#35322b] flex items-center justify-between gap-1.5 shrink-0">
+          <div className="p-1.5 bg-[#1c1a17] rounded-xl border border-white/10 flex items-center justify-between gap-1.5 shrink-0">
             {botPlayer && !gameResult && (
               <button
                 onClick={handleUndoMove}
@@ -1205,32 +1206,39 @@ export default function GameRoomPage({ params }: GamePageProps) {
       )}
 
       {/* Game Over Modal with Stars */}
-      {resultDetails && (
-        <GameOverModal
-          isOpen={isGameOverModalOpen}
-          onClose={() => setIsGameOverModalOpen(false)}
-          result={resultDetails}
-          whitePlayer={whitePlayer}
-          blackPlayer={blackPlayer}
-          userColor={userColor}
-          botStars={earnedBotStars}
-          undosUsed={undosUsed}
-          onReviewGame={() => {
-            setIsGameOverModalOpen(false);
-            router.push(`/game/review/${gameId}`);
-          }}
-          onRematch={() => {
-            setIsGameOverModalOpen(false);
-            setChess(new Chess());
-            setMoveHistory([]);
-            setCurrentMoveIndex(-1);
-            setGameResult(null);
-            setResultDetails(null);
-            setUndosUsed(0);
-          }}
-          onNewGame={() => router.push('/play')}
-        />
-      )}
+      <GameOverModal
+        isOpen={Boolean(isGameOverModalOpen && resultDetails)}
+        onClose={() => setIsGameOverModalOpen(false)}
+        result={
+          resultDetails || {
+            winner: 'draw',
+            reason: 'concluded',
+            ratingDelta: 0,
+            newRating: 1200,
+            league: 'Bronze III',
+            trophiesDelta: 0,
+          }
+        }
+        whitePlayer={whitePlayer}
+        blackPlayer={blackPlayer}
+        userColor={userColor}
+        botStars={earnedBotStars}
+        undosUsed={undosUsed}
+        onReviewGame={() => {
+          setIsGameOverModalOpen(false);
+          router.push(`/game/review/${gameId}`);
+        }}
+        onRematch={() => {
+          setIsGameOverModalOpen(false);
+          setChess(new Chess());
+          setMoveHistory([]);
+          setCurrentMoveIndex(-1);
+          setGameResult(null);
+          setResultDetails(null);
+          setUndosUsed(0);
+        }}
+        onNewGame={() => router.push('/play')}
+      />
 
       {/* ========================================================================= */}
       {/* MOBILE DRAWERS / SHEETS (< md screens)                                    */}
@@ -1583,6 +1591,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
       <MatchVersusIntro
         isOpen={showVersusIntro}
         onComplete={() => setShowVersusIntro(false)}
+        userColor={userColor}
         whitePlayer={{
           name: whitePlayer.name,
           avatar: whitePlayer.avatar,
@@ -1599,7 +1608,7 @@ export default function GameRoomPage({ params }: GamePageProps) {
           country: blackPlayer.country,
           isBot: blackPlayer.isBot,
         }}
-        gameFormat={botPlayer ? `Bot Battle • Vs ${botPlayer.name}` : `${variant.toUpperCase()} Match`}
+        gameFormat={botPlayer ? `VS ${botPlayer.name.toUpperCase()}` : `${variant.toUpperCase()} MATCH`}
       />
     </div>
   );

@@ -305,18 +305,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 select-none animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#1e1c19] border-2 border-[#35322b] rounded-3xl shadow-[0_12px_0_0_#141311] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] relative my-auto">
+      <div className="w-full max-w-2xl bg-[#1a1815] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] relative my-auto">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#262421] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] flex items-center justify-center shrink-0">
-              <Sliders className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-950" />
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 bg-[#181613] border-b border-white/5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+              <Sliders className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-sm sm:text-base font-black text-white block truncate">Platform Preferences</span>
-              <span className="text-[10px] sm:text-[11px] text-emerald-400 font-black flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 stroke-[3]" /> Live auto-saved preferences
-              </span>
+              <span className="text-sm font-bold text-white block truncate">Platform Preferences</span>
             </div>
           </div>
           <Button
@@ -333,7 +330,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex bg-[#191815] border-b-2 border-[#35322b] px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-black overflow-x-auto no-scrollbar scroll-smooth gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex bg-[#141311] border-b border-white/5 px-3 sm:px-4 py-1.5 text-xs overflow-x-auto no-scrollbar scroll-smooth gap-1 shrink-0">
           {[
             { id: 'accounts' as const, label: 'Accounts', icon: Globe },
             { id: 'board' as const, label: 'Board & Pieces', icon: Palette },
@@ -347,13 +344,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 key={tab.id}
                 onClick={() => handleRequestTabSwitch(tab.id)}
-                className={`tactile-btn px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap select-none ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap select-none ${
                   isActive
-                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16]'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#22201d]'
+                    ? 'bg-emerald-500 text-zinc-950 font-bold shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -444,26 +441,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-3">
                   Piece Movement Input Method
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {[
                     {
                       id: 'both' as const,
                       name: 'Smart Both',
-                      badge: 'Recommended',
                       desc: 'Click to select and place, or drag and drop seamlessly',
                       icon: '✨',
                     },
                     {
                       id: 'drag' as const,
                       name: 'Drag & Drop Only',
-                      badge: 'Tactile',
                       desc: 'Pieces only move when dragged to destination',
                       icon: '🤏',
                     },
                     {
                       id: 'click' as const,
                       name: 'Click to Move Only',
-                      badge: 'Precision',
                       desc: 'Click piece to select, click square to move',
                       icon: '👆',
                     },
@@ -474,32 +468,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         key={mode.id}
                         type="button"
                         onClick={() => setMoveInputMode(mode.id)}
-                        className={`p-3.5 rounded-2xl border-2 flex flex-col justify-between text-left transition-all cursor-pointer ${
+                        className={`p-3 rounded-xl flex flex-col justify-between text-left transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-[#2b2926] border-emerald-500 shadow-[0_4px_0_0_#065f46]'
-                            : 'bg-[#21201d] border-[#35322b] hover:border-[#4d483f] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
+                            ? 'bg-[#22201c] ring-1 ring-emerald-500/50 shadow-sm'
+                            : 'bg-[#181614] hover:bg-[#1e1c19]'
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center justify-between mb-1">
                             <span className="text-base">{mode.icon}</span>
-                            {mode.badge && (
-                              <span
-                                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                                  isSel
-                                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                                    : 'bg-black/30 border-[#35322b] text-zinc-400'
-                                }`}
-                              >
-                                {mode.badge}
-                              </span>
-                            )}
+                            {isSel && <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />}
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-black text-white">{mode.name}</span>
-                            {isSel && <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />}
-                          </div>
-                          <span className="text-[11px] text-zinc-400 font-medium block mt-1 leading-snug">
+                          <span className="text-xs font-bold text-white block">{mode.name}</span>
+                          <span className="text-[11px] text-zinc-400 font-normal block mt-0.5 leading-snug">
                             {mode.desc}
                           </span>
                         </div>
@@ -510,29 +491,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Premoves (Fast Competitive Speedplay) */}
-              <div className="bg-[#24211d] p-4 sm:p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-3">
+              <div className="bg-[#1e1c19] p-4 sm:p-5 rounded-2xl border border-white/5 space-y-3">
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0 transition-all ${
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${
                           premoveEnabled
-                            ? 'bg-gradient-to-b from-rose-500/25 to-rose-600/10 border-rose-500/40 text-rose-400'
-                            : 'bg-[#181614] border-[#35322b] text-zinc-500'
+                            ? 'bg-rose-500/15 text-rose-400'
+                            : 'bg-[#141311] text-zinc-500'
                         }`}
                       >
-                        <Zap className="w-5 h-5" />
+                        <Zap className="w-4 h-4" />
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <h3 className="text-sm font-black text-white">Enable Premoves</h3>
-                        <span
-                          className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full border ${
-                            premoveEnabled
-                              ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
-                              : 'bg-zinc-800 border-zinc-700 text-zinc-400'
-                          }`}
-                        >
-                          {premoveEnabled ? 'Active' : 'Disabled (Default)'}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="text-sm font-bold text-white">Enable Premoves</h3>
+                        <span className="text-[11px] font-mono text-zinc-500">
+                          {premoveEnabled ? 'Active' : 'Off'}
                         </span>
                       </div>
                     </div>
@@ -546,15 +521,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         soundService.playTactilePop();
                         setPremoveEnabled(!premoveEnabled);
                       }}
-                      className={`tactile-btn shrink-0 relative inline-flex h-7 w-13 items-center rounded-full transition-colors cursor-pointer border-2 ${
-                        premoveEnabled
-                          ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 border-emerald-400/60 shadow-[0_2px_0_0_#065f46]'
-                          : 'bg-[#181614] border-[#38352e] shadow-[0_2px_0_0_#141311]'
+                      className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                        premoveEnabled ? 'bg-emerald-500' : 'bg-zinc-700'
                       }`}
                     >
                       <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
-                          premoveEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                          premoveEnabled ? 'translate-x-6' : 'translate-x-1'
                         }`}
                       />
                     </button>
@@ -574,24 +547,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* TAB 2: AUDIO & SOUND */}
           {activeTab === 'audio' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Audio Presets Bar */}
-              <div className="bg-[#1f1d1a] p-4 rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="bg-[#1e1c19] p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <span className="text-xs font-black text-white block">Acoustic Gain Presets</span>
+                  <span className="text-xs font-bold text-white block">Acoustic Gain Presets</span>
                   <span className="text-[11px] text-zinc-400 font-medium">
                     Switch between tuned volume profiles for different environments.
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   {(['casual', 'focus', 'commentary'] as SoundPreset[]).map((p) => (
                     <button
                       key={p}
                       onClick={() => handleApplyPreset(p)}
-                      className={`tactile-btn px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
                         audioSettings.preset === p
-                          ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
-                          : 'bg-[#23211e] border-2 border-[#35322b] text-zinc-400 hover:text-zinc-200 shadow-[0_2px_0_0_#141311]'
+                          ? 'bg-emerald-500 text-zinc-950 font-bold'
+                          : 'bg-[#141311] hover:bg-[#25221d] text-zinc-400 hover:text-white border border-white/5'
                       }`}
                     >
                       {p}
@@ -601,32 +574,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Low-Time Warning Alert Engine */}
-              <div className="bg-[#24211d] p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-                      <Bell className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <h3 className="text-sm font-black text-white truncate">
-                      Low-Time Audible Alert Engine
-                    </h3>
+              <div className="bg-[#1e1c19] p-4 sm:p-5 rounded-2xl border border-white/5 space-y-4">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] uppercase font-black text-amber-300 bg-amber-400/20 px-3 py-0.5 rounded-full border border-amber-400/40 self-start sm:self-auto shrink-0">
-                    Never Miss Time Scramble
-                  </span>
+                  <h3 className="text-sm font-bold text-white truncate">
+                    Low-Time Audible Alert
+                  </h3>
                 </div>
 
                 {/* Tone Choices */}
                 <div>
-                  <label className="text-xs font-black text-zinc-400 uppercase tracking-wider block mb-2">
-                    Acoustic Register Tone:
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-2">
+                    Alert Tone
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { id: 'tick', label: 'High Tick', desc: 'Mechanical high register' },
-                      { id: 'shrill', label: 'Piercing Shrill', desc: 'Dual 1.2/2.4kHz harmonic' },
-                      { id: 'beep', label: 'Digital Beep', desc: 'Electronic timer pulse' },
-                      { id: 'voice', label: 'Voice Countdown', desc: 'Spoken speech seconds' },
+                      { id: 'tick', label: 'High Tick', desc: 'Mechanical tick' },
+                      { id: 'shrill', label: 'Piercing Shrill', desc: 'Dual harmonic' },
+                      { id: 'beep', label: 'Digital Beep', desc: 'Electronic pulse' },
+                      { id: 'voice', label: 'Voice Countdown', desc: 'Spoken speech' },
                     ].map((reg) => {
                       const isSel = audioSettings.lowTimeRegister === reg.id;
                       return (
@@ -636,17 +604,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             updateAudio({ lowTimeRegister: reg.id as LowTimeRegister });
                             soundService.playLowTime(3);
                           }}
-                          className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                          className={`p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                             isSel
-                              ? 'bg-[#2b2824] border-emerald-600/80 text-white shadow-[0_3px_0_0_#385a16]'
-                              : 'bg-[#181614] border-[#35322b] text-zinc-400 hover:text-zinc-200 shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
+                              ? 'bg-[#282622] ring-1 ring-emerald-500/60 text-white'
+                              : 'bg-[#141311] hover:bg-[#22201d] border border-white/5 text-zinc-400 hover:text-white'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-black text-zinc-100">{reg.label}</span>
-                            {isSel && <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />}
+                            <span className="text-xs font-bold text-zinc-100">{reg.label}</span>
+                            {isSel && <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />}
                           </div>
-                          <span className="text-[10px] text-zinc-400 font-medium line-clamp-1 mt-0.5">
+                          <span className="text-[10px] text-zinc-500 font-normal line-clamp-1 mt-0.5">
                             {reg.desc}
                           </span>
                         </button>
@@ -658,21 +626,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {/* Threshold & Volume Sliders */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div>
-                    <div className="flex justify-between text-xs font-black text-zinc-300 mb-2">
+                    <div className="flex justify-between text-xs font-bold text-zinc-300 mb-2">
                       <span>Alert Threshold:</span>
                       <strong className="text-emerald-400 font-mono">
-                        ≤ {audioSettings.lowTimeThresholdSeconds} Seconds
+                        ≤ {audioSettings.lowTimeThresholdSeconds}s
                       </strong>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {[5, 10, 15, 20].map((sec) => (
                         <button
                           key={sec}
                           onClick={() => updateAudio({ lowTimeThresholdSeconds: sec })}
-                          className={`tactile-btn flex-1 py-1.5 rounded-full text-xs font-black font-mono transition-all cursor-pointer ${
+                          className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                             audioSettings.lowTimeThresholdSeconds === sec
-                              ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 shadow-[0_2px_0_0_#385a16]'
-                              : 'bg-[#181614] border-2 border-[#35322b] text-zinc-400 hover:text-white shadow-[0_2px_0_0_#141311]'
+                              ? 'bg-emerald-500 text-zinc-950 font-bold'
+                              : 'bg-[#141311] hover:bg-[#22201d] border border-white/5 text-zinc-400 hover:text-white'
                           }`}
                         >
                           {sec}s
@@ -753,119 +721,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* TAB 3: AI MENTORS */}
           {activeTab === 'mentors' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div>
-                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">
-                  Active AI Mentor & Analysis Voice
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-0.5">
+                  AI Mentor & Analysis Voice
                 </h3>
-                <p className="text-xs text-zinc-400 font-medium">
-                  Select your personal chess coach. The chosen mentor dynamically guides you move-by-move in live matches and delivers personalized Game Reviews with their authentic tactical philosophy.
+                <p className="text-xs text-zinc-500 font-medium">
+                  Select your personal chess coach for live games and move-by-move Game Reviews.
                 </p>
               </div>
 
-              {/* Mentor Roster */}
-              <div className="grid grid-cols-1 gap-3">
+              {/* Mentor Roster (Clean, uncluttered, zero bloated badges) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {MENTORS.map((m) => {
                   const isSel = activeMentorId === m.id;
-                  const isPreviewing = previewingMentorQuote === m.id;
 
                   return (
                     <div
                       key={m.id}
-                      onClick={() => setActiveMentorId(m.id)}
-                      className={`p-4 rounded-3xl border-2 flex flex-col gap-3 transition-all cursor-pointer ${
+                      onClick={() => {
+                        soundService.playTactilePop();
+                        setActiveMentorId(m.id);
+                      }}
+                      className={`p-3 rounded-xl transition-all cursor-pointer flex items-center gap-3 ${
                         isSel
-                          ? 'bg-[#272420] border-emerald-600/80 shadow-[0_4px_0_0_#385a16]'
-                          : 'bg-[#1e1c19] border-[#35322b] hover:border-[#4d483f] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px]'
+                          ? 'bg-[#22201c] ring-1 ring-emerald-500/50 shadow-sm'
+                          : 'bg-[#181614] hover:bg-[#1e1c19]'
                       }`}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="relative shrink-0">
-                          <div className="rounded-2xl border-2 border-[#35322b] overflow-hidden shadow-[0_2px_0_0_#141311]">
-                            <MentorAvatar mentorId={m.id} size={56} />
-                          </div>
-                          {isSel && (
-                            <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white text-zinc-950 flex items-center justify-center shadow">
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-black text-white">{m.name}</span>
-                              <span
-                                className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full text-white border border-black/30 shadow-sm"
-                                style={{ backgroundColor: m.accentColor }}
-                              >
-                                {m.title}
-                              </span>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                soundService.playCheck();
-                                setPreviewingMentorQuote(isPreviewing ? null : m.id);
-                              }}
-                              className="px-3 py-1 rounded-full bg-[#161512] hover:bg-[#25221d] text-[11px] font-black text-amber-400 border-2 border-amber-500/40 shadow-[0_2px_0_0_#78350f] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer flex items-center gap-1.5 shrink-0 transition-all"
-                            >
-                              <span>🎙️</span>
-                              <span>{isPreviewing ? 'Hide Sample' : 'Sample Advice'}</span>
-                            </button>
-                          </div>
-
-                          <span className="text-xs text-amber-300 font-bold block mt-1 italic">
-                            "{m.tagline}"
-                          </span>
-                          <p className="text-[11px] text-zinc-400 font-medium mt-1 line-clamp-2 leading-relaxed">
-                            {m.bio}
-                          </p>
-
-                          {isSel && (
-                            <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black text-emerald-400 uppercase tracking-wider">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
-                              <span>Active Coach in Live Games & Review</span>
-                            </div>
-                          )}
-                        </div>
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#141311] flex items-center justify-center shrink-0">
+                        <MentorAvatar mentorId={m.id} size={40} />
                       </div>
 
-                      {/* Interactive Sample Advice Bubble */}
-                      {isPreviewing && (
-                        <div className="p-3.5 rounded-2xl bg-[#141311] border-2 border-amber-500/40 text-xs text-amber-200 shadow-[0_3px_0_0_#78350f] animate-in fade-in zoom-in-95 duration-150 flex items-start gap-2.5">
-                          <span className="text-base shrink-0">💡</span>
-                          <div className="flex-1">
-                            <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mb-0.5">
-                              {m.name}'s Commentary Sample:
-                            </span>
-                            <span className="italic leading-relaxed text-zinc-200 font-medium">
-                              "{generateMentorComment(m.id, 'brilliant', 'Bxf7+', 'Bxf7+', 450)}"
-                            </span>
-                          </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-bold text-white truncate">{m.name}</span>
+                          {isSel && <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3] shrink-0" />}
                         </div>
-                      )}
+                        <span className="text-[10px] font-mono text-zinc-400 block truncate">
+                          {m.title}
+                        </span>
+                        <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+                          {m.tagline}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
               </div>
 
               {/* Commentary Depth Configuration */}
-              <div className="pt-4 border-t-2 border-[#282622] space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-black text-zinc-200 block">Commentary Detail Level</span>
-                    <span className="text-[11px] text-zinc-400 font-medium">Controls how in-depth your AI mentor analyzes candidate moves.</span>
-                  </div>
+              <div className="pt-3 border-t border-white/5 space-y-2.5">
+                <div>
+                  <span className="text-xs font-bold text-zinc-300 block">Commentary Detail Level</span>
+                  <span className="text-[11px] text-zinc-500 font-medium">Controls how in-depth your coach analyzes candidate moves.</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'concise', label: 'Concise', desc: 'Punchy tactical alerts' },
-                    { id: 'balanced', label: 'Balanced', desc: 'Standard coach guidance' },
-                    { id: 'deep', label: 'Master Deep', desc: 'Candidate lines & concepts' },
+                    { id: 'concise', label: 'Concise', desc: 'Tactical alerts' },
+                    { id: 'balanced', label: 'Balanced', desc: 'Standard guidance' },
+                    { id: 'deep', label: 'Deep', desc: 'Candidate lines' },
                   ].map((lvl) => {
                     const isSelected = commentaryDepth === lvl.id;
                     return (
@@ -878,16 +794,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             localStorage.setItem('chess_mentor_depth', lvl.id);
                           } catch {}
                         }}
-                        className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                        className={`p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-[#282622] border-emerald-600/80 text-white shadow-[0_3px_0_0_#385a16]'
-                            : 'bg-[#1b1916] border-[#35322b] text-zinc-400 hover:text-white shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
+                            ? 'bg-[#24211c] ring-1 ring-emerald-500/50 text-white'
+                            : 'bg-[#181614] hover:bg-[#1e1c19] border border-white/5 text-zinc-400 hover:text-white'
                         }`}
                       >
-                        <span className={`text-xs font-black block ${isSelected ? 'text-emerald-400' : ''}`}>
+                        <span className={`text-xs font-bold block ${isSelected ? 'text-emerald-400' : ''}`}>
                           {lvl.label}
                         </span>
-                        <span className="text-[10px] text-zinc-500 font-medium mt-0.5 block leading-tight">
+                        <span className="text-[10px] text-zinc-500 font-normal mt-0.5 block leading-tight">
                           {lvl.desc}
                         </span>
                       </button>
@@ -901,47 +817,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 4: ACCESSIBILITY */}
           {activeTab === 'accessibility' && (
             <div className="space-y-4 text-xs">
-              <div className="bg-[#1f1d1a] p-5 rounded-3xl border-2 border-[#35322b] shadow-[0_4px_0_0_#141311] space-y-4">
-                <h4 className="font-black text-white text-sm">WCAG 2.2 AA Accessibility Features</h4>
-                <p className="text-zinc-400 font-medium leading-relaxed">
+              <div className="bg-[#1e1c19] p-4 sm:p-5 rounded-2xl border border-white/5 space-y-3">
+                <h4 className="font-bold text-white text-sm">WCAG 2.2 AA Accessibility Features</h4>
+                <p className="text-zinc-400 font-normal leading-relaxed text-xs">
                   Our chess platform provides full screen reader support, keyboard arrow navigation, and high-contrast themes out of the box.
                 </p>
 
-                <div className="space-y-3 pt-3 border-t-2 border-[#282622]">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="space-y-3 pt-3 border-t border-white/5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <span className="font-black text-zinc-200 block">ARIA Grid Semantics</span>
-                      <span className="text-[11px] text-zinc-500 font-medium">
+                      <span className="font-bold text-zinc-200 block text-xs">ARIA Grid Semantics</span>
+                      <span className="text-[11px] text-zinc-500 font-normal">
                         Every square outputs full piece & coordinate speech labels for screen readers.
                       </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40 self-start sm:self-auto shrink-0">
+                    <span className="text-[11px] font-mono font-semibold text-emerald-400 shrink-0">
                       Active
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t-2 border-[#262420]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-white/5">
                     <div>
-                      <span className="font-black text-zinc-200 block">Keyboard Navigation</span>
-                      <span className="text-[11px] text-zinc-500 font-medium">
+                      <span className="font-bold text-zinc-200 block text-xs">Keyboard Navigation</span>
+                      <span className="text-[11px] text-zinc-500 font-normal">
                         Use Arrow Keys to traverse squares; press Space or Enter to select and place pieces.
                       </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full border border-emerald-500/40 self-start sm:self-auto shrink-0">
+                    <span className="text-[11px] font-mono font-semibold text-emerald-400 shrink-0">
                       Enabled
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t-2 border-[#262420]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-white/5">
                     <div>
-                      <span className="font-black text-zinc-200 block">High-Contrast Theme</span>
-                      <span className="text-[11px] text-zinc-500 font-medium">
+                      <span className="font-bold text-zinc-200 block text-xs">High-Contrast Theme</span>
+                      <span className="text-[11px] text-zinc-500 font-normal">
                         Select 'High Contrast (B&W)' or 'Low-Vision Amber' in the Board Themes tab.
                       </span>
                     </div>
                     <button
                       onClick={() => onChangeBoardTheme('high_contrast')}
-                      className="w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-full bg-[#262420] hover:bg-[#322f29] border-2 border-[#35322b] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none text-white text-xs font-black cursor-pointer transition-all self-start sm:self-auto shrink-0 text-center"
+                      className="px-3 py-1.5 rounded-lg bg-[#262420] hover:bg-[#322f29] border border-white/10 text-white text-xs font-semibold cursor-pointer transition-colors shrink-0 text-center"
                     >
                       Enable Theme
                     </button>
@@ -955,36 +871,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'accounts' && (
             <div className="space-y-6">
               {/* Progressive Web App (PWA) Card */}
-              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3">
+              <div className="bg-[#1e1c19] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner shrink-0">
-                      <Download className="w-5 h-5 text-emerald-400" />
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+                      <Download className="w-4 h-4" />
                     </div>
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="text-sm font-black text-white">Installable Web App (PWA)</span>
-                      <span
-                        className={`text-[10px] ${
-                          isPwaInstalled
-                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                            : 'bg-blue-500/20 text-blue-400 border-blue-500/40'
-                        } border px-2.5 py-0.5 rounded-full font-black uppercase`}
-                      >
-                        {isPwaInstalled ? 'Installed' : 'Ready to Install'}
+                      <span className="text-sm font-bold text-white">Installable Web App (PWA)</span>
+                      <span className="text-[11px] font-mono text-zinc-400">
+                        ({isPwaInstalled ? 'Installed' : 'Available'})
                       </span>
                     </div>
                   </div>
 
                   <button
                     onClick={onOpenPwaInstall}
-                    className="hidden sm:flex px-4 py-2 rounded-xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black text-xs border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-none transition-all cursor-pointer items-center justify-center gap-1.5 shrink-0"
+                    className="hidden sm:flex px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs cursor-pointer transition-colors items-center justify-center gap-1.5 shrink-0"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>{isPwaInstalled ? 'App Status' : 'Install App'}</span>
                   </button>
                 </div>
 
-                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                <p className="text-xs text-zinc-400 font-normal leading-relaxed">
                   {isPwaInstalled
                     ? 'Running in full-screen standalone mode with offline engine and sound caches active.'
                     : 'Install on iOS, Android, Mac, or Windows for full-screen gameplay and 0ms latency.'}
@@ -992,7 +902,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <button
                   onClick={onOpenPwaInstall}
-                  className="sm:hidden w-full py-2.5 rounded-xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black text-xs border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="sm:hidden w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>{isPwaInstalled ? 'App Status' : 'Install App'}</span>
@@ -1000,17 +910,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Check.mate Profile Sync Card */}
-              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3">
+              <div className="bg-[#1e1c19] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-lg shadow-inner shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-sm shrink-0">
                       ♟️
                     </div>
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="text-sm font-black text-white">Chess.com Profile Sync</span>
+                      <span className="text-sm font-bold text-white">Chess.com Profile Sync</span>
                       {syncedChessCom && (
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
-                          Connected
+                        <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                          (Connected)
                         </span>
                       )}
                     </div>
@@ -1021,7 +931,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <Button
                         variant="primary"
                         size="sm"
-                        rounded="full"
+                        rounded="lg"
                         onClick={() => {
                           updateSnapshot();
                           onClose();
@@ -1029,13 +939,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }}
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
-                        <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
+                        <span>{syncedChessCom ? 'Switch account' : 'Connect'}</span>
                       </Button>
                     </div>
                   )}
                 </div>
 
-                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                <p className="text-xs text-zinc-400 font-normal leading-relaxed">
                   Sync your verified Chess.com ELO ratings, avatar, game archives, and match history.
                 </p>
 
@@ -1043,7 +953,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Button
                     variant="primary"
                     size="sm"
-                    rounded="full"
+                    rounded="lg"
                     fullWidth
                     className="sm:hidden"
                     onClick={() => {
@@ -1053,14 +963,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }}
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>{syncedChessCom ? 'Switch / Re-sync' : 'Connect Account'}</span>
+                    <span>{syncedChessCom ? 'Switch account' : 'Connect'}</span>
                   </Button>
                 )}
 
                 {syncedChessCom && (
-                  <div className="mt-1 p-3.5 sm:p-4 bg-[#1a1815] rounded-2xl border-2 border-[#2b2824] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+                  <div className="mt-1 p-3 bg-[#141311] rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-11 h-11 rounded-xl bg-[#272522] border-2 border-[#383530] overflow-hidden flex items-center justify-center text-sm font-black shrink-0 shadow">
+                      <div className="w-10 h-10 rounded-lg bg-[#272522] overflow-hidden flex items-center justify-center text-sm shrink-0">
                         {syncedChessCom.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -1073,11 +983,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         )}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-black text-white flex items-center gap-1.5 truncate">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
                           {syncedChessCom.username}
                           <span>{syncedChessCom.countryCode === 'ng' ? '🇳🇬' : '🌐'}</span>
                         </span>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-mono text-zinc-400 font-bold mt-0.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-mono text-zinc-400 mt-0.5">
                           <span>Rapid: <strong className="text-white">{syncedChessCom.ratings?.rapid || 429}</strong></span>
                           <span>Blitz: <strong className="text-white">{syncedChessCom.ratings?.blitz || 370}</strong></span>
                           <span>Bullet: <strong className="text-white">{syncedChessCom.ratings?.bullet || 300}</strong></span>
@@ -1096,7 +1006,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           isDanger: true,
                         })
                       }
-                      className="w-full sm:w-auto px-4 py-2 rounded-full text-zinc-300 hover:text-rose-400 bg-[#241f1f] border-2 border-rose-900/40 hover:border-rose-700/60 shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs font-black shrink-0"
+                      className="w-full sm:w-auto px-3 py-1.5 rounded-lg text-zinc-400 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 transition-colors cursor-pointer flex items-center justify-center gap-1.5 text-xs font-medium shrink-0"
                       title="Disconnect Account"
                     >
                       <Unlink className="w-3.5 h-3.5 text-rose-400" />
@@ -1107,57 +1017,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Game Review & Analysis Engine Card */}
-              <div className="bg-[#24221e] border-2 border-[#35322b] rounded-3xl p-4 sm:p-5 shadow-[0_4px_0_0_#141311] flex flex-col gap-3">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 text-amber-400 flex items-center justify-center font-black text-lg shadow-inner shrink-0">
+              <div className="bg-[#1e1c19] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm shrink-0">
                       🔥
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="text-sm font-black text-white">Game Review Analysis Engine</span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-black uppercase">
-                        {analysisEngine === 'torch_human' ? 'Human Style (Recommended)' : 'Stockfish (Tactical)'}
-                      </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-bold text-white">Game Review Engine</span>
                     </div>
                   </div>
-                  <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                  <p className="text-xs text-zinc-400 font-normal leading-relaxed">
                     Select which engine evaluates your games, classifications, and coach recommendations.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-1">
                   <button
                     onClick={() => setAnalysisEngine('torch_human')}
-                    className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                    className={`p-3 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-1 ${
                       analysisEngine === 'torch_human'
-                        ? 'bg-amber-500/15 border-amber-500 shadow-[0_3px_0_0_#78350f]'
-                        : 'bg-[#1b1916] border-[#35322b] hover:border-[#4d483f] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
+                        ? 'bg-[#24211c] ring-1 ring-emerald-500/50 text-white'
+                        : 'bg-[#141311] hover:bg-[#1a1815] border border-white/5 text-zinc-400 hover:text-white'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                         <Flame className="w-3.5 h-3.5 text-amber-400" />
                         Human Style (Recommended)
                       </span>
                       {analysisEngine === 'torch_human' && (
-                        <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       )}
                     </div>
-                    <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
-                      Balanced grandmaster insights focused on practical moves, strategic plans, and intuitive play.
+                    <p className="text-[11px] text-zinc-500 font-normal leading-relaxed">
+                      Grandmaster insights focused on practical moves, plans, and intuitive play.
                     </p>
                   </button>
 
                   <button
                     onClick={() => setAnalysisEngine('stockfish')}
-                    className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                    className={`p-3 rounded-xl text-left transition-all cursor-pointer flex flex-col gap-1 ${
                       analysisEngine === 'stockfish'
-                        ? 'bg-emerald-500/15 border-emerald-500 shadow-[0_3px_0_0_#385a16]'
-                        : 'bg-[#1b1916] border-[#35322b] hover:border-[#4d483f] shadow-[0_2px_0_0_#141311] hover:-translate-y-[1px]'
+                        ? 'bg-[#24211c] ring-1 ring-emerald-500/50 text-white'
+                        : 'bg-[#141311] hover:bg-[#1a1815] border border-white/5 text-zinc-400 hover:text-white'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                         <Cpu className="w-3.5 h-3.5 text-emerald-400" />
                         Stockfish (Deep Tactical)
                       </span>
@@ -1165,20 +1072,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       )}
                     </div>
-                    <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
-                      Direct, deep calculation finding the strongest tactical solutions and precise defenses.
+                    <p className="text-[11px] text-zinc-500 font-normal leading-relaxed">
+                      Deep calculation finding tactical solutions and razor-sharp defenses.
                     </p>
                   </button>
                 </div>
               </div>
 
               {/* Maintenance & Dangerous Actions */}
-              <div className="bg-[#1b1916] border-2 border-[#2c2a26] rounded-3xl p-5 shadow-[0_4px_0_0_#141311] space-y-3">
-                <span className="text-xs font-black text-zinc-300 block uppercase tracking-wider">
+              <div className="bg-[#1e1c19] border border-white/5 rounded-2xl p-4 sm:p-5 space-y-3">
+                <span className="text-xs font-bold text-zinc-300 block uppercase tracking-wider">
                   Platform Data & Reset Actions
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                   <button
                     onClick={() =>
                       setActionConfirm({
@@ -1189,12 +1096,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         isDanger: false,
                       })
                     }
-                    className="p-3.5 rounded-2xl bg-[#23211e] hover:bg-[#2c2925] border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px] text-left transition-all cursor-pointer flex items-center gap-3"
+                    className="p-3 rounded-xl bg-[#141311] hover:bg-[#1a1815] border border-white/5 text-left transition-colors cursor-pointer flex items-center gap-3"
                   >
                     <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
                     <div>
-                      <span className="text-xs font-black text-zinc-200 block">Reset Preferences</span>
-                      <span className="text-[10px] text-zinc-500 font-medium">Restore default themes & audio</span>
+                      <span className="text-xs font-bold text-zinc-200 block">Reset Preferences</span>
+                      <span className="text-[10px] text-zinc-500 font-normal">Restore default themes & audio</span>
                     </div>
                   </button>
 
@@ -1208,12 +1115,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         isDanger: true,
                       })
                     }
-                    className="p-3.5 rounded-2xl bg-[#23211e] hover:bg-[#2c2925] border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] hover:-translate-y-[1px] text-left transition-all cursor-pointer flex items-center gap-3"
+                    className="p-3 rounded-xl bg-[#141311] hover:bg-[#1a1815] border border-white/5 text-left transition-colors cursor-pointer flex items-center gap-3"
                   >
                     <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
                     <div>
-                      <span className="text-xs font-black text-zinc-200 block">Clear Local Archives</span>
-                      <span className="text-[10px] text-zinc-500 font-medium">Remove browser game history</span>
+                      <span className="text-xs font-bold text-zinc-200 block">Clear Local Archives</span>
+                      <span className="text-[10px] text-zinc-500 font-normal">Remove browser game history</span>
                     </div>
                   </button>
                 </div>
@@ -1223,14 +1130,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#161512] border-t-2 border-[#35322b] flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#181613] border-t border-white/5 flex items-center justify-between shrink-0">
           <span className="text-[10px] sm:text-[11px] text-zinc-500 font-mono font-bold">
             Check.mate v2.0
           </span>
           <Button
             variant="primary"
             size="md"
-            rounded="full"
+            rounded="lg"
             onClick={() => {
               soundService.playTactilePop();
               updateSnapshot();

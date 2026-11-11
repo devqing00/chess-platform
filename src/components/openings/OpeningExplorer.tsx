@@ -5,7 +5,7 @@ import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
 import { OpeningCounterEngine, FullOpeningMasteryDossier } from '@/lib/server/openingCounterEngine';
 import { searchEcoOpenings, EcoOpening } from '@/lib/ecoOpenings';
-import { BoardTheme, PieceTheme, PieceColor } from '@/types/chess';
+import { BoardTheme, PieceTheme, PieceColor, OpeningContinuationBranch } from '@/types/chess';
 import { soundService } from '@/lib/audioService';
 import { useXpSystem } from '@/hooks/useXpSystem';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -199,13 +199,15 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
       if (selectedDossier.bestCounterOpening?.counterMoves) {
         const counterTokens = selectedDossier.bestCounterOpening.counterMoves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
         if (counterTokens.length >= 2) {
-          const tree = [];
-          for (let i = 0; i < counterTokens.length; i += 2) {
+          const tree: OpeningContinuationBranch[] = [];
+          for (let i = 1; i < counterTokens.length; i += 2) {
+            const userMove = counterTokens[i];
+            const oppFollowUp = counterTokens[i + 1] || '';
             tree.push({
               id: `counter-${i}`,
-              moveSan: counterTokens[i],
-              responseSan: counterTokens[i + 1] || '',
-              coachNote: `Counter move ${Math.floor(i / 2) + 1}: ${counterTokens[i]}.`,
+              moveSan: userMove,
+              responseSan: oppFollowUp,
+              coachNote: `Counter move: ${userMove}. ${oppFollowUp ? `White replies ${oppFollowUp}.` : 'Neutralizes White.'}`,
               evaluation: 'Sound counterplay',
             });
           }
@@ -386,20 +388,28 @@ export const OpeningExplorer: React.FC<OpeningExplorerProps> = ({
     soundService.playTactilePop();
 
     if (mode === 'trap' && selectedDossier.trapLine) {
-      setCoachFeedback(`Trap Drill: Execute ${selectedDossier.trapLine.name}! Target: ${selectedDossier.trapLine.goal === 'checkmate' ? 'Deliver checkmate!' : 'Win material!'}`);
+      setCoachFeedback(`Gambit / Trap Drill: Execute ${selectedDossier.trapLine.name}! Target: ${selectedDossier.trapLine.goal === 'checkmate' ? 'Deliver checkmate!' : 'Win decisive material!'}`);
       const c = new Chess();
       const cleanMoves = selectedDossier.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
       cleanMoves.forEach(san => { try { c.move(san); } catch {} });
       setChess(c);
+      setOrientation('w');
     } else if (mode === 'counter') {
-      setCoachFeedback(`Counter-Play Drill: Execute ${selectedDossier.bestCounterOpening.counterName}. Break White's center with ${selectedDossier.bestCounterOpening.keyPawnBreaks.join(', ')}.`);
+      const counterTokens = selectedDossier.bestCounterOpening?.counterMoves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean) || [];
       const c = new Chess();
-      const cleanMoves = selectedDossier.moves.replace(/\d+\./g, '').trim().split(/\s+/).filter(Boolean);
-      cleanMoves.forEach(san => { try { c.move(san); } catch {} });
+      setOrientation('b');
+      // If the first token is White's move, play it so Black is up next
+      if (counterTokens.length >= 2) {
+        try {
+          c.move(counterTokens[0]);
+        } catch {}
+      }
       setChess(c);
+      setCoachFeedback(`Counter-Play Drill: White opened with ${counterTokens[0] || '1. e4'}. Your turn: play ${counterTokens[1] || 'c5'} (${selectedDossier.bestCounterOpening.counterName})!`);
     } else {
       setCoachFeedback(`Main Line Drill: Step through master opening moves for ${selectedDossier.name}.`);
       setChess(new Chess());
+      setOrientation('w');
     }
   };
 

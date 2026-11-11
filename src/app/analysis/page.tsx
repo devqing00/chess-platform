@@ -772,9 +772,9 @@ function AnalysisStudioContent() {
               soundService.playTactilePop();
               setActiveScreen('sandbox');
             }}
-            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center active:scale-[0.98] ${
               activeScreen === 'sandbox'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -786,9 +786,9 @@ function AnalysisStudioContent() {
               soundService.playTactilePop();
               setActiveScreen('theory');
             }}
-            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center active:scale-[0.98] ${
               activeScreen === 'theory'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -800,9 +800,9 @@ function AnalysisStudioContent() {
               soundService.playTactilePop();
               setActiveScreen('tablebase');
             }}
-            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center active:scale-[0.98] ${
               activeScreen === 'tablebase'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -814,9 +814,9 @@ function AnalysisStudioContent() {
               soundService.playTactilePop();
               setActiveScreen('vault');
             }}
-            className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-center active:scale-[0.98] ${
               activeScreen === 'vault'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
@@ -1074,7 +1074,7 @@ function AnalysisStudioContent() {
                       }}
                       className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
                         targetDepth === d
-                          ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_1px_0_0_#385a16]'
+                          ? 'bg-[#272522] text-white font-black border border-white/20'
                           : 'bg-white/5 text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -1148,7 +1148,7 @@ function AnalysisStudioContent() {
                   </button>
                   <button
                     onClick={handleGoToGameReview}
-                    className="flex-[1.5] py-2 px-3 rounded-xl bg-[#81b64c] hover:bg-[#8ecb53] active:bg-[#72a143] text-white font-extrabold text-xs transition-all shadow-[0_2px_0_0_#4d7524] flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-[1.5] py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-zinc-950 font-black text-xs transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Game Review</span>
@@ -1559,7 +1559,7 @@ function AnalysisStudioContent() {
                     }}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                       vaultProvider === 'checkmate'
-                        ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                        ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                         : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -1571,7 +1571,9 @@ function AnalysisStudioContent() {
                       setVaultProvider('chesscom');
                     }}
                     className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                      vaultProvider === 'chesscom' ? 'bg-emerald-600 text-white font-black' : 'text-zinc-400 hover:text-zinc-200'
+                      vaultProvider === 'chesscom'
+                        ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     Chess.com

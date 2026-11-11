@@ -7,7 +7,7 @@ export function Card({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        'rounded-2xl border-2 border-[#35322b] bg-[#211f1c] text-zinc-100 overflow-hidden p-5 shadow-[0_4px_0_0_#141311]',
+        'rounded-xl border border-white/10 bg-[#1c1a17] text-zinc-100 overflow-hidden p-5 shadow-sm',
         className
       )}
       {...props}
@@ -19,10 +19,10 @@ export function CardInteractive({ className, ...props }: React.ComponentProps<'d
   return (
     <div
       className={cn(
-        'rounded-2xl border-2 border-[#35322b] bg-[#211f1c] text-zinc-100 cursor-pointer overflow-hidden p-5 shadow-[0_4px_0_0_#141311]',
-        'transition-all duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
-        'hover:shadow-[0_6px_0_0_#141311] hover:border-[#4c463b] hover:-translate-y-[2px]',
-        'active:shadow-[0_1px_0_0_#141311] active:translate-y-[2px]',
+        'rounded-xl border border-white/10 bg-[#1c1a17] text-zinc-100 cursor-pointer overflow-hidden p-5 shadow-sm',
+        'transition-all duration-150 ease-out',
+        'hover:border-white/20 hover:bg-[#201e1b]',
+        'active:scale-[0.98]',
         className
       )}
       {...props}

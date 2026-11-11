@@ -1159,13 +1159,55 @@ export class OpeningCounterEngine {
       }
     }
 
-    const isE4 = op.moves.startsWith('1. e4');
-    const isD4 = op.moves.startsWith('1. d4');
-    const counterName = isE4
-      ? 'Central Counter-Strike (Sicilian / French / Caro-Kann)'
-      : isD4
-      ? "Active Center Break (King's Indian / Slav Defense)"
-      : 'Harmonious Center Occupation';
+    const isE4 = op.moves.startsWith('1. e4') || op.moves.startsWith('e4');
+    const isD4 = op.moves.startsWith('1. d4') || op.moves.startsWith('d4');
+    const isC4 = op.moves.startsWith('1. c4') || op.moves.startsWith('c4');
+    const isNf3 = op.moves.startsWith('1. Nf3') || op.moves.startsWith('Nf3');
+    const isBarnesOrFlank = op.moves.startsWith('1. f3') || op.moves.startsWith('1. g4') || op.moves.startsWith('1. b3') || op.moves.startsWith('1. b4');
+
+    let counterName = 'Central Counter-Strike';
+    let counterMovesSan = '1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6';
+    let keyPawnBreaks = ['c7-c5', 'd7-d5'];
+    let whyWorks = 'Strikes back against the center and breaks the opponent structure.';
+
+    if (isGambit) {
+      if (isE4) {
+        counterName = 'Gambit Refutation & Central Counter-Strike';
+        counterMovesSan = '1. e4 e5 2. f4 d5 3. exd5 e4 4. d3 Nf6';
+        keyPawnBreaks = ['d7-d5! (Central Counter)', 'c7-c6'];
+        whyWorks = 'Declines the trap, seizes the center immediately, and prevents White kingside development.';
+      } else {
+        counterName = 'Solid Classical Refutation';
+        counterMovesSan = '1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Nf3 Be7';
+        keyPawnBreaks = ['c7-c5', 'e6-e5'];
+        whyWorks = 'Neutralizes the gambit pressure with ironclad piece protection and king safety.';
+      }
+    } else if (isE4) {
+      counterName = 'Sicilian Counter-Attack (Asymmetric Center Strike)';
+      counterMovesSan = '1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6';
+      keyPawnBreaks = ['d7-d5', 'b7-b5'];
+      whyWorks = 'Fights asymmetrically for the center with c5, yielding an extra central pawn and queen-side counterplay.';
+    } else if (isD4) {
+      counterName = "King's Indian / Nimzo Defense Strike";
+      counterMovesSan = '1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6';
+      keyPawnBreaks = ['e7-e5', 'c7-c5'];
+      whyWorks = 'Allows White to build an apparent center, then shatters it with targeted pawn breaks e5 and c5.';
+    } else if (isC4) {
+      counterName = 'Reversed Sicilian (Direct Center Seizure)';
+      counterMovesSan = '1. c4 e5 2. Nc3 Nf6 3. g3 d5 4. cxd5 Nxd5';
+      keyPawnBreaks = ['d7-d5', 'f7-f5'];
+      whyWorks = 'Takes immediate control of the center with an extra tempo in the reversed structure.';
+    } else if (isNf3) {
+      counterName = 'Classical Queen’s Pawn Counter';
+      counterMovesSan = '1. Nf3 d5 2. g3 c6 3. Bg2 Bg4 4. O-O Nd7';
+      keyPawnBreaks = ['e7-e5', 'c6-c5'];
+      whyWorks = 'Builds an unassailable pawn pyramid on d5 and c6, neutralizing White flank bishop.';
+    } else if (isBarnesOrFlank) {
+      counterName = 'Rapid Kingside Exploitation';
+      counterMovesSan = '1. f3 e5 2. Kf2 d5 3. e3 Nf6 4. d4 Bd6';
+      keyPawnBreaks = ['d7-d5', 'e5-e4'];
+      whyWorks = 'Punishes White’s exposed king diagonal and passive pawn structure with swift central dominance.';
+    }
 
     return {
       eco: op.eco,
@@ -1191,14 +1233,12 @@ export class OpeningCounterEngine {
       bestCounterOpening: {
         id: `counter-${op.eco}`,
         counterName,
-        counterMoves: isE4 ? '1... c5 or 1... e5' : isD4 ? '1... Nf6 or 1... d5' : '1... e5',
-        whyItWorks: isGambit
-          ? 'Declines the gambit pawn safely or returns it for active piece centralization.'
-          : 'Strikes back against early pawn expansion with sound harmonic piece coordination.',
+        counterMoves: counterMovesSan,
+        whyItWorks: whyWorks,
         recommendedPlan: 'Control the central squares, avoid hasty tactical traps, and consolidate king safety.',
         difficulty: 'Intermediate',
         winRateAdvantage: '44% Win/Draw rate in master praxis',
-        keyPawnBreaks: isE4 ? ['d7-d5', 'c7-c5'] : ['c7-c5', 'e7-e5'],
+        keyPawnBreaks,
       },
       alternativeCounters: [],
       continuationTree: continuationTree.length > 0 ? continuationTree : [

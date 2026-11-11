@@ -1555,13 +1555,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
 
           // Board & Cards dimension: calibrated to fit comfortably inside 100dvh with zero horizontal or vertical clipping
           const boardWidthClasses =
-            'w-[min(calc(100vw-3.5rem),calc(100dvh-180px))] md:w-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] lg:w-[min(calc(100vw-30rem),calc(100dvh-160px),580px)]';
+            'w-[min(calc(100vw-4.5rem),calc(100dvh-220px))] md:w-[min(calc(100vw-28rem),calc(100dvh-180px),520px)] lg:w-[min(calc(100vw-32rem),calc(100dvh-175px),560px)]';
 
           const boardSquareClasses =
-            'w-[min(calc(100vw-3.5rem),calc(100dvh-180px))] h-[min(calc(100vw-3.5rem),calc(100dvh-180px))] md:w-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] md:h-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] lg:w-[min(calc(100vw-30rem),calc(100dvh-160px),580px)] lg:h-[min(calc(100vw-30rem),calc(100dvh-160px),580px)]';
+            'w-[min(calc(100vw-4.5rem),calc(100dvh-220px))] h-[min(calc(100vw-4.5rem),calc(100dvh-220px))] md:w-[min(calc(100vw-28rem),calc(100dvh-180px),520px)] md:h-[min(calc(100vw-28rem),calc(100dvh-180px),520px)] lg:w-[min(calc(100vw-32rem),calc(100dvh-175px),560px)] lg:h-[min(calc(100vw-32rem),calc(100dvh-175px),560px)]';
 
           const evalBarHeightClasses =
-            'h-[min(calc(100vw-3.5rem),calc(100dvh-180px))] md:h-[min(calc(100vw-28rem),calc(100dvh-165px),540px)] lg:h-[min(calc(100vw-30rem),calc(100dvh-160px),580px)]';
+            'h-[min(calc(100vw-4.5rem),calc(100dvh-220px))] md:h-[min(calc(100vw-28rem),calc(100dvh-180px),520px)] lg:h-[min(calc(100vw-32rem),calc(100dvh-175px),560px)]';
 
           return (
             <div className="w-full max-w-full md:w-auto flex flex-col items-center justify-center shrink-0 px-0.5 sm:px-1 gap-1.5">

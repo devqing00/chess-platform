@@ -233,8 +233,8 @@ export async function POST(req: NextRequest) {
           ],
         };
       } else {
-        const plyBudget = Math.max(40, timeBudgetMs || 100);
-        const timeoutPerPly = Math.min(2500, plyBudget + 800);
+        const plyBudget = Math.min(100, Math.max(50, timeBudgetMs || 70));
+        const timeoutPerPly = Math.max(3000, plyBudget * 4); // Gives engine sufficient headroom
         try {
           currentEval = await Promise.race([
             evaluatePositionStockfish(fenAfter, targetDepth, multiPv, plyBudget),

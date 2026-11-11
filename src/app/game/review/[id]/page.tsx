@@ -106,8 +106,8 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
     if (!isLoading) return;
     const interval = setInterval(() => {
       setLoadingProgress((prev) => {
-        // Soft gentle crawl during initial connection before move events arrive (up to 12% max)
-        if (prev >= 12) return prev;
+        // Soft gentle crawl during initial connection before move events arrive (up to 8% max)
+        if (prev >= 8) return prev;
         return prev + 1;
       });
     }, 450);
@@ -268,13 +268,22 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         return;
       }
 
-const CURRENT_REVIEW_VERSION = 'v5.2';
+const CURRENT_REVIEW_VERSION = 'v5.3';
 
 const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
   if (!rep) return true;
   if (!rep.moves || rep.moves.length === 0) return true;
-  if (movesCount >= 10) {
-    if ((rep.whiteAccuracy ?? 0) >= 99.5 && (rep.blackAccuracy ?? 0) >= 99.5) return true;
+  if (movesCount >= 6) {
+    // Both sides having >= 99.0% accuracy in games >= 6 moves indicates 0.00 flat fallback evaluations
+    if ((rep.whiteAccuracy ?? 0) >= 99.0 && (rep.blackAccuracy ?? 0) >= 99.0) return true;
+
+    // Check if non-book moves all have 0 evalAfter (corrupted flat evaluations)
+    const nonBookMoves = rep.moves.filter((m) => m.classification !== 'book');
+    if (nonBookMoves.length >= 4) {
+      const allZeroEvals = nonBookMoves.every((m) => (m.evalAfter ?? 0) === 0);
+      if (allZeroEvals) return true;
+    }
+
     const totalMistakes =
       (rep.tallies?.white?.inaccuracy || 0) +
       (rep.tallies?.white?.mistake || 0) +
@@ -284,7 +293,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
       (rep.tallies?.black?.mistake || 0) +
       (rep.tallies?.black?.miss || 0) +
       (rep.tallies?.black?.blunder || 0);
-    if (totalMistakes === 0 && movesCount >= 20) return true;
+    if (totalMistakes === 0 && movesCount >= 16) return true;
   }
   return false;
 };
@@ -321,16 +330,16 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
             setLoadingProgress(5);
           }
           const moveCount = session.moves?.length || 40;
-          const timeoutMs = Math.max(120000, moveCount * 2500);
-          const controller = new AbortController();
-          const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
+          const streamTimeoutMs = Math.max(60000, moveCount * 2000);
+          const streamController = new AbortController();
+          const streamTimer = setTimeout(() => streamController.abort(), streamTimeoutMs);
 
           // Attempt 1: Real-time Progressive SSE Stream
           let streamSuccess = false;
           try {
             const streamRes = await fetch('/api/engine/review/stream', {
               method: 'POST',
-              signal: controller.signal,
+              signal: streamController.signal,
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 gameId,
@@ -371,13 +380,16 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
                   const eventData = JSON.parse(dataLine.replace('data: ', '').trim());
 
                   if (eventType === 'progress' && isMounted) {
-                    const pct = Math.max(5, Math.min(99, eventData.pct || 0));
+                    const realPct = eventData.totalPlies > 0
+                      ? Math.round((eventData.ply / eventData.totalPlies) * 100)
+                      : eventData.pct || 0;
+                    const pct = Math.max(5, Math.min(99, realPct));
                     setLoadingProgress(pct);
                     setLoadingStep(
                       `Move ${eventData.ply}/${eventData.totalPlies}: ${eventData.move?.san} (${eventData.move?.classification})`
                     );
                   } else if (eventType === 'complete' && eventData.report) {
-                    clearTimeout(timeoutTimer);
+                    clearTimeout(streamTimer);
                     streamSuccess = true;
                     if (isMounted) setLoadingProgress(100);
                     const finalReport = eventData.report;
@@ -403,51 +415,61 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
             }
           } catch (streamErr) {
             console.warn('Review stream failed, falling back to batch API:', streamErr);
+          } finally {
+            clearTimeout(streamTimer);
           }
 
+          // Attempt 2: Batch Review API (with independent AbortController)
           if (!streamSuccess) {
-            const res = await fetch('/api/engine/review', {
-              method: 'POST',
-              signal: controller.signal,
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                gameId,
-                moves: session.moves.map((m) => ({
-                  san: m.san,
-                  timeSpentSeconds: m.timeSpentSeconds,
-                })),
-                whitePlayer: session.whitePlayer,
-                blackPlayer: session.blackPlayer,
-                strengthTier: engineStrength || 'fast',
-                engineMode: analysisEngine || 'torch_human',
-                gameResult: session.gameResult,
-                resultDetails: session.resultDetails,
-                pgn: session.pgn,
-              }),
-            });
-            clearTimeout(timeoutTimer);
+            const batchTimeoutMs = Math.max(60000, moveCount * 2000);
+            const batchController = new AbortController();
+            const batchTimer = setTimeout(() => batchController.abort(), batchTimeoutMs);
 
-            if (res.ok) {
-              const data = await res.json();
-              if (data.success && data.report) {
-                if (isMounted) setLoadingProgress(100);
-                data.report.isDeepReview = true;
-                data.report.reviewVersion = CURRENT_REVIEW_VERSION;
-                data.report.gameResult = session.gameResult;
-                data.report.resultDetails = session.resultDetails;
-                data.report.termination = session.pgn
-                  ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
-                  : undefined;
-                mergeMoveTimesIntoReport(data.report.moves, session.moves, session.pgn);
-                session.reviewReport = data.report;
-                session.engineMode = analysisEngine || 'torch_human';
-                GameSessionStore.saveSession(session);
-                if (isMounted) {
-                  setReport(data.report);
-                  setIsLoading(false);
+            try {
+              const res = await fetch('/api/engine/review', {
+                method: 'POST',
+                signal: batchController.signal,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  gameId,
+                  moves: session.moves.map((m) => ({
+                    san: m.san,
+                    timeSpentSeconds: m.timeSpentSeconds,
+                  })),
+                  whitePlayer: session.whitePlayer,
+                  blackPlayer: session.blackPlayer,
+                  strengthTier: engineStrength || 'fast',
+                  engineMode: analysisEngine || 'torch_human',
+                  gameResult: session.gameResult,
+                  resultDetails: session.resultDetails,
+                  pgn: session.pgn,
+                }),
+              });
+
+              if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.report) {
+                  if (isMounted) setLoadingProgress(100);
+                  data.report.isDeepReview = true;
+                  data.report.reviewVersion = CURRENT_REVIEW_VERSION;
+                  data.report.gameResult = session.gameResult;
+                  data.report.resultDetails = session.resultDetails;
+                  data.report.termination = session.pgn
+                    ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
+                    : undefined;
+                  mergeMoveTimesIntoReport(data.report.moves, session.moves, session.pgn);
+                  session.reviewReport = data.report;
+                  session.engineMode = analysisEngine || 'torch_human';
+                  GameSessionStore.saveSession(session);
+                  if (isMounted) {
+                    setReport(data.report);
+                    setIsLoading(false);
+                  }
+                  return;
                 }
-                return;
               }
+            } finally {
+              clearTimeout(batchTimer);
             }
           }
         } catch (err) {
@@ -512,9 +534,9 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
   if (isLoading) {
     return (
       <div className="flex flex-1 w-full h-[100dvh] max-h-[100dvh] overflow-hidden items-center justify-center bg-[#161512] text-zinc-100 p-4 select-none">
-        <div className="flex flex-col items-center gap-3.5 max-w-sm w-full bg-[#211f1c] border-2 border-[#35322b] rounded-3xl p-5 shadow-[0_6px_0_0_#141311]">
+        <div className="flex flex-col items-center gap-3.5 max-w-sm w-full bg-[#1c1a17] border border-white/10 rounded-2xl p-5 shadow-2xl">
           {/* Continuously Animated Scanning Checkered Board */}
-          <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-[#38342e] shadow-[0_4px_0_0_#141311]">
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 shadow-md">
             <div className="grid grid-cols-4 grid-rows-4 w-full h-full">
               {Array.from({ length: 16 }).map((_, i) => {
                 const row = Math.floor(i / 4);
@@ -537,8 +559,8 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
 
             {/* Center Spinning Sparkle Emblem */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-9 h-9 rounded-full bg-[#161512]/95 border-2 border-emerald-500 flex items-center justify-center shadow-[0_2px_0_0_#065f46]">
-                <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" />
+              <div className="w-8 h-8 rounded-full bg-[#161512]/95 border border-emerald-500/50 flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
               </div>
             </div>
           </div>
@@ -560,9 +582,9 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
               <span className="text-zinc-400 truncate max-w-[200px]">{loadingStep}</span>
               <span className="text-emerald-400">{loadingProgress}%</span>
             </div>
-            <div className="w-full h-2 rounded-full bg-[#141311] p-0.5 border border-[#35322b]">
+            <div className="w-full h-1.5 rounded-full bg-[#141311] overflow-hidden">
               <div
-                className="h-full bg-emerald-500 rounded-full transition-all duration-300 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.2)]"
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
                 style={{ width: `${loadingProgress}%` }}
               />
             </div>
@@ -570,7 +592,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
 
           {/* Single Clean Chess Fact */}
           {shuffledFacts.length > 0 && (
-            <div className="w-full bg-[#181614] border border-[#35322b] rounded-2xl p-3 flex flex-col gap-1 shadow-[0_2px_0_0_#141311]">
+            <div className="w-full bg-[#141311] border border-white/5 rounded-xl p-3 flex flex-col gap-1">
               <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-400 uppercase tracking-wider">
                 <Sparkles className="w-3 h-3" />
                 <span>Chess Fact</span>
@@ -591,14 +613,14 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
   if (notFound || !report) {
     return (
       <div className="flex flex-1 w-full h-[100dvh] max-h-[100dvh] overflow-hidden items-center justify-center bg-[#161512] text-zinc-300 p-4">
-        <div className="flex flex-col items-center gap-4 max-w-md text-center bg-[#211f1c] border-2 border-[#35322b] rounded-3xl p-6 shadow-[0_6px_0_0_#141311]">
-          <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border-2 border-rose-500/30 flex items-center justify-center text-rose-400 shadow-[0_2px_0_0_#7f1d1d]">
-            <AlertCircle className="w-7 h-7" />
+        <div className="flex flex-col items-center gap-4 max-w-md text-center bg-[#1c1a17] border border-white/10 rounded-2xl p-6 shadow-2xl">
+          <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+            <AlertCircle className="w-6 h-6" />
           </div>
           <div>
             <h3 className="text-base font-black text-white">Game Not Found</h3>
             <p className="text-xs text-zinc-400 font-medium mt-1 leading-relaxed">
-              Could not locate game record for ID <code className="text-emerald-400 bg-[#161512] px-1.5 py-0.5 rounded font-mono font-bold">{gameId}</code>.
+              Could not locate game record for ID <code className="text-emerald-400 bg-[#141311] px-1.5 py-0.5 rounded font-mono font-bold">{gameId}</code>.
               Sync your Chess.com games on the home screen or choose another match.
             </p>
           </div>

@@ -21,11 +21,11 @@ function TrainingContent() {
         {/* Compact Minimalist Header & Global HUD Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 pb-2.5 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_2px_0_0_#385a16] shrink-0">
-              <Target className="w-5 h-5 stroke-[2.5]" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h1 className="text-sm sm:text-lg font-black uppercase tracking-wider text-white">
+              <h1 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
                 Cognitive Training Studio
               </h1>
               <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">
@@ -38,12 +38,12 @@ function TrainingContent() {
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             {/* Official Rating */}
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-black border shadow-sm ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
                 isSynced && effectiveRating
                   ? syncedPlatform === 'chesscom'
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     : 'bg-zinc-700/30 text-white border-zinc-600'
-                  : 'bg-[#201e1a] text-zinc-400 border-[#35322b]'
+                  : 'bg-[#1c1a17] text-zinc-400 border-white/10'
               }`}
               title={isSynced ? 'Official Synced Platform Rating' : 'Connect account to sync official rating'}
             >
@@ -56,20 +56,20 @@ function TrainingContent() {
             </div>
 
             {/* Daily Streak */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#201e1a] border-2 border-[#35322b] rounded-xl text-[11px] font-black text-amber-400 shadow-[0_2px_0_0_#141311]">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1c1a17] border border-white/10 rounded-lg text-[11px] font-bold text-amber-400">
               <Flame className="w-3.5 h-3.5 fill-amber-400 shrink-0" />
               <span className="font-mono" suppressHydrationWarning>{xpProfile.streak}d</span>
             </div>
 
             {/* XP Total */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#201e1a] border-2 border-[#35322b] rounded-xl text-[11px] font-black text-emerald-400 shadow-[0_2px_0_0_#141311]">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1c1a17] border border-white/10 rounded-lg text-[11px] font-bold text-emerald-400">
               <Zap className="w-3.5 h-3.5 fill-emerald-400 shrink-0" />
               <span className="font-mono" suppressHydrationWarning>{xpProfile.totalXp} XP</span>
             </div>
 
             {/* League Badge */}
             <div
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-black border-2 shadow-[0_2px_0_0_#141311]"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border"
               style={{
                 backgroundColor: xpProfile.league.badgeBg,
                 borderColor: xpProfile.league.badgeBorder,

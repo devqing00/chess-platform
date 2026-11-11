@@ -90,9 +90,9 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 pt-safe pb-safe select-none">
-      <div className="w-full max-w-4xl bg-[#211f1c] border-2 border-[#35322b] rounded-3xl shadow-[0_8px_0_0_#141311] overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] my-auto">
+      <div className="w-full max-w-4xl bg-[#1c1a17] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh] sm:max-h-[88vh] my-auto">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3 sm:py-3.5 bg-[#262420] border-b-2 border-[#35322b] flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 bg-[#161512] border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
             <span className="text-sm sm:text-base font-black text-white truncate">
@@ -117,12 +117,14 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
             return (
               <div
                 key={tier.id}
-                className={`p-4 sm:p-5 rounded-3xl bg-[#282521] border-2 flex flex-col justify-between relative transition-all shadow-[0_4px_0_0_#141311] hover:-translate-y-[2px] ${
-                  tier.popular ? 'border-cyan-400 shadow-[0_4px_0_0_#0891b2]' : 'border-[#383530]'
+                className={`p-4 sm:p-5 rounded-xl border flex flex-col justify-between relative transition-all active:scale-[0.98] ${
+                  tier.popular
+                    ? 'bg-[#212427] border-cyan-500/40 shadow-sm'
+                    : 'bg-[#24221f] border-white/10 hover:border-white/20'
                 }`}
               >
                 {tier.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500 border-2 border-cyan-300 text-black font-black text-[9px] uppercase tracking-wider px-3 py-0.5 rounded-full shadow-[0_2px_0_0_#0891b2]">
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-cyan-500 text-zinc-950 font-black text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-sm">
                     Most Popular
                   </span>
                 )}
@@ -130,7 +132,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-base font-black text-white">{tier.name}</span>
-                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
                       {tier.badge}
                     </span>
                   </div>
@@ -169,7 +171,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         </div>
 
         {/* Guarantee Footer */}
-        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#181614] border-t-2 border-[#35322b] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-zinc-400 font-medium shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#161512] border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-zinc-400 font-medium shrink-0">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Switch or cancel membership anytime. 100% money-back guarantee.</span>

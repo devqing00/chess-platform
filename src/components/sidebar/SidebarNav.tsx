@@ -250,17 +250,17 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                   collapsed ? 'justify-center px-0 py-2' : 'justify-between px-3 py-2'
                 } rounded-xl text-[13px] font-extrabold border transition-all duration-150 cursor-pointer select-none ${
                   isActive
-                    ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16,0_4px_12px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_0_0_#385a16] hover:-translate-y-[1px] active:translate-y-[2px] active:shadow-[0_1px_0_0_#385a16]'
-                    : 'text-zinc-300 border-t border-transparent border-x-transparent border-b-transparent hover:text-white hover:bg-[#25221e] hover:border-t-white/10 hover:border-x-[#35322b] hover:border-b-[#12110f] hover:shadow-[0_2px_0_0_#12110f] hover:-translate-y-[1px] active:translate-y-[1px] active:shadow-none'
+                    ? 'bg-[#24221f] text-white font-black border-white/15 shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
+                    : 'text-zinc-400 border-transparent hover:text-zinc-100 hover:bg-[#1e1c19] hover:border-white/5 active:scale-[0.98]'
                 }`}
               >
                 <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'}`}>
                   <Icon
                     className={`w-4.5 h-4.5 shrink-0 ${
-                      isActive ? 'text-zinc-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.3)]' : 'text-zinc-400'
+                      isActive ? 'text-emerald-400' : 'text-zinc-400'
                     }`}
                   />
-                  {!collapsed && <span className={isActive ? 'drop-shadow-[0_1px_0_rgba(255,255,255,0.25)]' : ''}>{item.label}</span>}
+                  {!collapsed && <span>{item.label}</span>}
                 </div>
               </button>
             );
@@ -269,7 +269,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       </div>
 
       {/* Bottom Section: Search, User Account, Tier Banner, and Social/Settings Toolbar */}
-      <div className={`border-t-2 border-[#2d2a26] bg-[#161512] shrink-0 ${collapsed ? 'p-2 flex flex-col items-center gap-2.5' : 'p-3 space-y-2.5'}`}>
+      <div className={`border-t border-white/10 bg-[#161512] shrink-0 ${collapsed ? 'p-2 flex flex-col items-center gap-2.5' : 'p-3 space-y-2.5'}`}>
         {!collapsed ? (
           <>
             {/* Search button navigating to /players */}
@@ -289,13 +289,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </Button>
 
             {/* User Account / Profile Card */}
-            <div className="p-2.5 bg-[#211f1c] rounded-2xl border-2 border-[#35322b] shadow-[0_3px_0_0_#141311] flex items-center justify-between">
+            <div className="p-2.5 bg-[#1c1a17] rounded-xl border border-white/10 flex items-center justify-between">
               <div
                 onClick={() => (user ? setIsAvatarModalOpen(true) : openAuthModal())}
                 className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
                 title={user ? 'Click to change avatar' : 'Click to Log In'}
               >
-                <div className="relative w-8 h-8 rounded-xl bg-[#2b2824] border-2 border-[#3d3a34] overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 group-hover:border-emerald-500 transition-colors shadow-sm">
+                <div className="relative w-8 h-8 rounded-lg bg-[#24221f] border border-white/10 overflow-hidden flex items-center justify-center text-sm font-bold shrink-0 group-hover:border-emerald-500/50 transition-colors">
                   {effectiveAvatar && effectiveAvatar.startsWith('http') ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -352,16 +352,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <div
               onClick={onOpenMembershipModal || (() => {})}
               onPointerDown={() => soundService.playTactilePop()}
-              className="p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-600/10 to-[#211f1c] border-t border-white/35 border-x-amber-500/30 border-b-amber-950/50 shadow-[0_4px_0_0_#78350f40,0_4px_12px_rgba(245,158,11,0.2)] hover:shadow-[0_5px_0_0_#78350f60] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#78350f40] transition-all cursor-pointer group tactile-btn"
+              className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/25 hover:border-amber-500/40 transition-all cursor-pointer group active:scale-[0.98]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <Crown className="w-4 h-4 text-amber-400 group-hover:scale-105 transition-transform" />
                   <span className="text-xs font-black text-amber-300 capitalize">
                     {effectiveTier === 'free' ? 'Free Member' : `${effectiveTier} VIP`}
                   </span>
                 </div>
-                <span className="text-[10px] text-amber-300 font-black uppercase bg-amber-500/25 px-2 py-0.5 rounded-full border border-amber-500/40">
+                <span className="text-[10px] text-amber-300 font-black uppercase bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
                   {effectiveTier === 'diamond' ? 'Active' : 'Upgrade'}
                 </span>
               </div>

@@ -55,14 +55,9 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
               // eslint-disable-next-line @next/next/no-img-element
               <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
             ) : (
-              <span>{player.avatar || (color === 'w' ? '⚪' : '⚫')}</span>
+              <span className="text-zinc-300 font-bold">{player.avatar || (color === 'w' ? '♔' : '♚')}</span>
             )}
           </div>
-          {player.title && (
-            <span className="absolute -top-1 -right-1 text-[8px] font-black bg-[#ca8a04] text-zinc-950 px-1 rounded-sm uppercase tracking-wider">
-              {player.title}
-            </span>
-          )}
         </div>
 
         <div className="flex flex-col min-w-0 justify-center">
@@ -71,6 +66,11 @@ export const PlayerCard: React.FC<PlayerCardProps> = React.memo(function PlayerC
               {player.name}
             </span>
             <span className="text-[11px] text-zinc-400 font-mono font-medium">({player.rating})</span>
+            {player.title && (
+              <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                {player.title}
+              </span>
+            )}
             {player.country && (
               <span className="text-[11px] shrink-0 select-none" title={player.country}>
                 {getCountryFlag(player.country)}

@@ -43,27 +43,27 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'tactile-btn inline-flex items-center justify-center gap-2 whitespace-nowrap font-extrabold border transition-all duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none';
+      'tactile-btn inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none';
 
     const variantStyles: Record<ButtonVariant, string> = {
       primary:
-        'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] hover:from-[#9ee055] hover:via-[#88c445] hover:to-[#74ac35] text-zinc-950 font-black tracking-wide drop-shadow-[0_1px_0_rgba(255,255,255,0.25)] border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_6px_16px_rgba(0,0,0,0.35)] hover:shadow-[0_5px_0_0_#385a16,0_8px_20px_rgba(110,180,45,0.4)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16]',
+        'bg-gradient-to-b from-[#10b981] via-[#059669] to-[#047857] hover:brightness-110 text-white font-extrabold shadow-[0_2px_8px_rgba(16,185,129,0.3)] hover:shadow-[0_4px_16px_rgba(16,185,129,0.4)] active:scale-[0.98] active:translate-y-[1px] border border-emerald-400/20',
       secondary:
-        'bg-gradient-to-b from-[#34302a] via-[#272420] to-[#1c1a17] hover:from-[#3e3932] hover:via-[#2f2b26] hover:to-[#22201d] text-zinc-200 font-extrabold border-t border-white/35 border-x-[#3c372f] border-b-[#100f0d] shadow-[0_4px_0_0_#0f0e0c,0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_5px_0_0_#0f0e0c,0_6px_16px_rgba(0,0,0,0.5)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#0f0e0c]',
+        'bg-[#24221f] hover:bg-[#2c2925] text-zinc-100 font-bold border border-white/10 hover:border-white/20 shadow-xs active:scale-[0.98] active:translate-y-[1px]',
       warning:
-        'bg-gradient-to-b from-[#fbbf24] via-[#f59e0b] to-[#d97706] hover:from-[#fcd34d] hover:via-[#fbbf24] hover:to-[#ea580c] text-zinc-950 font-black border-t border-white/35 border-x-amber-500/20 border-b-amber-950/40 shadow-[0_4px_0_0_#78350f,0_6px_16px_rgba(245,158,11,0.35)] hover:shadow-[0_5px_0_0_#78350f,0_8px_20px_rgba(245,158,11,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#78350f]',
+        'bg-gradient-to-b from-[#f59e0b] to-[#d97706] hover:brightness-110 text-zinc-950 font-black shadow-[0_2px_8px_rgba(245,158,11,0.25)] active:scale-[0.98] active:translate-y-[1px] border border-amber-400/20',
       destructive:
-        'bg-gradient-to-b from-[#f87171] via-[#ef4444] to-[#dc2626] hover:from-[#fca5a5] hover:via-[#f87171] hover:to-[#b91c1c] text-white font-black border-t border-white/35 border-x-red-500/20 border-b-red-950/40 shadow-[0_4px_0_0_#7f1d1d,0_6px_16px_rgba(239,68,68,0.35)] hover:shadow-[0_5px_0_0_#7f1d1d,0_8px_20px_rgba(239,68,68,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#7f1d1d]',
+        'bg-gradient-to-b from-[#f43f5e] to-[#e11d48] hover:brightness-110 text-white font-bold shadow-[0_2px_8px_rgba(244,63,94,0.3)] active:scale-[0.98] active:translate-y-[1px] border border-rose-400/20',
       blue:
-        'bg-gradient-to-b from-[#60a5fa] via-[#3b82f6] to-[#2563eb] hover:from-[#93c5fd] hover:via-[#60a5fa] hover:to-[#1d4ed8] text-white font-black border-t border-white/35 border-x-blue-500/20 border-b-blue-950/40 shadow-[0_4px_0_0_#1e3a8a,0_6px_16px_rgba(59,130,246,0.35)] hover:shadow-[0_5px_0_0_#1e3a8a,0_8px_20px_rgba(59,130,246,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#1e3a8a]',
+        'bg-gradient-to-b from-[#3b82f6] to-[#2563eb] hover:brightness-110 text-white font-bold shadow-[0_2px_8px_rgba(59,130,246,0.3)] active:scale-[0.98] active:translate-y-[1px] border border-blue-400/20',
       purple:
-        'bg-gradient-to-b from-[#c084fc] via-[#a855f7] to-[#9333ea] hover:from-[#d8b4fe] hover:via-[#c084fc] hover:to-[#7e22ce] text-white font-black border-t border-white/35 border-x-purple-500/20 border-b-purple-950/40 shadow-[0_4px_0_0_#4c1d95,0_6px_16px_rgba(168,85,247,0.35)] hover:shadow-[0_5px_0_0_#4c1d95,0_8px_20px_rgba(168,85,247,0.45)] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#4c1d95]',
+        'bg-gradient-to-b from-[#8b5cf6] to-[#7c3aed] hover:brightness-110 text-white font-bold shadow-[0_2px_8px_rgba(139,92,246,0.3)] active:scale-[0.98] active:translate-y-[1px] border border-purple-400/20',
       ghost:
-        'bg-transparent text-zinc-300 border-transparent hover:bg-white/10 hover:text-white active:translate-y-[1px]',
+        'bg-transparent text-zinc-300 border-transparent hover:bg-white/5 hover:text-white active:scale-[0.98] active:translate-y-[1px]',
       outline:
-        'bg-white/[0.03] text-zinc-200 border-[#38342c] hover:border-emerald-500/60 hover:text-emerald-400 hover:bg-emerald-500/10 active:translate-y-[1px]',
+        'bg-transparent text-zinc-200 border border-white/15 hover:border-emerald-500/60 hover:text-emerald-400 hover:bg-emerald-500/10 active:scale-[0.98] active:translate-y-[1px]',
       subtle:
-        'bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/5 hover:border-white/10 active:translate-y-[1px]',
+        'bg-[#1c1a17] hover:bg-[#24221f] text-zinc-300 hover:text-white border border-white/5 hover:border-white/10 active:scale-[0.98] active:translate-y-[1px]',
     };
 
     const sizeStyles: Record<ButtonSize, string> = {

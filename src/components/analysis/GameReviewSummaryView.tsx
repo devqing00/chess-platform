@@ -146,8 +146,8 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
         winner = 'draw';
       } else {
         const lastEval = evalTimeline && evalTimeline.length > 0 ? evalTimeline[evalTimeline.length - 1].score : 0;
-        if (lastEval >= 700) winner = 'w';
-        else if (lastEval <= -700) winner = 'b';
+        if (lastEval >= 150) winner = 'w';
+        else if (lastEval <= -150) winner = 'b';
         else winner = 'draw';
       }
 
@@ -463,7 +463,15 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 {gameOutcome.fullSentence}
               </span>
               <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-                {report.gameResult || (gameOutcome.badgeType === 'win' ? (isUserWhite ? '1-0' : '0-1') : '1/2-1/2')} · {gameOutcome.subtitle}
+                {report.gameResult && report.gameResult !== 'Game Concluded'
+                  ? report.gameResult
+                  : gameOutcome.badgeType === 'win'
+                  ? isUserWhite ? '1-0' : '0-1'
+                  : gameOutcome.badgeType === 'loss'
+                  ? isUserWhite ? '0-1' : '1-0'
+                  : gameOutcome.title === 'Game Concluded'
+                  ? '*'
+                  : '1/2-1/2'} · {gameOutcome.subtitle}
               </span>
             </div>
           </div>
@@ -519,55 +527,49 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </span>
           
           {/* White Player */}
-          <div className="flex flex-col items-center gap-1 min-w-0">
+          <div className="flex flex-col items-center gap-1.5 min-w-0">
             <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center flex items-center justify-center gap-1">
               <span className="truncate">{whitePlayer.name}</span>
               {isUserWhite && (
-                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0">
+                <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/15 px-1 py-0.2 rounded shrink-0">
                   YOU
                 </span>
               )}
             </span>
-            <div
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#2a2723] ${
-                isUserWhite ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-[#3d3932]'
-              } flex items-center justify-center p-2 shadow-sm relative`}
-            >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-white via-zinc-100 to-zinc-200 flex items-center justify-center shadow-xs relative">
               {whitePlayer.avatar && whitePlayer.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover rounded-md" />
+                <img src={whitePlayer.avatar} alt={whitePlayer.name} className="w-full h-full object-cover rounded-xl" />
               ) : (
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <PieceIcon type="p" color="w" theme={pieceTheme} />
-                </div>
+                <span className="text-zinc-900 text-lg font-bold">♔</span>
               )}
             </div>
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-500">
+              White
+            </span>
           </div>
 
           {/* Black Player */}
-          <div className="flex flex-col items-center gap-1 min-w-0">
+          <div className="flex flex-col items-center gap-1.5 min-w-0">
             <span className="text-[11px] font-bold text-zinc-200 truncate w-full text-center flex items-center justify-center gap-1">
               <span className="truncate">{blackPlayer.name}</span>
               {!isUserWhite && (
-                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0">
+                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/15 px-1 py-0.2 rounded shrink-0">
                   YOU
                 </span>
               )}
             </span>
-            <div
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#272522] ${
-                !isUserWhite ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-[#3d3932]'
-              } flex items-center justify-center p-2 shadow-sm relative`}
-            >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-[#24221f] via-[#1a1815] to-[#12110f] flex items-center justify-center shadow-xs relative">
               {blackPlayer.avatar && blackPlayer.avatar.startsWith('http') ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover rounded-md" />
+                <img src={blackPlayer.avatar} alt={blackPlayer.name} className="w-full h-full object-cover rounded-xl" />
               ) : (
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <PieceIcon type="p" color="b" theme={pieceTheme} />
-                </div>
+                <span className="text-zinc-200 text-lg font-bold">♚</span>
               )}
             </div>
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-500">
+              Black
+            </span>
           </div>
         </div>
 

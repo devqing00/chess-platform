@@ -37,6 +37,12 @@ function main() {
     terminal: false,
   });
 
+  process.stdin.on('end', () => process.exit(0));
+  process.stdin.on('close', () => process.exit(0));
+  if (typeof process.disconnect === 'function') {
+    process.on('disconnect', () => process.exit(0));
+  }
+
   rl.on('line', (line) => {
     const trimmed = line.trim();
     if (!trimmed) return;

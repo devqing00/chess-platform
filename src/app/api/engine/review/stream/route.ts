@@ -116,6 +116,8 @@ export async function POST(req: NextRequest) {
       };
 
       try {
+        // Immediate byte flush to ensure proxies and edge networks disable buffering
+        controller.enqueue(encoder.encode(': stream-start\n\n'));
         sendEvent('start', { gameId, totalPlies: sanMoves.length });
 
         const simChess = new Chess();
@@ -221,8 +223,8 @@ export async function POST(req: NextRequest) {
               ],
             };
           } else {
-            const plyBudget = Math.max(40, timeBudgetMs || 100);
-            const timeoutPerPly = Math.min(2500, plyBudget + 800);
+            const plyBudget = Math.min(100, Math.max(50, timeBudgetMs || 70));
+            const timeoutPerPly = Math.max(3000, plyBudget * 4); // Gives engine sufficient headroom
             try {
               currentEval = await Promise.race([
                 evaluatePositionStockfish(fenAfter, targetDepth, multiPv, plyBudget),
@@ -484,6 +486,9 @@ export async function POST(req: NextRequest) {
               black: calculateGameCaps(blackAccuracies, blackClassifications),
             },
           });
+
+          // Yield briefly to event loop so SSE flush reaches network and browser renders move-by-move progress smoothly
+          await new Promise((resolve) => setTimeout(resolve, 18));
         }
 
         const keyMoments = selectKeyMoments(plyRows);
@@ -553,8 +558,10 @@ export async function POST(req: NextRequest) {
   return new Response(customStream, {
     headers: {
       'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
+      'Cache-Control': 'no-cache, no-transform, no-buffering',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Content-Encoding': 'none',
     },
   });
 }

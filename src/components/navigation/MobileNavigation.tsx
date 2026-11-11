@@ -266,14 +266,14 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
               soundService.playTactilePop();
               setIsModalOpen((open) => !open);
             }}
-            className="tactile-btn flex items-center justify-center w-13 h-13 rounded-2xl bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 font-black border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_4px_0_0_#385a16,0_8px_20px_rgba(0,0,0,0.55)] hover:shadow-[0_5px_0_0_#385a16] hover:-translate-y-[1px] active:translate-y-[3px] active:shadow-[0_1px_0_0_#385a16] transition-all cursor-pointer"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-[0_4px_16px_rgba(16,185,129,0.35)] active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
             title="Navigation Menu"
             aria-label="Open Navigation Menu"
           >
             {isModalOpen ? (
-              <X className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
+              <X className="w-5 h-5 text-zinc-950 stroke-[2.5]" />
             ) : (
-              <Menu className="w-6 h-6 text-zinc-950 stroke-[2.5]" />
+              <Menu className="w-5 h-5 text-zinc-950 stroke-[2.5]" />
             )}
           </button>
         </div>
@@ -286,17 +286,17 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           <div className="flex-1 w-full" onClick={() => setIsModalOpen(false)} />
 
           {/* Modal Bottom Sheet Card */}
-          <div className="relative w-full max-h-[88vh] bg-[#1a1815] border-t-2 border-[#38342c] rounded-t-[32px] shadow-[0_-12px_40px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250 select-none">
+          <div className="relative w-full max-h-[88vh] bg-[#1a1815] border-t border-white/10 rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250 select-none">
             {/* Grabber Handle */}
             <div className="pt-3 pb-1 flex justify-center cursor-pointer" onClick={() => setIsModalOpen(false)}>
-              <div className="w-12 h-1.5 bg-[#3a362f] hover:bg-[#4a453c] rounded-full transition-colors" />
+              <div className="w-10 h-1 bg-[#3a362f] hover:bg-[#4a453c] rounded-full transition-colors" />
             </div>
 
             {/* Modal Top Header */}
-            <div className="px-5 py-2.5 flex items-center justify-between border-b border-[#2d2a26]">
+            <div className="px-5 py-2.5 flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-2.5">
                 <BrandLogo size="sm" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-emerald-400 font-black">
+                <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-emerald-400 font-bold">
                   All Navigations
                 </span>
               </div>
@@ -315,9 +315,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             <div className="px-4 py-3.5 overflow-y-auto max-h-[64vh] flex flex-col gap-3">
               {/* Connected Account Mini Pill */}
               {(syncedChessCom || syncedLichess) && (
-                <div className="px-3 py-2 bg-[#211f1c] border border-[#35322b] rounded-2xl flex items-center justify-between text-xs">
+                <div className="px-3 py-2 bg-[#211f1c] border border-white/10 rounded-xl flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[10px] uppercase font-black tracking-wider text-zinc-400">Connected:</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Connected:</span>
                     {syncedChessCom && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 truncate">
                         ♟️ {syncedChessCom.username} ({syncedChessCom.ratings?.rapid || 800})
@@ -342,29 +342,29 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item.href)}
-                      className={`tactile-btn relative p-3 rounded-2xl flex flex-col justify-between text-left transition-all active:scale-95 shadow-[0_2px_0_0_#12110f] cursor-pointer group min-h-[82px] border ${
+                      className={`relative p-3 rounded-xl flex flex-col justify-between text-left transition-all active:scale-[0.98] cursor-pointer group min-h-[80px] border ${
                         isActive
-                          ? 'bg-gradient-to-b from-[#8fd649] via-[#7cb53d] to-[#699c30] text-zinc-950 border-t border-white/35 border-x-emerald-600/30 border-b-emerald-950/40 shadow-[0_3px_0_0_#385a16]'
-                          : 'bg-gradient-to-br from-[#24211d] via-[#1d1b17] to-[#171512] border-t-2 border-[#353128] border-b-[#12110f] border-x-[#292620] hover:border-emerald-500/60'
+                          ? 'bg-[#24221f] text-white border-white/15 shadow-[0_2px_8px_rgba(0,0,0,0.3)]'
+                          : 'bg-[#1c1a17] hover:bg-[#201e1b] text-zinc-300 border-white/5 hover:border-white/10'
                       }`}
                     >
                       {/* Top Row: Icon + Badge */}
                       <div className="flex items-center justify-between w-full">
                         <div
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
                             isActive
-                              ? 'bg-zinc-950/20 text-zinc-950 font-black'
-                              : 'bg-[#2b2823] text-zinc-300 group-hover:text-white group-hover:scale-105'
+                              ? 'bg-emerald-500/20 text-emerald-400 font-bold'
+                              : 'bg-white/5 text-zinc-400 group-hover:text-zinc-200'
                           }`}
                         >
                           <Icon className="w-4 h-4" />
                         </div>
                         {item.badge && (
                           <span
-                            className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${
+                            className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                               isActive
-                                ? 'bg-zinc-950/25 text-zinc-950 font-black'
-                                : 'bg-[#27241f] border border-[#38342c] text-zinc-400'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-white/5 text-zinc-400 border border-white/10'
                             }`}
                           >
                             {item.badge}
@@ -375,17 +375,13 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                       {/* Bottom Row: Label & Sublabel */}
                       <div className="flex flex-col mt-2">
                         <span
-                          className={`text-[12px] font-black leading-tight ${
-                            isActive ? 'text-zinc-950 drop-shadow-[0_1px_0_rgba(255,255,255,0.2)]' : 'text-white group-hover:text-emerald-400'
+                          className={`text-[12px] font-bold leading-tight ${
+                            isActive ? 'text-white' : 'text-zinc-200 group-hover:text-white'
                           }`}
                         >
                           {item.label}
                         </span>
-                        <span
-                          className={`text-[9.5px] font-medium truncate mt-0.5 ${
-                            isActive ? 'text-zinc-900/80 font-bold' : 'text-zinc-400'
-                          }`}
-                        >
+                        <span className="text-[9.5px] font-medium truncate mt-0.5 text-zinc-400">
                           {item.sublabel}
                         </span>
                       </div>
@@ -401,24 +397,24 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                   setIsModalOpen(false);
                   onOpenPwaInstall?.();
                 }}
-                className="tactile-btn p-3 rounded-2xl bg-[#211f1c] border border-[#35322b] hover:border-emerald-500/50 flex items-center justify-between cursor-pointer active:scale-98 transition shadow-[0_2px_0_0_#12110f]"
+                className="p-3 rounded-xl bg-[#1c1a17] border border-white/10 hover:border-white/20 flex items-center justify-between cursor-pointer active:scale-[0.98] transition"
               >
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`w-8 h-8 rounded-xl ${
+                    className={`w-8 h-8 rounded-lg ${
                       isPwaInstalled
                         ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-[#2a2722] text-zinc-300'
+                        : 'bg-white/5 text-zinc-300'
                     } flex items-center justify-center`}
                   >
                     <Download className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col text-left">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-white">
+                      <span className="text-xs font-bold text-white">
                         {isPwaInstalled ? 'Check.mate Web App' : 'Install Check.mate'}
                       </span>
-                      <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded-full font-bold">
+                      <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-bold">
                         {isPwaInstalled ? 'INSTALLED' : 'PWA'}
                       </span>
                     </div>
@@ -439,14 +435,14 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                   setIsModalOpen(false);
                   onOpenSettingsModal?.();
                 }}
-                className="tactile-btn p-3 rounded-2xl bg-[#211f1c] border border-[#35322b] hover:border-emerald-500/50 flex items-center justify-between cursor-pointer active:scale-98 transition shadow-[0_2px_0_0_#12110f]"
+                className="p-3 rounded-xl bg-[#1c1a17] border border-white/10 hover:border-white/20 flex items-center justify-between cursor-pointer active:scale-[0.98] transition"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-[#2a2722] flex items-center justify-center text-zinc-300">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-zinc-300">
                     <Settings className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col text-left">
-                    <span className="text-xs font-black text-white">Board &amp; Audio Settings</span>
+                    <span className="text-xs font-bold text-white">Board &amp; Audio Settings</span>
                     <span className="text-[10px] text-zinc-400">Piece styles, board themes, sound effects</span>
                   </div>
                 </div>
@@ -460,14 +456,14 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
                   setIsModalOpen(false);
                   onOpenMembershipModal?.();
                 }}
-                className="tactile-btn p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-[#22201c] border-2 border-amber-500/40 shadow-[0_3px_0_0_#78350f30] flex items-center justify-between cursor-pointer active:scale-98 transition"
+                className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/25 flex items-center justify-between cursor-pointer active:scale-[0.98] transition"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
                     <Crown className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col text-left">
-                    <span className="text-xs font-black text-amber-300 capitalize">
+                    <span className="text-xs font-bold text-amber-300 capitalize">
                       {effectiveTier === 'free' ? 'Free Tier' : `${effectiveTier} Member`}
                     </span>
                     <span className="text-[10px] text-zinc-400">Unlimited game review &amp; grandmaster bots</span>

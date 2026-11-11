@@ -334,12 +334,12 @@ function PuzzlesMasteryContent() {
           {/* Mobile & Tablet HUD metrics */}
           <div className="flex lg:hidden items-center gap-1.5 shrink-0">
             {streak > 0 && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono tabular-nums font-bold">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 text-[10px] font-mono tabular-nums font-bold">
                 <Flame className="w-3 h-3 fill-amber-400" />
                 <span>{streak}x</span>
               </div>
             )}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono tabular-nums font-bold">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-mono tabular-nums font-bold">
               <Zap className="w-3 h-3 fill-emerald-400" />
               <span>{xpProfile.totalXp} XP</span>
             </div>
@@ -350,46 +350,46 @@ function PuzzlesMasteryContent() {
         <div className="flex items-center gap-1 p-1 bg-[#1c1a17] rounded-xl border border-white/5 text-xs font-bold overflow-x-auto scrollbar-none w-full lg:w-auto">
           <button
             onClick={() => handleScreenChange('tactics')}
-            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs active:scale-[0.98] ${
               activeScreen === 'tactics'
-                ? 'bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black font-black shadow-[0_2px_0_0_#385a16] border-t border-white/35'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Target className="w-3.5 h-3.5" />
+            <Target className="w-3.5 h-3.5 text-emerald-400" />
             <span>Tactics</span>
           </button>
           <button
             onClick={() => handleScreenChange('strategy')}
-            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs active:scale-[0.98] ${
               activeScreen === 'strategy'
-                ? 'bg-gradient-to-b from-[#fbbf24] to-[#d97706] text-black font-black shadow-[0_2px_0_0_#78350f] border-t border-white/35'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Brain className="w-3.5 h-3.5" />
+            <Brain className="w-3.5 h-3.5 text-amber-400" />
             <span>Strategy</span>
           </button>
           <button
             onClick={() => handleScreenChange('endgame')}
-            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs active:scale-[0.98] ${
               activeScreen === 'endgame'
-                ? 'bg-gradient-to-b from-[#6366f1] to-[#4338ca] text-white font-black shadow-[0_2px_0_0_#312e81] border-t border-indigo-400/40'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Crown className="w-3.5 h-3.5" />
+            <Crown className="w-3.5 h-3.5 text-purple-400" />
             <span>Endgame</span>
           </button>
           <button
             onClick={() => handleScreenChange('vault')}
-            className={`flex-1 lg:flex-initial px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs ${
+            className={`flex-1 lg:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 text-xs active:scale-[0.98] ${
               activeScreen === 'vault'
-                ? 'bg-gradient-to-b from-[#06b6d4] to-[#0891b2] text-black font-black shadow-[0_2px_0_0_#155e75] border-t border-cyan-300/40'
+                ? 'bg-[#272522] text-white font-bold border border-white/15 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <GraduationCap className="w-3.5 h-3.5" />
+            <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
             <span>Vault</span>
           </button>
         </div>
@@ -397,12 +397,12 @@ function PuzzlesMasteryContent() {
         {/* Large Desktop Quick HUD Metrics */}
         <div className="hidden lg:flex items-center gap-2">
           {streak > 0 && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono tabular-nums font-bold">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-mono tabular-nums font-bold">
               <Flame className="w-3.5 h-3.5 fill-amber-400" />
               <span>{streak}x</span>
             </div>
           )}
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono tabular-nums font-bold">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-mono tabular-nums font-bold">
             <Zap className="w-3.5 h-3.5 fill-emerald-400" />
             <span>{xpProfile.totalXp} XP</span>
           </div>
@@ -431,13 +431,13 @@ function PuzzlesMasteryContent() {
 
                 {/* In-Board Success / Error Status Badge (z-50: always rendered above pieces) */}
                 {statusMessage === 'solved' && (
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-gradient-to-b from-[#8fd649] to-[#699c30] text-black text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.6)] border-t border-white/35 backdrop-blur-md animate-in fade-in zoom-in-95">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-emerald-500 text-zinc-950 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xl animate-in fade-in zoom-in-95">
                     <CheckCircle2 className="w-4 h-4 stroke-[3]" />
                     <span>Solved! +{currentPuzzle.xpReward || 25} XP</span>
                   </div>
                 )}
                 {statusMessage === 'incorrect' && (
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.6)] border-t border-white/35 backdrop-blur-md animate-in fade-in zoom-in-95">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xl animate-in fade-in zoom-in-95">
                     <XCircle className="w-4 h-4" />
                     <span>Incorrect Move</span>
                   </div>
@@ -446,8 +446,11 @@ function PuzzlesMasteryContent() {
 
               {/* Turn Indicator Strip */}
               <div className="mt-2.5 w-full max-w-[460px] p-2 rounded-xl bg-[#1c1a17] border border-white/5 flex items-center justify-between text-xs">
-                <span className="text-zinc-300 font-bold flex items-center gap-1.5">
-                  <span>{puzzleTurn === 'w' ? '⚪ White to move' : '⚫ Black to move'}</span>
+                <span className="text-zinc-300 font-bold flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    puzzleTurn === 'w' ? 'bg-white border border-black/20' : 'bg-zinc-800 border border-zinc-600'
+                  }`} />
+                  <span>{puzzleTurn === 'w' ? 'White to move' : 'Black to move'}</span>
                 </span>
                 <span className="text-zinc-400 font-mono text-[11px]">
                   {statusMessage === 'solved' ? 'Challenge Completed' : 'Find the winning line'}
@@ -510,7 +513,7 @@ function PuzzlesMasteryContent() {
 
                 {/* Spaced Repetition Mastery Alert */}
                 {masteryNotice && (
-                  <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-xs font-semibold flex items-center gap-2">
                     <GraduationCap className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>{masteryNotice}</span>
                   </div>
@@ -553,10 +556,10 @@ function PuzzlesMasteryContent() {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="primary"
+                        variant="warning"
                         size="md"
                         rounded="xl"
-                        className="flex-1 font-black bg-gradient-to-b from-amber-500 to-amber-600 text-black border-amber-400 shadow-[0_2px_0_0_#b45309]"
+                        className="flex-1 font-black"
                         onClick={handleRetry}
                       >
                         <RotateCcw className="w-4 h-4" />
@@ -566,7 +569,7 @@ function PuzzlesMasteryContent() {
                         variant="secondary"
                         size="md"
                         rounded="xl"
-                        className="flex-1 font-bold border-cyan-500/30 text-cyan-300 hover:text-white"
+                        className="flex-1 font-bold text-cyan-400 hover:text-cyan-300"
                         onClick={handleShowSolution}
                         disabled={isShowingSolution}
                       >
@@ -619,7 +622,7 @@ function PuzzlesMasteryContent() {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-mono font-black">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 rounded-xl text-emerald-400 text-xs font-mono font-black">
                   <GraduationCap className="w-3.5 h-3.5" />
                   <span>{masteryStats.totalMastered} Mastered</span>
                 </div>
