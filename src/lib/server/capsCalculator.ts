@@ -887,7 +887,7 @@ export function reclassifyReportWithEngine(
       black: blackTallies,
     },
     summaryComment,
-    reviewVersion: 'v2.4',
+    reviewVersion: report.reviewVersion || 'v6.3',
   };
 
   updatedReport.advancedStats = calculateGameAdvancedStats(updatedReport);

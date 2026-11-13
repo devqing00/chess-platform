@@ -147,50 +147,52 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
     let isMounted = true;
 
     async function loadOrComputeReview() {
-      setIsLoading(true);
-      setNotFound(false);
+      let session: GameSession | null = null;
+      try {
+        setIsLoading(true);
+        setNotFound(false);
 
-      // 1. Try finding in GameSessionStore, localStorage, or Firestore database
-      let session: GameSession | null = await GameSessionStore.getSessionAsync(gameId);
+        // 1. Try finding in GameSessionStore, localStorage, or Firestore database
+        session = await GameSessionStore.getSessionAsync(gameId);
 
-      // Auto-parse PGN if session exists but has 0 moves
-      if (session && (!session.moves || session.moves.length === 0) && session.pgn) {
-        session.moves = parsePgnToMoveRecords(session.pgn);
-        session.movesCount = Math.ceil(session.moves.length / 2);
-        GameSessionStore.saveSession(session);
-      }
-      if (session?.pgn) {
-        setGamePgn(session.pgn);
-      }
+        // Auto-parse PGN if session exists but has 0 moves
+        if (session && (!session.moves || session.moves.length === 0) && session.pgn) {
+          session.moves = parsePgnToMoveRecords(session.pgn);
+          session.movesCount = Math.ceil(session.moves.length / 2);
+          GameSessionStore.saveSession(session);
+        }
+        if (session?.pgn) {
+          setGamePgn(session.pgn);
+        }
 
-      // 2. If not found locally, query Chess.com Sync API for the game
-      const storedProfile = typeof window !== 'undefined' ? localStorage.getItem('chess_com_profile') : null;
-      const currentSyncedUser = syncedChessCom?.username || (storedProfile ? JSON.parse(storedProfile)?.username : null);
+        // 2. If not found locally, query Chess.com Sync API for the game
+        const storedProfile = typeof window !== 'undefined' ? localStorage.getItem('chess_com_profile') : null;
+        const currentSyncedUser = syncedChessCom?.username || (storedProfile ? JSON.parse(storedProfile)?.username : null);
 
-      if ((!session || !session.moves || session.moves.length === 0) && currentSyncedUser) {
-        try {
-          if (isMounted) setLoadingStep('Syncing game records from Chess.com...');
-          const syncRes = await fetch(`/api/sync/chesscom?username=${encodeURIComponent(currentSyncedUser)}`);
-          if (syncRes.ok) {
-            const syncData = await syncRes.json();
-            if (syncData.success && syncData.games) {
-              const rawDigits = gameId.replace(/\D/g, '');
-              const matchedGame = syncData.games.find((g: any) => {
-                if (!g) return false;
-                if (g.id === gameId || gameId === g.id) return true;
-                if (g.id && (gameId.includes(g.id) || g.id.includes(gameId))) return true;
-                if (g.externalUrl && (gameId.includes(g.externalUrl) || g.externalUrl.includes(gameId))) return true;
-                if (g.url && (gameId.includes(g.url) || g.url.includes(gameId))) return true;
-                if (rawDigits && rawDigits.length >= 6) {
-                  if (g.id && g.id.includes(rawDigits)) return true;
-                  if (g.externalUrl && g.externalUrl.includes(rawDigits)) return true;
-                  if (g.url && g.url.includes(rawDigits)) return true;
-                }
-                return false;
-              });
+        if ((!session || !session.moves || session.moves.length === 0) && currentSyncedUser) {
+          try {
+            if (isMounted) setLoadingStep('Syncing game records from Chess.com...');
+            const syncRes = await fetch(`/api/sync/chesscom?username=${encodeURIComponent(currentSyncedUser)}`);
+            if (syncRes.ok) {
+              const syncData = await syncRes.json();
+              if (syncData.success && syncData.games) {
+                const rawDigits = gameId.replace(/\D/g, '');
+                const matchedGame = syncData.games.find((g: any) => {
+                  if (!g) return false;
+                  if (g.id === gameId || gameId === g.id) return true;
+                  if (g.id && (gameId.includes(g.id) || g.id.includes(gameId))) return true;
+                  if (g.externalUrl && (gameId.includes(g.externalUrl) || g.externalUrl.includes(gameId))) return true;
+                  if (g.url && (gameId.includes(g.url) || g.url.includes(gameId))) return true;
+                  if (rawDigits && rawDigits.length >= 6) {
+                    if (g.id && g.id.includes(rawDigits)) return true;
+                    if (g.externalUrl && g.externalUrl.includes(rawDigits)) return true;
+                    if (g.url && g.url.includes(rawDigits)) return true;
+                  }
+                  return false;
+                });
 
-              if (matchedGame && matchedGame.pgn) {
-                const parsedMoves = parsePgnToMoveRecords(matchedGame.pgn);
+                if (matchedGame && matchedGame.pgn) {
+                  const parsedMoves = parsePgnToMoveRecords(matchedGame.pgn);
                   const isUserWin = matchedGame.userResult === 'win';
                   const isUserLoss = matchedGame.userResult === 'loss';
                   const gameResult = matchedGame.gameResult || (isUserWin
@@ -213,7 +215,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
                       name: matchedGame.isUserWhite
                         ? (matchedGame.userPlayer?.username || currentSyncedUser || 'You')
                         : (matchedGame.opponent?.username || 'Opponent'),
-                      rating: matchedGame.isUserWhite ? matchedGame.userPlayer?.rating : matchedGame.opponent?.rating,
+                      rating: matchedGame.isUserWhite ? (matchedGame.userPlayer?.rating ?? 1200) : (matchedGame.opponent?.rating ?? 1200),
                       avatar: matchedGame.isUserWhite ? syncData.profile?.avatar : '',
                       country: matchedGame.isUserWhite ? syncData.profile?.country : '',
                     },
@@ -222,7 +224,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
                       name: !matchedGame.isUserWhite
                         ? (matchedGame.userPlayer?.username || currentSyncedUser || 'You')
                         : (matchedGame.opponent?.username || 'Opponent'),
-                      rating: !matchedGame.isUserWhite ? matchedGame.userPlayer?.rating : matchedGame.opponent?.rating,
+                      rating: !matchedGame.isUserWhite ? (matchedGame.userPlayer?.rating ?? 1200) : (matchedGame.opponent?.rating ?? 1200),
                       avatar: !matchedGame.isUserWhite ? syncData.profile?.avatar : '',
                       country: !matchedGame.isUserWhite ? syncData.profile?.country : '',
                     },
@@ -246,218 +248,242 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
                     createdAt: matchedGame.playedAt ? new Date(matchedGame.playedAt).getTime() : Date.now(),
                     updatedAt: Date.now(),
                   };
-                if (session) {
-                  GameSessionStore.saveSession(session);
+                  if (session) {
+                    GameSessionStore.saveSession(session);
+                  }
                 }
               }
             }
+          } catch (fetchErr) {
+            console.warn('Could not auto-fetch game from sync API:', fetchErr);
           }
-        } catch (fetchErr) {
-          console.warn('Could not auto-fetch game from sync API:', fetchErr);
         }
-      }
 
-      // 3. Demo game if requested
-      if (gameId === 'demo-game-masterpiece') {
-        const demo = GameSessionStore.createDemoGameSession();
-        if (isMounted) {
-          const formatted = reclassifyReportWithEngine(demo.reviewReport, analysisEngine || 'torch_human');
-          setReport(formatted);
-          setIsLoading(false);
-        }
-        return;
-      }
-
-const CURRENT_REVIEW_VERSION = 'v6.3';
-
-const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
-  if (!rep) return true;
-  if (!rep.moves || rep.moves.length === 0) return true;
-  if (!rep.isDeepReview) return true;
-  if (rep.reviewVersion !== CURRENT_REVIEW_VERSION) return true;
-
-  if (movesCount >= 4) {
-    // Both sides having >= 99.0% accuracy in games >= 4 moves indicates 0.00 flat fallback evaluations
-    if ((rep.whiteAccuracy ?? 0) >= 99.0 && (rep.blackAccuracy ?? 0) >= 99.0) return true;
-
-    // Single side having >= 99.5% accuracy in games >= 6 moves without mistakes is almost certainly corrupted
-    if (movesCount >= 6 && ((rep.whiteAccuracy ?? 0) >= 99.5 || (rep.blackAccuracy ?? 0) >= 99.5)) {
-      const hasBlunder = (rep.tallies?.white?.blunder || 0) + (rep.tallies?.black?.blunder || 0) > 0;
-      if (!hasBlunder) return true;
-    }
-
-    // Check if non-book moves all have 0 evalAfter (corrupted flat evaluations)
-    const nonBookMoves = rep.moves.filter((m) => m.classification !== 'book');
-    if (nonBookMoves.length >= 3) {
-      const allZeroEvals = nonBookMoves.every((m) => (m.evalAfter ?? 0) === 0);
-      if (allZeroEvals) return true;
-    }
-
-    // If 85% of moves are marked as book in a game of >= 10 moves, it's an unanalyzed dummy report
-    if (movesCount >= 10 && nonBookMoves.length <= 2) return true;
-
-    const totalMistakes =
-      (rep.tallies?.white?.inaccuracy || 0) +
-      (rep.tallies?.white?.mistake || 0) +
-      (rep.tallies?.white?.miss || 0) +
-      (rep.tallies?.white?.blunder || 0) +
-      (rep.tallies?.black?.inaccuracy || 0) +
-      (rep.tallies?.black?.mistake || 0) +
-      (rep.tallies?.black?.miss || 0) +
-      (rep.tallies?.black?.blunder || 0);
-    if (totalMistakes === 0 && movesCount >= 14) return true;
-  }
-  return false;
-};
-
-      // 4. If game has moves: load cached deep review (only if matching current engine version and not corrupted) or compute fresh review
-      if (session && session.moves && session.moves.length > 0) {
-        const isCorrupted = isCorruptedReport(session.reviewReport, session.moves.length);
-        if (
-          !isCorrupted &&
-          session.reviewReport &&
-          session.reviewReport.reviewVersion === CURRENT_REVIEW_VERSION &&
-          session.reviewReport.isDeepReview &&
-          session.reviewReport.moves.length === session.moves.length
-        ) {
+        // 3. Demo game if requested
+        if (gameId === 'demo-game-masterpiece') {
+          const demo = GameSessionStore.createDemoGameSession();
           if (isMounted) {
-            const aligned = reclassifyReportWithEngine(
-              session.reviewReport,
-              analysisEngine || session.reviewReport.engineMode || 'torch_human'
-            );
-            aligned.gameResult = session.gameResult || aligned.gameResult;
-            aligned.resultDetails = session.resultDetails || aligned.resultDetails;
-            aligned.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
-            mergeMoveTimesIntoReport(aligned.moves, session.moves, session.pgn);
-            setReport(aligned);
-            setIsLoading(false);
+            const formatted = reclassifyReportWithEngine(demo.reviewReport, analysisEngine || 'torch_human');
+            setReport(formatted);
           }
           return;
         }
 
-        // Purge any stale or corrupted report from session
-        if (session.reviewReport && (isCorrupted || session.reviewReport.reviewVersion !== CURRENT_REVIEW_VERSION)) {
-          session.reviewReport = null;
-          GameSessionStore.saveSession(session);
-        }
+        const CURRENT_REVIEW_VERSION = 'v6.3';
+        const VALID_VERSIONS = new Set(['v6.0', 'v6.1', 'v6.2', 'v6.3']);
 
-        // Compute review via fast direct engine API (the fast 3-commits-ago version)
-        let progressInterval: NodeJS.Timeout | null = null;
-        try {
-          if (isMounted) {
-            setLoadingStep('Evaluating moves and game turning points...');
-            setLoadingProgress(20);
-          }
-          progressInterval = setInterval(() => {
-            if (isMounted) {
-              setLoadingProgress((prev) => (prev < 92 ? prev + 6 : prev));
+        const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
+          if (!rep) return true;
+          if (!rep.moves || rep.moves.length === 0) return true;
+          if (!rep.isDeepReview) return true;
+          if (!rep.reviewVersion || !VALID_VERSIONS.has(rep.reviewVersion)) return true;
+
+          if (movesCount >= 4) {
+            // Both sides having >= 99.0% accuracy in games >= 4 moves indicates 0.00 flat fallback evaluations
+            if ((rep.whiteAccuracy ?? 0) >= 99.0 && (rep.blackAccuracy ?? 0) >= 99.0) return true;
+
+            // Single side having >= 99.5% accuracy in games >= 6 moves without mistakes is almost certainly corrupted
+            if (movesCount >= 6 && ((rep.whiteAccuracy ?? 0) >= 99.5 || (rep.blackAccuracy ?? 0) >= 99.5)) {
+              const hasBlunder = (rep.tallies?.white?.blunder || 0) + (rep.tallies?.black?.blunder || 0) > 0;
+              if (!hasBlunder) return true;
             }
-          }, 250);
 
-          const timeoutMs = Math.min(12000, Math.max(5000, (session.moves?.length || 30) * 80));
-          const controller = new AbortController();
-          const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
-
-          const res = await fetch('/api/engine/review', {
-            method: 'POST',
-            signal: controller.signal,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              gameId,
-              moves: session.moves.map((m) => ({
-                san: m.san,
-                timeSpentSeconds: m.timeSpentSeconds,
-              })),
-              whitePlayer: session.whitePlayer,
-              blackPlayer: session.blackPlayer,
-              strengthTier: engineStrength || 'fast',
-              engineMode: analysisEngine || 'torch_human',
-              gameResult: session.gameResult,
-              resultDetails: session.resultDetails,
-              pgn: session.pgn,
-            }),
-          });
-          clearTimeout(timeoutTimer);
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.report) {
-              if (isMounted) setLoadingProgress(100);
-              data.report.isDeepReview = true;
-              data.report.reviewVersion = CURRENT_REVIEW_VERSION;
-              data.report.gameResult = session.gameResult;
-              data.report.resultDetails = session.resultDetails;
-              data.report.termination = session.pgn
-                ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
-                : undefined;
-              mergeMoveTimesIntoReport(data.report.moves, session.moves, session.pgn);
-              session.reviewReport = data.report;
-              session.engineMode = analysisEngine || 'torch_human';
-              GameSessionStore.saveSession(session);
-              if (isMounted) {
-                setReport(data.report);
-                setIsLoading(false);
-              }
-              return;
+            // Check if non-book moves all have 0 evalAfter (corrupted flat evaluations)
+            const nonBookMoves = rep.moves.filter((m) => m.classification !== 'book');
+            if (nonBookMoves.length >= 3) {
+              const allZeroEvals = nonBookMoves.every((m) => (m.evalAfter ?? 0) === 0);
+              if (allZeroEvals) return true;
             }
+
+            // If 85% of moves are marked as book in a game of >= 10 moves, it's an unanalyzed dummy report
+            if (movesCount >= 10 && nonBookMoves.length <= 2) return true;
+
+            const totalMistakes =
+              (rep.tallies?.white?.inaccuracy || 0) +
+              (rep.tallies?.white?.mistake || 0) +
+              (rep.tallies?.white?.miss || 0) +
+              (rep.tallies?.white?.blunder || 0) +
+              (rep.tallies?.black?.inaccuracy || 0) +
+              (rep.tallies?.black?.mistake || 0) +
+              (rep.tallies?.black?.miss || 0) +
+              (rep.tallies?.black?.blunder || 0);
+            if (totalMistakes === 0 && movesCount >= 14) return true;
           }
-        } catch (err) {
-          console.warn('Backend engine review failed, using local fallback:', err);
-        } finally {
-          if (progressInterval) clearInterval(progressInterval);
-        }
-
-        // Local tactical analysis fallback if API unavailable (guarantees authentic non-flat evaluation)
-        let movesToUse = session.moves;
-        const hasEvaluations =
-          session.moves.length > 0 &&
-          session.moves.every(
-            (m) =>
-              m.evalAfter !== undefined &&
-              m.classification !== undefined &&
-              (m.evalAfter !== 0 || m.evalBefore !== 0 || m.winProbLoss !== undefined || m.bestMoveSan !== undefined)
-          );
-        if (!hasEvaluations && session.moves.length > 0) {
-          movesToUse = ChessEvaluator.analyzeGameHistory(session.moves);
-          session.moves = movesToUse;
-        }
-
-        const generated = generateGameReviewReport(
-          gameId,
-          session.whitePlayer,
-          session.blackPlayer,
-          movesToUse,
-          false // DO NOT skip reanalysis: compute real minimax centipawns and authentic accuracies
-        );
-        generated.gameResult = session.gameResult || 'Game Concluded';
-        generated.resultDetails = session.resultDetails || {
-          winner: 'w',
-          reason: 'resignation',
-          ratingDelta: 10,
-          newRating: 1260,
-          league: 'Silver League',
-          trophiesDelta: 10,
+          return false;
         };
-        generated.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
-        mergeMoveTimesIntoReport(generated.moves, session.moves, session.pgn);
-        const aligned = reclassifyReportWithEngine(generated, analysisEngine || 'torch_human');
-        aligned.isDeepReview = true;
-        aligned.reviewVersion = CURRENT_REVIEW_VERSION;
-        session.reviewReport = aligned;
-        session.engineMode = analysisEngine || 'torch_human';
-        GameSessionStore.saveSession(session);
+
+        // 4. If game has moves: load cached deep review (only if matching valid engine version and not corrupted) or compute fresh review
+        if (session && session.moves && session.moves.length > 0) {
+          const isCorrupted = isCorruptedReport(session.reviewReport, session.moves.length);
+          if (
+            !isCorrupted &&
+            session.reviewReport &&
+            session.reviewReport.isDeepReview &&
+            session.reviewReport.moves.length === session.moves.length
+          ) {
+            if (isMounted) {
+              const aligned = reclassifyReportWithEngine(
+                session.reviewReport,
+                analysisEngine || session.reviewReport.engineMode || 'torch_human'
+              );
+              aligned.isDeepReview = true;
+              aligned.reviewVersion = CURRENT_REVIEW_VERSION;
+              aligned.gameResult = session.gameResult || aligned.gameResult;
+              aligned.resultDetails = session.resultDetails || aligned.resultDetails;
+              aligned.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
+              mergeMoveTimesIntoReport(aligned.moves, session.moves, session.pgn);
+              setReport(aligned);
+            }
+            return;
+          }
+
+          // Purge any stale or corrupted report from session
+          if (session.reviewReport && isCorrupted) {
+            session.reviewReport = null;
+            GameSessionStore.saveSession(session);
+          }
+
+          // Compute review via fast direct engine API (the fast 3-commits-ago version)
+          let progressInterval: NodeJS.Timeout | null = null;
+          let fetchTimer: NodeJS.Timeout | null = null;
+          try {
+            if (isMounted) {
+              setLoadingStep('Evaluating moves and game turning points...');
+              setLoadingProgress(20);
+            }
+            progressInterval = setInterval(() => {
+              if (isMounted) {
+                setLoadingProgress((prev) => (prev < 92 ? prev + 6 : prev));
+              }
+            }, 250);
+
+            // Fast, robust timeout matching commit b597bdf so parallel Stockfish pool completes cleanly without abort
+            const timeoutMs = Math.max(25000, (session.moves?.length || 30) * 400);
+            const controller = new AbortController();
+            fetchTimer = setTimeout(() => controller.abort(), timeoutMs);
+
+            const res = await fetch('/api/engine/review', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gameId,
+                moves: session.moves.map((m) => ({
+                  san: m.san,
+                  timeSpentSeconds: m.timeSpentSeconds,
+                })),
+                whitePlayer: session.whitePlayer,
+                blackPlayer: session.blackPlayer,
+                strengthTier: engineStrength || 'fast',
+                engineMode: analysisEngine || 'torch_human',
+                gameResult: session.gameResult,
+                resultDetails: session.resultDetails,
+                pgn: session.pgn,
+              }),
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.report) {
+                if (isMounted) setLoadingProgress(100);
+                data.report.isDeepReview = true;
+                data.report.reviewVersion = CURRENT_REVIEW_VERSION;
+                data.report.gameResult = session.gameResult;
+                data.report.resultDetails = session.resultDetails;
+                data.report.termination = session.pgn
+                  ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
+                  : undefined;
+                mergeMoveTimesIntoReport(data.report.moves, session.moves, session.pgn);
+                session.reviewReport = data.report;
+                session.engineMode = analysisEngine || 'torch_human';
+                GameSessionStore.saveSession(session);
+                if (isMounted) {
+                  setReport(data.report);
+                }
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn('Backend engine review failed, using local fallback:', err);
+          } finally {
+            if (fetchTimer) clearTimeout(fetchTimer);
+            if (progressInterval) clearInterval(progressInterval);
+          }
+
+          // Fast local tactical analysis fallback if API unavailable (guarantees authentic non-flat evaluation)
+          let movesToUse = session.moves;
+          const hasEvaluations =
+            session.moves.length > 0 &&
+            session.moves.every(
+              (m) =>
+                m.evalAfter !== undefined &&
+                m.classification !== undefined &&
+                (m.evalAfter !== 0 || m.evalBefore !== 0 || m.winProbLoss !== undefined || m.bestMoveSan !== undefined)
+            );
+          if (!hasEvaluations && session.moves.length > 0) {
+            movesToUse = ChessEvaluator.analyzeGameHistory(session.moves);
+            session.moves = movesToUse;
+          }
+
+          const generated = generateGameReviewReport(
+            gameId,
+            session.whitePlayer || { id: 'w', name: 'White', rating: 1200 },
+            session.blackPlayer || { id: 'b', name: 'Black', rating: 1200 },
+            movesToUse,
+            true // skipReanalysis: true because movesToUse is already evaluated! Avoid duplicate minimax loop!
+          );
+          generated.gameResult = session.gameResult || 'Game Concluded';
+          generated.resultDetails = session.resultDetails || {
+            winner: 'w',
+            reason: 'resignation',
+            ratingDelta: 10,
+            newRating: 1260,
+            league: 'Silver League',
+            trophiesDelta: 10,
+          };
+          generated.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
+          mergeMoveTimesIntoReport(generated.moves, session.moves, session.pgn);
+          const aligned = reclassifyReportWithEngine(generated, analysisEngine || 'torch_human');
+          aligned.isDeepReview = true;
+          aligned.reviewVersion = CURRENT_REVIEW_VERSION;
+          session.reviewReport = aligned;
+          session.engineMode = analysisEngine || 'torch_human';
+          GameSessionStore.saveSession(session);
+          if (isMounted) {
+            setLoadingProgress(100);
+            setReport(aligned);
+          }
+          return;
+        }
+
+        // If game could not be found anywhere, show not found
         if (isMounted) {
-          setLoadingProgress(100);
-          setReport(aligned);
+          setNotFound(true);
+        }
+      } catch (fatalErr) {
+        console.error('Fatal error in loadOrComputeReview:', fatalErr);
+        if (isMounted) {
+          try {
+            if (session && session.moves && session.moves.length > 0) {
+              const emergency = generateGameReviewReport(
+                gameId,
+                session.whitePlayer || { id: 'w', name: 'White', rating: 1200 },
+                session.blackPlayer || { id: 'b', name: 'Black', rating: 1200 },
+                session.moves,
+                true
+              );
+              setReport(emergency);
+            } else {
+              setNotFound(true);
+            }
+          } catch {
+            setNotFound(true);
+          }
+        }
+      } finally {
+        if (isMounted) {
           setIsLoading(false);
         }
-        return;
-      }
-
-      // If game could not be found anywhere, show not found
-      if (isMounted) {
-        setIsLoading(false);
-        setNotFound(true);
       }
     }
 
