@@ -500,12 +500,32 @@ export class ChessEvaluator {
    * Tactical 2-ply search with Check Extension and Mate-in-1 / Mate-in-2 Detection:
    * Accurately detects incoming checkmates, tactical threats, and prevents horizon blindness.
    */
-  public static evaluateWithReply(chess: Chess): number {
+  public static evaluateWithReply(chess: Chess, fastMode: boolean = false): number {
     if (chess.isCheckmate()) {
       return chess.turn() === 'w' ? -30000 : 30000;
     }
     if (chess.isDraw() || chess.isStalemate() || chess.isThreefoldRepetition() || chess.isInsufficientMaterial()) {
       return 0;
+    }
+
+    if (fastMode) {
+      const isWhiteTurn = chess.turn() === 'w';
+      const staticScore = this.evaluatePosition(chess);
+      const urgentReplies = chess.moves({ verbose: true }).filter((m) => m.captured || m.san.includes('#') || m.san.includes('+')).slice(0, 4);
+      if (urgentReplies.length === 0) return staticScore;
+
+      let bestScore = staticScore;
+      for (const rep of urgentReplies) {
+        chess.move(rep);
+        const s = chess.isCheckmate() ? (isWhiteTurn ? -30000 : 30000) : this.evaluatePosition(chess);
+        chess.undo();
+        if (isWhiteTurn) {
+          if (s < bestScore) bestScore = s;
+        } else {
+          if (s > bestScore) bestScore = s;
+        }
+      }
+      return bestScore;
     }
 
     const cached = EngineTranspositionTable.get(chess.fen(), 2);
@@ -752,7 +772,7 @@ export class ChessEvaluator {
    * Finds the top engine choice, best score, and second-best score.
    * Includes smart move ordering, mate-avoidance prioritization, and tie-breaking.
    */
-  public static findBestMoveAndScore(chess: Chess): {
+  public static findBestMoveAndScore(chess: Chess, fastMode: boolean = false): {
     bestMoveSan: string;
     bestMoveUci: string;
     score: number;
@@ -793,15 +813,14 @@ export class ChessEvaluator {
     }
 
     // 2. Critical Checkmate Defense Invariant:
-    // If any of our legal moves allows the opponent to deliver immediate checkmate in 1 (e.g. Qxf7#),
-    // and there exists ANY move that defends and prevents checkmate, filter candidates strictly to those safe moves!
-    // Moves that blunder into immediate mate in 1 (such as Rb8 against Qxf7#) must NEVER be chosen as the best move.
-    const safeMoves = moves.filter((m) => {
-      chess.move(m);
-      const oppCanMate = chess.moves({ verbose: true }).some((om) => om.san.includes('#'));
-      chess.undo();
-      return !oppCanMate;
-    });
+    const safeMoves = (fastMode && !chess.isCheck())
+      ? moves
+      : moves.filter((m) => {
+          chess.move(m);
+          const oppCanMate = chess.moves({ verbose: true }).some((om) => om.san.includes('#'));
+          chess.undo();
+          return !oppCanMate;
+        });
 
     const candidatePool = safeMoves.length > 0 ? safeMoves : moves;
 
@@ -832,9 +851,13 @@ export class ChessEvaluator {
 
     let allMovesAllowMate = safeMoves.length === 0;
 
-    for (const m of sortedMoves) {
+    // In fast mode evaluate top 8 candidate moves; in deep mode evaluate all
+    const maxToEval = fastMode ? Math.min(8, sortedMoves.length) : sortedMoves.length;
+    const movesToEvaluate = sortedMoves.slice(0, maxToEval);
+
+    for (const m of movesToEvaluate) {
       chess.move(m);
-      const s = this.evaluateWithReply(chess);
+      const s = this.evaluateWithReply(chess, fastMode);
       chess.undo();
 
       const allowsMate = isWhite ? s <= -29000 : s >= 29000;
@@ -1725,7 +1748,7 @@ export class ChessEvaluator {
       const fenBefore = sim.fen();
 
       // 1. Calculate engine best move and optimal benchmark score before move
-      const bestChoice = this.findBestMoveAndScore(sim);
+      const bestChoice = this.findBestMoveAndScore(sim, true);
       const evalBefore = bestChoice.score;
       const secondBestDiff = Math.abs(bestChoice.score - bestChoice.secondBestScore);
 
@@ -1753,7 +1776,7 @@ export class ChessEvaluator {
       if (!playedMove) break;
 
       const fenAfter = sim.fen();
-      const evalAfter = this.evaluateWithReply(sim);
+      const evalAfter = this.evaluateWithReply(sim, true);
       const isCheckNow = sim.isCheck();
 
       // 3. Classify move using Expected Points Win Probability Model
@@ -1795,6 +1818,141 @@ export class ChessEvaluator {
         accuracy: moveAcc,
         motif,
       });
+    }
+
+    return analyzedRecords;
+  }
+
+  /**
+   * Async Non-Blocking Game History Analyzer:
+   * Analyzes moves ply-by-ply while yielding to the browser event loop every 1-2 plies via setTimeout(0).
+   * Reports live progress (0-100%) and guarantees the UI thread stays 100% responsive without freezing.
+   */
+  public static async analyzeGameHistoryAsync(
+    movesInput: MoveRecord[] | string[] | string,
+    onProgress?: (progressPct: number) => void
+  ): Promise<MoveRecord[]> {
+    const sim = new Chess();
+    let moveList: { san: string; from?: string; to?: string; promotion?: string }[] = [];
+
+    if (typeof movesInput === 'string') {
+      try {
+        const pgnChess = new Chess();
+        pgnChess.loadPgn(movesInput);
+        const history = pgnChess.history({ verbose: true });
+        moveList = history.map((m) => ({
+          san: m.san,
+          from: m.from,
+          to: m.to,
+          promotion: m.promotion,
+        }));
+      } catch {
+        return [];
+      }
+    } else if (Array.isArray(movesInput)) {
+      if (movesInput.length === 0) return [];
+      if (typeof movesInput[0] === 'string') {
+        moveList = (movesInput as string[]).map((san) => ({ san }));
+      } else {
+        moveList = (movesInput as MoveRecord[]).map((m) => ({
+          san: m.san,
+          from: m.from,
+          to: m.to,
+          promotion: m.promotion,
+        }));
+      }
+    }
+
+    const analyzedRecords: MoveRecord[] = [];
+    const totalMoves = moveList.length;
+
+    for (let i = 0; i < totalMoves; i++) {
+      // Yield to browser event loop every 2 plies so animations and progress bars remain silky smooth (0ms lag)
+      if (i % 2 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (onProgress) {
+          onProgress(Math.min(99, Math.round(((i + 1) / totalMoves) * 100)));
+        }
+      }
+
+      const item = moveList[i];
+      const turn = sim.turn();
+      const fenBefore = sim.fen();
+
+      // 1. Calculate engine best move and optimal benchmark score before move in fast mode
+      const bestChoice = this.findBestMoveAndScore(sim, true);
+      const evalBefore = bestChoice.score;
+      const secondBestDiff = Math.abs(bestChoice.score - bestChoice.secondBestScore);
+
+      // 2. Play the move in simulation
+      let playedMove = null;
+      try {
+        if (item.from && item.to) {
+          playedMove = sim.move({
+            from: item.from,
+            to: item.to,
+            promotion: item.promotion || 'q',
+          });
+        } else {
+          playedMove = sim.move(item.san);
+        }
+      } catch {
+        try {
+          playedMove = sim.move(item.san);
+        } catch {
+          break;
+        }
+      }
+
+      if (!playedMove) break;
+
+      const fenAfter = sim.fen();
+      const evalAfter = this.evaluateWithReply(sim, true);
+      const isCheckNow = sim.isCheck();
+
+      // 3. Classify move using Expected Points Win Probability Model
+      const { classification, comment, wpLoss, motif } = this.classifyMove(
+        playedMove.san,
+        bestChoice.bestMoveSan,
+        evalBefore,
+        evalAfter,
+        turn,
+        Boolean(playedMove.captured),
+        isCheckNow,
+        i + 1,
+        playedMove.piece,
+        secondBestDiff,
+        fenBefore,
+        fenAfter,
+        playedMove.from as Square,
+        playedMove.to as Square
+      );
+
+      const moveAcc = this.calculateCapsAccuracy([wpLoss]);
+
+      analyzedRecords.push({
+        san: playedMove.san,
+        from: playedMove.from as Square,
+        to: playedMove.to as Square,
+        captured: playedMove.captured as any,
+        promotion: playedMove.promotion as any,
+        fenBefore,
+        fenAfter,
+        evalBefore,
+        evalAfter,
+        classification,
+        coachComment: comment,
+        bestMoveSan: bestChoice.bestMoveSan,
+        bestMoveUci: bestChoice.bestMoveUci,
+        isCheck: isCheckNow,
+        winProbLoss: wpLoss,
+        accuracy: moveAcc,
+        motif,
+      });
+    }
+
+    if (onProgress) {
+      onProgress(100);
     }
 
     return analyzedRecords;

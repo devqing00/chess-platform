@@ -54,7 +54,7 @@ export function buildFallbackEvaluation(
   best?: { score: number; bestMoveSan: string; bestMoveUci: string }
 ): EngineEvaluation {
   const chess = new Chess(fen);
-  const evalBest = best || ChessEvaluator.findBestMoveAndScore(chess);
+  const evalBest = best || ChessEvaluator.findBestMoveAndScore(chess, true);
   return {
     fen,
     depth: depth || 8,
@@ -223,14 +223,14 @@ class StockfishWorker {
       return;
     }
 
-    // Safety timeout: If worker does not report ready within 15000ms, mark failed so pool can fallback safely
+    // Fast boot timeout: If worker does not report ready within 2000ms, mark failed so pool can fallback instantly without stalling serverless execution
     this.bootTimer = setTimeout(() => {
       if (!this.isReady) {
-        console.warn(`[StockfishWorker ${this.id}] Boot timed out after 15s`);
+        console.warn(`[StockfishWorker ${this.id}] Boot timed out after 2s`);
         this.hasFailed = true;
         this.onReadyCallback?.();
       }
-    }, 15000);
+    }, 2000);
 
     this.process.stdout?.on('data', (chunk: Buffer) => {
       this.buffer += chunk.toString();
@@ -520,7 +520,7 @@ class StockfishWorker {
             return;
           }
 
-          const best = ChessEvaluator.findBestMoveAndScore(chess);
+          const best = ChessEvaluator.findBestMoveAndScore(chess, true);
           finishAndResolve(buildFallbackEvaluation(fen, depth, best));
         }, 300);
       }, timeCap + 350);
@@ -541,7 +541,7 @@ class StockfishWorker {
 
       // Fallback if child process is not available
       cleanup();
-      const best = ChessEvaluator.findBestMoveAndScore(chess);
+      const best = ChessEvaluator.findBestMoveAndScore(chess, true);
       resolve({
         fen,
         depth,
@@ -619,21 +619,9 @@ class StockfishProcessPool {
       : fen;
 
     const cacheKey = `${normalizedFen}|d=${depth}|pv=${multiPv}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // Check if an equal or deeper evaluation already exists for this exact board configuration
-    for (const [key, entry] of this.cache.entries()) {
-      if (
-        key.startsWith(`${normalizedFen}|`) &&
-        entry.depth >= depth &&
-        (entry.lines?.length || 0) >= multiPv
-      ) {
-        return entry;
-      }
-    }
+    // Per explicit user directive: caching disabled for now to always ensure fresh, authentic evaluations
+    // const cached = this.cache.get(cacheKey);
+    // if (cached) return cached;
 
     const allDead = this.workers.length > 0 && this.workers.every((w) => !w.isAlive());
     if (allDead) {

@@ -122,7 +122,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
       setReport(reclassified);
       const session = GameSessionStore.getSession(gameId);
       if (session) {
-        session.reviewReport = reclassified;
+        session.reviewReport = null;
         session.engineMode = newEngine;
         GameSessionStore.saveSession(session);
       }
@@ -312,38 +312,13 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
           return false;
         };
 
-        // 4. If game has moves: load cached deep review (only if matching valid engine version and not corrupted) or compute fresh review
+        // 4. If game has moves: compute fresh review (caching explicitly disabled per user request)
         if (session && session.moves && session.moves.length > 0) {
-          const isCorrupted = isCorruptedReport(session.reviewReport, session.moves.length);
-          if (
-            !isCorrupted &&
-            session.reviewReport &&
-            session.reviewReport.isDeepReview &&
-            session.reviewReport.moves.length === session.moves.length
-          ) {
-            if (isMounted) {
-              const aligned = reclassifyReportWithEngine(
-                session.reviewReport,
-                analysisEngine || session.reviewReport.engineMode || 'torch_human'
-              );
-              aligned.isDeepReview = true;
-              aligned.reviewVersion = CURRENT_REVIEW_VERSION;
-              aligned.gameResult = session.gameResult || aligned.gameResult;
-              aligned.resultDetails = session.resultDetails || aligned.resultDetails;
-              aligned.termination = session.pgn ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1] : undefined;
-              mergeMoveTimesIntoReport(aligned.moves, session.moves, session.pgn);
-              setReport(aligned);
-            }
-            return;
-          }
+          // Clear any stored reviewReport per directive to disable review caching
+          session.reviewReport = null;
+          GameSessionStore.saveSession(session);
 
-          // Purge any stale or corrupted report from session
-          if (session.reviewReport && isCorrupted) {
-            session.reviewReport = null;
-            GameSessionStore.saveSession(session);
-          }
-
-          // Compute review via fast direct engine API (the fast 3-commits-ago version)
+          // Compute review via fast direct engine API or non-blocking async client evaluator
           let progressInterval: NodeJS.Timeout | null = null;
           let fetchTimer: NodeJS.Timeout | null = null;
           try {
@@ -353,12 +328,12 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
             }
             progressInterval = setInterval(() => {
               if (isMounted) {
-                setLoadingProgress((prev) => (prev < 92 ? prev + 6 : prev));
+                setLoadingProgress((prev) => (prev < 90 ? prev + 10 : prev));
               }
-            }, 250);
+            }, 200);
 
-            // Fast, robust timeout matching commit b597bdf so parallel Stockfish pool completes cleanly without abort
-            const timeoutMs = Math.max(25000, (session.moves?.length || 30) * 400);
+            // Fast, snappy timeout so serverless cold starts never hang the user
+            const timeoutMs = 4000;
             const controller = new AbortController();
             fetchTimer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -394,7 +369,8 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
                   ? session.pgn.match(/\[Termination\s+"([^"]+)"\]/i)?.[1]
                   : undefined;
                 mergeMoveTimesIntoReport(data.report.moves, session.moves, session.pgn);
-                session.reviewReport = data.report;
+                // Caching disabled: do not store in session
+                session.reviewReport = null;
                 session.engineMode = analysisEngine || 'torch_human';
                 GameSessionStore.saveSession(session);
                 if (isMounted) {
@@ -404,13 +380,13 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
               }
             }
           } catch (err) {
-            console.warn('Backend engine review failed, using local fallback:', err);
+            console.warn('Backend engine review unavailable, using silky non-blocking local evaluation:', err);
           } finally {
             if (fetchTimer) clearTimeout(fetchTimer);
             if (progressInterval) clearInterval(progressInterval);
           }
 
-          // Fast local tactical analysis fallback if API unavailable (guarantees authentic non-flat evaluation)
+          // Silky-smooth, non-blocking async tactical analysis fallback (yields to browser event loop, zero freeze)
           let movesToUse = session.moves;
           const hasEvaluations =
             session.moves.length > 0 &&
@@ -421,7 +397,9 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
                 (m.evalAfter !== 0 || m.evalBefore !== 0 || m.winProbLoss !== undefined || m.bestMoveSan !== undefined)
             );
           if (!hasEvaluations && session.moves.length > 0) {
-            movesToUse = ChessEvaluator.analyzeGameHistory(session.moves);
+            movesToUse = await ChessEvaluator.analyzeGameHistoryAsync(session.moves, (pct) => {
+              if (isMounted) setLoadingProgress(pct);
+            });
             session.moves = movesToUse;
           }
 
@@ -446,7 +424,8 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
           const aligned = reclassifyReportWithEngine(generated, analysisEngine || 'torch_human');
           aligned.isDeepReview = true;
           aligned.reviewVersion = CURRENT_REVIEW_VERSION;
-          session.reviewReport = aligned;
+          // Caching disabled: do not store in session
+          session.reviewReport = null;
           session.engineMode = analysisEngine || 'torch_human';
           GameSessionStore.saveSession(session);
           if (isMounted) {

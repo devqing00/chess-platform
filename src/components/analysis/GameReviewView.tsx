@@ -2136,11 +2136,11 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
 
 
             {/* Bottom: 3-Move Position Context Ribbon */}
-            <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-[#2a2723] text-xs font-mono">
+            <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-[#2a2723] text-xs font-mono">
               {activeMoveIndex > 0 ? (
                 <button
                   onClick={handlePrevMove}
-                  className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
+                  className="w-20 sm:w-24 shrink-0 py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
                   title="Previous move"
                 >
                   <span className="text-zinc-500 font-sans text-[10px] shrink-0">
@@ -2149,13 +2149,13 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   <span className="truncate">{moves[activeMoveIndex - 1]?.san}</span>
                 </button>
               ) : (
-                <div className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 text-center text-zinc-600 text-xs">—</div>
+                <div className="w-20 sm:w-24 shrink-0 py-1 px-2 text-center text-zinc-600 text-xs">—</div>
               )}
 
               {/* Currently Active Move (Played, Best, or Show Follow-up): Prominently wider, never wraps or truncates */}
-              <div className="flex-[1.6] sm:flex-[1.8] min-w-0 py-1 px-2.5 rounded-lg bg-[#332f28] border border-[#524b3f] font-black text-white shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <div className="flex-1 min-w-[130px] sm:min-w-[155px] py-1.5 px-3 rounded-lg bg-[#332f28] border border-[#524b3f] font-black text-white shadow-sm flex items-center justify-center gap-2 whitespace-nowrap overflow-visible select-none">
                 <ClassificationBadge classification={displayedBadgeClass} size="sm" />
-                <span className="text-xs font-black text-white shrink-0 whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-black text-white shrink-0 whitespace-nowrap leading-none tracking-wide">
                   {showBestMove && bestMoveVariation
                     ? bestMoveVariation.san
                     : showFollowUpMove && followUpVariation
@@ -2163,7 +2163,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                     : activeMove?.san || ''}
                 </span>
                 {activeMove?.timeSpentSeconds !== undefined && activeMove.timeSpentSeconds > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-zinc-300 shrink-0 whitespace-nowrap inline-flex items-center gap-0.5">
+                  <span className="text-[11px] font-mono font-medium text-zinc-300 shrink-0 whitespace-nowrap inline-flex items-center gap-0.5 leading-none">
                     ⏱{activeMove.timeSpentSeconds < 60 ? `${activeMove.timeSpentSeconds.toFixed(1)}s` : `${Math.floor(activeMove.timeSpentSeconds / 60)}m`}
                   </span>
                 )}
@@ -2172,7 +2172,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
               {activeMoveIndex < moves.length - 1 ? (
                 <button
                   onClick={handleNextMove}
-                  className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
+                  className="w-20 sm:w-24 shrink-0 py-1 px-2 rounded-lg bg-[#272522] hover:bg-[#33302b] text-zinc-400 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer border border-[#38342e] truncate"
                   title="Next move"
                 >
                   <span className="text-zinc-500 font-sans text-[10px] shrink-0">
@@ -2181,7 +2181,7 @@ export const GameReviewView: React.FC<GameReviewViewProps> = ({
                   <span className="truncate">{moves[activeMoveIndex + 1]?.san}</span>
                 </button>
               ) : (
-                <div className="flex-1 min-w-0 max-w-[95px] sm:max-w-[115px] py-1 px-2 text-center text-zinc-600 text-xs">—</div>
+                <div className="w-20 sm:w-24 shrink-0 py-1 px-2 text-center text-zinc-600 text-xs">—</div>
               )}
             </div>
           </div>
