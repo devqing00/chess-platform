@@ -1376,7 +1376,9 @@ export class ChessEvaluator {
     const cpLoss = Math.max(0, isWhite ? evalBefore - evalAfter : evalAfter - evalBefore);
     const evalDiffPawns = (Math.abs(cpLoss) / 100).toFixed(1);
 
-    const isStillCrushing = wpAfter >= 82.0;
+    const isDecisivelyWinningBefore = wpBefore >= 82.0 || (isWhite ? evalBefore >= 300 : evalBefore <= -300);
+    const isDecisivelyWinningAfter = wpAfter >= 75.0 || (isWhite ? evalAfter >= 220 : evalAfter <= -220);
+    const maintainsDecisiveWin = isDecisivelyWinningBefore && isDecisivelyWinningAfter;
     const wasHopelesslyLost = wpBefore <= 15.0;
 
     const cleanPlayedSan = moveSan.replace(/[+#]/g, '');
@@ -1384,8 +1386,15 @@ export class ChessEvaluator {
     const isBestMove = Boolean(bestMoveSan && cleanPlayedSan === cleanBestSan);
 
     let effectiveLoss: number;
-    if (isStillCrushing) {
-      effectiveLoss = Math.min(wpLoss, 3.5);
+    if (maintainsDecisiveWin) {
+      // In decisively winning positions, moves that preserve the win are not penalized by centipawn drops
+      if (wpLoss >= 18.0) {
+        effectiveLoss = Math.max(wpLoss, 24.0);
+      } else if (wpLoss >= 10.0) {
+        effectiveLoss = Math.max(wpLoss, 14.0);
+      } else {
+        effectiveLoss = wpLoss;
+      }
     } else if (wasHopelesslyLost) {
       if (isBestMove || cpLoss <= 35) {
         effectiveLoss = Math.min(wpLoss, 2.5);
@@ -1394,7 +1403,15 @@ export class ChessEvaluator {
         effectiveLoss = Math.max(wpLoss, normalizedLostPenalty);
       }
     } else {
-      effectiveLoss = wpLoss;
+      if (cpLoss >= 280) {
+        effectiveLoss = Math.max(wpLoss, 26.0);
+      } else if (cpLoss >= 160) {
+        effectiveLoss = Math.max(wpLoss, 16.0);
+      } else if (cpLoss >= 70) {
+        effectiveLoss = Math.max(wpLoss, 7.5);
+      } else {
+        effectiveLoss = wpLoss;
+      }
     }
 
     // Detect rich tactical motifs on the board
@@ -1566,8 +1583,12 @@ export class ChessEvaluator {
     }
 
     // 7. Miss
-    const wasWinning = wpBefore >= 65.0 || (isWhite ? evalBefore >= 250 : evalBefore <= -250);
-    if (wasWinning && !isStillCrushing && (cpLoss >= 180 || effectiveLoss >= 20.0)) {
+    const hadMate = isWhite ? evalBefore >= 15000 : evalBefore <= -15000;
+    const hadSignificantWin = wpBefore >= 72.0 || (isWhite ? evalBefore >= 200 : evalBefore <= -200);
+    const lostWin = wpAfter < 52.0 || (isWhite ? evalAfter < 80 : evalAfter > -80);
+    const isMissTactical = hadMate || (hadSignificantWin && lostWin && effectiveLoss >= 10.0);
+
+    if (isMissTactical) {
       return {
         classification: 'miss',
         comment: `Miss! You missed a decisive tactical advantage! ${bestMoveSan ? `${bestMoveSan} was winning on the spot.` : 'A winning sequence was overlooked.'}`,
@@ -1578,8 +1599,8 @@ export class ChessEvaluator {
 
     // 8. Blunder
     const isBlunderDrop =
-      !isStillCrushing &&
-      (effectiveLoss >= 20.0 && (wpLoss >= 6.0 || cpLoss >= 250));
+      !maintainsDecisiveWin &&
+      (effectiveLoss >= 20.0 || (wpLoss >= 15.0 && cpLoss >= 250));
 
     if (isBlunderDrop) {
       const blunderComment = motif && motif.type === 'hanging-piece'
@@ -1594,7 +1615,7 @@ export class ChessEvaluator {
     }
 
     // 9. Mistake
-    if (!isStillCrushing && effectiveLoss >= 12.0) {
+    if (!maintainsDecisiveWin && effectiveLoss >= 12.0) {
       return {
         classification: 'mistake',
         comment: `Mistake! ${motif ? `${motif.description} ` : ''}${moveSan} surrenders significant ground (-${evalDiffPawns} pawns). ${bestMoveSan ? `Finding ${bestMoveSan} would have kept a tighter grip.` : ''}`,
@@ -1605,7 +1626,7 @@ export class ChessEvaluator {
 
     // 10. Inaccuracy
     const isOpeningProphylaxis = plyIndex <= 12 && cpLoss <= 65 && !opponentHasMateNow;
-    if (!isOpeningProphylaxis && !isStillCrushing && effectiveLoss >= 5.5) {
+    if (!isOpeningProphylaxis && !maintainsDecisiveWin && effectiveLoss >= 5.5) {
       return {
         classification: 'inaccuracy',
         comment: `Inaccuracy. ${bestMoveSan ? `Playing ${bestMoveSan} was sharper.` : 'This allows the opponent minor counterplay.'}`,
@@ -1614,28 +1635,30 @@ export class ChessEvaluator {
       };
     }
 
-    // 11. Good Move
-    if (cpLoss > 30 || effectiveLoss > 2.0) {
-      const goodComment = motif
-        ? `Good move. ${motif.description}`
-        : isStillCrushing && isCapture
-        ? `Good move. Captures free material and maintains complete control of the game.`
-        : `Good move. A completely sound and solid continuation.`;
+    // 11. Excellent Move
+    const isExcellent = maintainsDecisiveWin ? wpLoss <= 3.5 : (effectiveLoss <= 2.0 && cpLoss <= 45);
+    if (isExcellent) {
+      const excellentComment = motif
+        ? `Excellent move! ${motif.description}`
+        : `Excellent move! ${moveSan} maintains solid control and keeps up the pressure.`;
       return {
-        classification: 'good',
-        comment: goodComment,
+        classification: 'excellent',
+        comment: excellentComment,
         wpLoss: effectiveLoss,
         motif,
       };
     }
 
-    // 12. Excellent Move
-    const excellentComment = motif
-      ? `Excellent move! ${motif.description}`
-      : `Excellent move! ${moveSan} maintains solid control and keeps up the pressure.`;
+    // 12. Good Move
+    const isGood = maintainsDecisiveWin ? wpLoss <= 7.0 : (effectiveLoss <= 5.0 && cpLoss <= 85);
+    const goodComment = motif
+      ? `Good move. ${motif.description}`
+      : maintainsDecisiveWin && isCapture
+      ? `Good move. Captures free material and maintains complete control of the game.`
+      : `Good move. A completely sound and solid continuation.`;
     return {
-      classification: 'excellent',
-      comment: excellentComment,
+      classification: 'good',
+      comment: goodComment,
       wpLoss: effectiveLoss,
       motif,
     };
@@ -1648,21 +1671,8 @@ export class ChessEvaluator {
    */
   public static calculateCapsAccuracy(winProbLosses: number[], cpLosses?: number[]): number {
     if (winProbLosses.length === 0) return 90.0;
-    const accuracies = winProbLosses.map((loss, idx) => {
-      let l = Math.max(0, loss);
-
-      // In lopsided positions, win probability loss is near-zero due to sigmoid saturation,
-      // even if centipawn loss is significant. Use cpLoss as a secondary signal to prevent
-      // inflated accuracy for both players in one-sided games.
-      if (cpLosses && cpLosses[idx] !== undefined) {
-        const cp = cpLosses[idx];
-        // If wpLoss is tiny but cpLoss is substantial, apply a cpLoss-based floor
-        if (l < 2.0 && cp > 50) {
-          const cpBasedLoss = Math.min(25, (cp / 100) * 5.0);
-          l = Math.max(l, cpBasedLoss);
-        }
-      }
-
+    const accuracies = winProbLosses.map((loss) => {
+      const l = Math.max(0, loss);
       const acc = 103.1668 * Math.exp(-0.04354 * l) - 3.1669;
       return Math.min(100.0, Math.max(0.0, acc));
     });

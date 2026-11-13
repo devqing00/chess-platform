@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { ChessBoard } from '../board/ChessBoard';
+import { EvalBar } from '../board/EvalBar';
 import { ClassificationBadge, CLASSIFICATION_CONFIG } from '../board/ClassificationBadge';
 import { PieceIcon } from '../board/PieceIcons';
 import { CoachDannyAvatar } from './CoachDannyAvatar';
@@ -44,6 +45,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Zap,
   Check,
   Star,
@@ -54,6 +57,47 @@ import { formatGameOutcomeDescription, extractTerminationReason, isSessionUserWh
 import { calculateGameAdvancedStats } from '@/lib/advancedStatsCalculator';
 import { soundService } from '@/lib/audioService';
 import confetti from 'canvas-confetti';
+
+const COUNTRY_MAP: Record<string, string> = {
+  india: 'IN',
+  nigeria: 'NG',
+  usa: 'US',
+  'united states': 'US',
+  russia: 'RU',
+  germany: 'DE',
+  uk: 'GB',
+  'united kingdom': 'GB',
+  canada: 'CA',
+  france: 'FR',
+  spain: 'ES',
+  brazil: 'BR',
+};
+
+function getCountryFlag(country?: string): string {
+  if (!country) return '';
+  const clean = country.trim().toLowerCase();
+  const code = COUNTRY_MAP[clean] || (country.length === 2 ? country.toUpperCase() : '');
+  if (!code || code.length !== 2) return '';
+  try {
+    const codePoints = code
+      .split('')
+      .map((c) => 127397 + c.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  } catch {
+    return '';
+  }
+}
+
+function formatTimeControl(tc?: string): string {
+  if (!tc) return '2:00';
+  if (tc.includes(':')) return tc;
+  const raw = tc.split('+')[0];
+  const seconds = parseInt(raw, 10);
+  if (isNaN(seconds) || seconds <= 0) return tc;
+  const mins = Math.floor(seconds / 60);
+  const remSecs = seconds % 60;
+  return `${mins}:${remSecs.toString().padStart(2, '0')}`;
+}
 
 interface GameReviewSummaryViewProps {
   report: GameReviewReport;
@@ -174,6 +218,67 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   // Board position for summary: show final move or most brilliant move
   const keyMove = moves.find((m) => m.classification === 'brilliant') || moves[moves.length - 1];
   const summaryChess = new Chess(keyMove ? keyMove.fenAfter : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+
+  const [previewFen, setPreviewFen] = useState<string | null>(null);
+  const [showAllClassifications, setShowAllClassifications] = useState(false);
+  const [isAdvancedStatsOpen, setIsAdvancedStatsOpen] = useState(false);
+  const [hoveredMovePip, setHoveredMovePip] = useState<{
+    index: number;
+    moveNumber: number;
+    san: string;
+    isWhite: boolean;
+    classification: MoveClassification;
+    colorHex: string;
+    score: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const previewChess = React.useMemo(() => {
+    if (previewFen) {
+      try {
+        return new Chess(previewFen);
+      } catch {}
+    }
+    return summaryChess;
+  }, [previewFen, summaryChess]);
+
+  const activeEvalScore = React.useMemo(() => {
+    if (previewFen) {
+      const moveIdx = moves.findIndex((m) => m.fenAfter === previewFen);
+      if (moveIdx >= 0 && evalTimeline?.[moveIdx]) {
+        return evalTimeline[moveIdx].score;
+      }
+    }
+    return evalTimeline && evalTimeline.length > 0
+      ? evalTimeline[evalTimeline.length - 1].score
+      : 0;
+  }, [previewFen, evalTimeline, moves]);
+
+  const timelinePips = React.useMemo(() => {
+    if (!moves || moves.length === 0) return [];
+    return moves.map((m, idx) => {
+      const x = (idx / Math.max(1, moves.length - 1)) * 100;
+      const score = m.evalAfter ?? (evalTimeline?.[idx]?.score ?? 0);
+      const winProb = 1 / (1 + Math.pow(10, -score / 400));
+      const y = Math.min(88, Math.max(12, 100 - winProb * 100));
+      const isWhite = idx % 2 === 0;
+      const classification = (m.classification || 'good') as MoveClassification;
+      const cfg = CLASSIFICATION_CONFIG[classification];
+      return {
+        index: idx,
+        moveNumber: Math.floor(idx / 2) + 1,
+        san: m.san,
+        isWhite,
+        classification,
+        colorHex: cfg?.hex || '#10b981',
+        score,
+        fenAfter: m.fenAfter,
+        x,
+        y,
+      };
+    });
+  }, [moves, evalTimeline]);
 
   // Multi-Mistake Interactive Practice Queue (Spaced Repetition across blunders, misses & mistakes)
   const userMistakesPuzzles = React.useMemo(() => {
@@ -298,73 +403,81 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
     }
   };
 
-  // Classification comparison rows matching Screenshot 3
-  // Classification comparison rows matching Chess.com screenshots (all 10 tiers)
-  const classificationRows: {
+  // Classification comparison rows matching Chess.com: Primary tiers + Collapsible secondary tiers
+  const hasBrilliant = (tallies.white.brilliant || 0) > 0 || (tallies.black.brilliant || 0) > 0;
+  const primaryRows: {
+    label: string;
+    classification: MoveClassification;
+    whiteCount: number;
+    blackCount: number;
+  }[] = [
+    ...(hasBrilliant ? [{
+      label: 'Brilliant',
+      classification: 'brilliant' as MoveClassification,
+      whiteCount: tallies.white.brilliant || 0,
+      blackCount: tallies.black.brilliant || 0,
+    }] : []),
+    {
+      label: 'Great',
+      classification: 'great' as MoveClassification,
+      whiteCount: tallies.white.great || 0,
+      blackCount: tallies.black.great || 0,
+    },
+    {
+      label: 'Best',
+      classification: 'best' as MoveClassification,
+      whiteCount: tallies.white.best || 0,
+      blackCount: tallies.black.best || 0,
+    },
+    {
+      label: 'Excellent',
+      classification: 'excellent' as MoveClassification,
+      whiteCount: tallies.white.excellent || 0,
+      blackCount: tallies.black.excellent || 0,
+    },
+    {
+      label: 'Mistake',
+      classification: 'mistake' as MoveClassification,
+      whiteCount: tallies.white.mistake || 0,
+      blackCount: tallies.black.mistake || 0,
+    },
+    {
+      label: 'Miss',
+      classification: 'miss' as MoveClassification,
+      whiteCount: tallies.white.miss || 0,
+      blackCount: tallies.black.miss || 0,
+    },
+    {
+      label: 'Blunder',
+      classification: 'blunder' as MoveClassification,
+      whiteCount: tallies.white.blunder || 0,
+      blackCount: tallies.black.blunder || 0,
+    },
+  ];
+
+  const secondaryRows: {
     label: string;
     classification: MoveClassification;
     whiteCount: number;
     blackCount: number;
   }[] = [
     {
-      label: 'Brilliant',
-      classification: 'brilliant',
-      whiteCount: tallies.white.brilliant || 0,
-      blackCount: tallies.black.brilliant || 0,
-    },
-    {
-      label: 'Great',
-      classification: 'great',
-      whiteCount: tallies.white.great || 0,
-      blackCount: tallies.black.great || 0,
-    },
-    {
-      label: 'Best',
-      classification: 'best',
-      whiteCount: tallies.white.best || 0,
-      blackCount: tallies.black.best || 0,
-    },
-    {
-      label: 'Excellent',
-      classification: 'excellent',
-      whiteCount: tallies.white.excellent || 0,
-      blackCount: tallies.black.excellent || 0,
-    },
-    {
       label: 'Good',
-      classification: 'good',
+      classification: 'good' as MoveClassification,
       whiteCount: tallies.white.good || 0,
       blackCount: tallies.black.good || 0,
     },
     {
       label: 'Book',
-      classification: 'book',
+      classification: 'book' as MoveClassification,
       whiteCount: tallies.white.book || 0,
       blackCount: tallies.black.book || 0,
     },
     {
       label: 'Inaccuracy',
-      classification: 'inaccuracy',
+      classification: 'inaccuracy' as MoveClassification,
       whiteCount: tallies.white.inaccuracy || 0,
       blackCount: tallies.black.inaccuracy || 0,
-    },
-    {
-      label: 'Mistake',
-      classification: 'mistake',
-      whiteCount: tallies.white.mistake || 0,
-      blackCount: tallies.black.mistake || 0,
-    },
-    {
-      label: 'Miss',
-      classification: 'miss',
-      whiteCount: tallies.white.miss || 0,
-      blackCount: tallies.black.miss || 0,
-    },
-    {
-      label: 'Blunder',
-      classification: 'blunder',
-      whiteCount: tallies.white.blunder || 0,
-      blackCount: tallies.black.blunder || 0,
     },
   ];
 
@@ -411,6 +524,51 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
     const y = 100 - winProb * 100;
     return `${x},${y}`;
   }).join(' ');
+
+  // Player card renderer matching Chess.com Image 4
+  const renderPlayerCard = (player: typeof whitePlayer, isTop: boolean, color: 'w' | 'b') => {
+    const isUser = isUserWhite ? color === 'w' : color === 'b';
+    const flag = getCountryFlag(player.country);
+    const tc = formatTimeControl((report as any).timeControl || (report as any).timeClass);
+
+    return (
+      <div className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#1b1916] border border-[#2d2a26] rounded-xl text-xs select-none">
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 border shadow-xs ${
+              color === 'w'
+                ? 'bg-zinc-100 text-zinc-950 border-zinc-300'
+                : 'bg-[#2a2723] text-zinc-100 border-[#3d3932]'
+            }`}
+          >
+            {player.avatar && player.avatar.startsWith('http') ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={player.avatar} alt={player.name} className="w-full h-full object-cover rounded-lg" />
+            ) : (
+              <span className="text-sm sm:text-base font-bold">{color === 'w' ? '♔' : '♚'}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-bold text-zinc-100 truncate text-xs sm:text-[13px]">{player.name}</span>
+            {player.rating !== undefined && (
+              <span className="text-zinc-400 font-mono text-xs">({player.rating})</span>
+            )}
+            {flag && <span className="text-xs sm:text-sm shrink-0">{flag}</span>}
+            {isUser && (
+              <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded shrink-0 uppercase">
+                YOU
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 bg-[#12110f] border border-[#272420] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg font-mono font-bold text-xs text-zinc-200 shrink-0">
+          <Clock className="w-3 h-3 text-zinc-500" />
+          <span>{tc}</span>
+        </div>
+      </div>
+    );
+  };
 
   // Shared Stats & Accuracy Panel
   const renderStatsPanel = (isMobile = false) => (
@@ -520,6 +678,83 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </button>
         )}
 
+        {/* Evaluation Timeline Ribbon with Move Event Pips (Image 4 style) */}
+        <div className="w-full bg-[#171613] p-2.5 rounded-xl border border-[#2b2722] flex flex-col gap-1.5 shadow-inner relative">
+          <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="uppercase tracking-wider font-black text-zinc-300">Advantage & Moves</span>
+            </div>
+            <span className="font-mono text-[10px] text-zinc-500 font-bold">
+              {moves.length} moves
+            </span>
+          </div>
+
+          {/* SVG Timeline with Advantage Curve & Interactive Move Pips */}
+          <div className="h-14 sm:h-16 w-full bg-[#12110f] rounded-lg border border-[#24211d] relative overflow-hidden flex items-center">
+            {/* Center 0.0 midline */}
+            <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/40 pointer-events-none" />
+
+            {/* SVG Advantage Line & Move Pips */}
+            <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+              <polyline
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={points}
+                className="opacity-70"
+              />
+
+              {/* Move Event Pips */}
+              {timelinePips.map((pip) => (
+                <circle
+                  key={pip.index}
+                  cx={`${pip.x}%`}
+                  cy={`${pip.y}%`}
+                  r="2.8"
+                  fill={pip.colorHex}
+                  stroke="#12110f"
+                  strokeWidth="0.8"
+                  className="cursor-pointer hover:scale-150 transition-transform duration-100"
+                  onMouseEnter={() => setHoveredMovePip(pip)}
+                  onMouseLeave={() => setHoveredMovePip(null)}
+                  onClick={() => {
+                    soundService.playMove();
+                    if (pip.fenAfter) {
+                      setPreviewFen(pip.fenAfter);
+                    }
+                  }}
+                />
+              ))}
+            </svg>
+
+            {/* Tooltip on Hovering a Move Pip */}
+            {hoveredMovePip && (
+              <div
+                className="absolute top-1 z-30 pointer-events-none transform -translate-x-1/2 bg-[#1e1c18] border border-[#3d382f] rounded-md px-2 py-0.5 text-[9px] shadow-xl flex items-center gap-1.5 whitespace-nowrap"
+                style={{
+                  left: `${Math.min(85, Math.max(15, hoveredMovePip.x))}%`,
+                }}
+              >
+                <span className="font-mono text-zinc-400 font-bold">
+                  {hoveredMovePip.moveNumber}.{hoveredMovePip.isWhite ? '' : '..'}{hoveredMovePip.san}
+                </span>
+                <span
+                  className="font-bold uppercase text-[8px] px-1 rounded"
+                  style={{
+                    backgroundColor: `${hoveredMovePip.colorHex}25`,
+                    color: hoveredMovePip.colorHex,
+                  }}
+                >
+                  {hoveredMovePip.classification}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Players Row */}
         <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
           <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
@@ -578,17 +813,36 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
             Accuracy
           </span>
-          <div className="bg-white text-zinc-950 font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono">
+          <div className="bg-white text-zinc-950 font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono tabular-nums">
             {whiteAccuracy}
           </div>
-          <div className="bg-[#312e2b] text-white font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono border border-[#44403a]">
+          <div className="bg-[#312e2b] text-white font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono tabular-nums border border-[#44403a]">
             {blackAccuracy}
+          </div>
+        </div>
+
+        {/* Skills Row */}
+        <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+            Skills
+          </span>
+          <div className="flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg bg-[#25221d] border border-white/5 text-zinc-300 text-xs font-bold">
+            <Star className="w-3.5 h-3.5 text-blue-400 fill-blue-400/30" />
+            <span className="font-mono font-black text-blue-300">
+              +{Math.max(1, Math.round((whiteAccuracy / 100) * 12))}
+            </span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg bg-[#25221d] border border-white/5 text-zinc-300 text-xs font-bold">
+            <Star className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/30" />
+            <span className="font-mono font-black text-cyan-300">
+              +{Math.max(1, Math.round((blackAccuracy / 100) * 12))}
+            </span>
           </div>
         </div>
 
         {/* Classification Matrix Rows */}
         <div className="flex flex-col gap-0.5 pt-2 border-t border-[#2d2a26]">
-          {classificationRows.map((row) => {
+          {primaryRows.map((row) => {
             const cfg = CLASSIFICATION_CONFIG[row.classification];
             return (
               <div
@@ -598,89 +852,154 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 <span className="text-xs font-bold text-zinc-300">
                   {row.label}
                 </span>
-                <span className={`text-right font-mono font-black text-xs ${cfg?.countColor || 'text-zinc-200'}`}>
+                <span className={`text-right font-mono tabular-nums font-black text-xs ${cfg?.countColor || 'text-zinc-200'}`}>
                   {row.whiteCount}
                 </span>
                 <div className="flex justify-center">
                   <ClassificationBadge classification={row.classification} size="sm" />
                 </div>
-                <span className={`text-left font-mono font-black text-xs ${cfg?.countColor || 'text-zinc-200'}`}>
+                <span className={`text-left font-mono tabular-nums font-black text-xs ${cfg?.countColor || 'text-zinc-200'}`}>
                   {row.blackCount}
                 </span>
               </div>
             );
           })}
+
+          {/* Chevron Toggle Button for Good, Book, Inaccuracy (Image 4 style) */}
+          <div className="flex justify-center py-1">
+            <button
+              onClick={() => {
+                soundService.playTactilePop();
+                setShowAllClassifications(!showAllClassifications);
+              }}
+              className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-[#2a2722] transition-colors cursor-pointer flex items-center justify-center"
+              title={showAllClassifications ? "Hide secondary classifications" : "Show Good, Book, and Inaccuracy moves"}
+              aria-label="Toggle secondary classifications"
+            >
+              {showAllClassifications ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Secondary Rows (Good, Book, Inaccuracy) */}
+          {showAllClassifications && (
+            <div className="flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+              {secondaryRows.map((row) => {
+                const cfg = CLASSIFICATION_CONFIG[row.classification];
+                return (
+                  <div
+                    key={row.classification}
+                    className="grid grid-cols-[1fr_36px_40px_36px] items-center py-0.5 hover:bg-[#25221d] rounded px-1.5 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-zinc-400">
+                      {row.label}
+                    </span>
+                    <span className={`text-right font-mono tabular-nums font-black text-xs ${cfg?.countColor || 'text-zinc-400'}`}>
+                      {row.whiteCount}
+                    </span>
+                    <div className="flex justify-center">
+                      <ClassificationBadge classification={row.classification} size="sm" />
+                    </div>
+                    <span className={`text-left font-mono tabular-nums font-black text-xs ${cfg?.countColor || 'text-zinc-400'}`}>
+                      {row.blackCount}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Game Rating Row */}
         <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2 pt-2 border-t border-[#2d2a26]">
           <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 leading-tight">
-            Rating
+            Game Rating
           </span>
-          <div className="bg-white text-zinc-950 font-black text-base py-1 px-2 rounded-lg text-center shadow-sm font-mono">
-            {report.whiteEstimatedElo ?? 850}
+          <div className="bg-white text-zinc-950 font-black text-base py-1 px-2 rounded-lg text-center shadow-sm font-mono tabular-nums">
+            {report.whiteEstimatedElo ?? 500}
           </div>
-          <div className="bg-[#312e2b] text-white font-black text-base py-1 px-2 rounded-lg text-center shadow-sm font-mono border border-[#44403a]">
-            {report.blackEstimatedElo ?? 1100}
+          <div className="bg-[#312e2b] text-white font-black text-base py-1 px-2 rounded-lg text-center shadow-sm font-mono tabular-nums border border-[#44403a]">
+            {report.blackEstimatedElo ?? 1000}
           </div>
         </div>
 
-        {/* Advanced Stats Section */}
-        <div className="flex flex-col gap-1.5 pt-2 border-t border-[#2d2a26]">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
-              Phase Performance
-            </span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {advancedStatsRows.map((row) => (
-              <div
-                key={row.key}
-                className="grid grid-cols-[1fr_36px_40px_36px] items-center py-0.5 hover:bg-[#25221d] rounded px-1.5 transition-colors group cursor-default"
-                title={`White: ${row.white.score}% (${row.white.summary})\nBlack: ${row.black.score}% (${row.black.summary})`}
-              >
-                <div className="flex flex-col min-w-0 pr-1">
-                  <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
-                    {row.label}
-                  </span>
-                  <span className="text-[9px] text-zinc-500 truncate group-hover:text-zinc-400 transition-colors">
-                    {row.description}
-                  </span>
-                </div>
-                <div
-                  className="flex justify-end items-center pr-1"
-                  title={`White: ${row.white.score}% - ${row.white.summary}`}
-                >
-                  <ClassificationBadge classification={row.white.classification} size="sm" />
-                </div>
-                <div className="flex justify-center items-center">
-                  <span className="text-zinc-600 text-xs font-black select-none">·</span>
-                </div>
-                <div
-                  className="flex justify-start items-center pl-1"
-                  title={`Black: ${row.black.score}% - ${row.black.summary}`}
-                >
-                  <ClassificationBadge classification={row.black.classification} size="sm" />
-                </div>
+        {/* Advanced Stats Section with Collapsible Toggle */}
+        <div className="pt-2 border-t border-[#2d2a26] flex flex-col items-center">
+          <button
+            onClick={() => {
+              soundService.playTactilePop();
+              setIsAdvancedStatsOpen(!isAdvancedStatsOpen);
+            }}
+            className="py-1 px-2 text-center text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-emerald-400 transition-colors flex items-center justify-center gap-1 group cursor-pointer"
+          >
+            <span>Advanced Stats</span>
+            {isAdvancedStatsOpen ? (
+              <ChevronUp className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform" />
+            )}
+          </button>
+
+          {isAdvancedStatsOpen && (
+            <div className="w-full flex flex-col gap-1.5 pt-2 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                  Phase Performance
+                </span>
+                <span className="text-[9px] font-mono text-zinc-500">
+                  ACPL: W {report.whiteAcpl ?? 35} / B {report.blackAcpl ?? 18}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="flex flex-col gap-0.5">
+                {advancedStatsRows.map((row) => (
+                  <div
+                    key={row.key}
+                    className="grid grid-cols-[1fr_36px_40px_36px] items-center py-0.5 hover:bg-[#25221d] rounded px-1.5 transition-colors group cursor-default"
+                    title={`White: ${row.white.score}% (${row.white.summary})\nBlack: ${row.black.score}% (${row.black.summary})`}
+                  >
+                    <div className="flex flex-col min-w-0 pr-1">
+                      <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
+                        {row.label}
+                      </span>
+                      <span className="text-[9px] text-zinc-500 truncate group-hover:text-zinc-400 transition-colors">
+                        {row.description}
+                      </span>
+                    </div>
+                    <div
+                      className="flex justify-end items-center pr-1"
+                      title={`White: ${row.white.score}% - ${row.white.summary}`}
+                    >
+                      <ClassificationBadge classification={row.white.classification} size="sm" />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <span className="text-zinc-600 text-xs font-black select-none">·</span>
+                    </div>
+                    <div
+                      className="flex justify-start items-center pl-1"
+                      title={`Black: ${row.black.score}% - ${row.black.summary}`}
+                    >
+                      <ClassificationBadge classification={row.black.classification} size="sm" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-2">
-        <Button
-          variant="primary"
-          size="md"
-          rounded="xl"
-          fullWidth
+        <button
           onClick={onStartInteractiveReview}
-          className="gap-2"
+          className="tactile-btn w-full py-3 px-4 rounded-xl bg-gradient-to-b from-[#8fd649] to-[#699c30] text-white font-black text-base uppercase tracking-wider shadow-[0_4px_0_0_#385a16] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_0_#385a16] transition-all cursor-pointer flex items-center justify-center gap-2"
         >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          <span>Continue Review</span>
-        </Button>
+          <Play className="w-4 h-4 fill-white" />
+          <span>Start Review</span>
+        </button>
 
         {/* Interactive Mistakes SRS Practice Button */}
         {userMistakesPuzzles.length > 0 ? (
@@ -1015,72 +1334,25 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
 
       {/* Main Review Hub Body: Responsive container */}
       <div className="flex-1 min-h-0 overflow-visible lg:overflow-hidden flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center p-0 lg:p-4 gap-4 w-full max-w-5xl mx-auto">
-        {/* Desktop Split View (Left: Board + Graph, Right: Stats Panel) */}
+        {/* Desktop Split View (Left: Board + Players + EvalBar, Right: Stats Panel) */}
         <div className="hidden lg:flex flex-row gap-5 w-full h-full justify-center items-start min-h-0">
-          {/* Left Column: Board & Eval Flow */}
-          <div className="flex flex-col items-center gap-2.5 w-[min(44vh,440px)] shrink-0">
-            <div className="w-full aspect-square rounded-xl overflow-hidden border border-[#35322b] shadow-xl bg-[#1a1816]">
-              <ChessBoard
-                chess={summaryChess}
-                orientation={isUserWhite ? 'w' : 'b'}
-                boardTheme={boardTheme}
-                pieceTheme={pieceTheme}
-                activeClassification={
-                  keyMove
-                    ? { square: keyMove.to, classification: keyMove.classification || 'brilliant' }
-                    : null
-                }
-                lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
-                customArrows={
-                  keyMove
-                    ? [{ from: keyMove.from, to: keyMove.to, color: '#f59e0b' }]
-                    : []
-                }
-                disabled={true}
-              />
-            </div>
+          {/* Left Column: Board with Players & EvalBar (Chess.com Image 4 Style) */}
+          <div className="flex flex-col items-center gap-2 w-[min(46vh,460px)] shrink-0">
+            {/* Top Player Card (Opponent) */}
+            {renderPlayerCard(isUserWhite ? blackPlayer : whitePlayer, true, isUserWhite ? 'b' : 'w')}
 
-            {/* Evaluation Flow Area Chart */}
-            <div className="w-full bg-[#1b1917] p-2 rounded-lg border border-[#2d2a26] flex flex-col gap-1 shadow-md">
-              <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
-                <span>Advantage Over Time</span>
-                <span className="font-mono text-[11px] text-emerald-400 font-black">
-                  {moves.length} Moves
-                </span>
+            {/* Board Row with Left EvalBar */}
+            <div className="w-full flex items-center gap-2 aspect-square relative">
+              <div className="w-5 sm:w-6 h-full shrink-0">
+                <EvalBar
+                  score={activeEvalScore}
+                  orientation={isUserWhite ? 'w' : 'b'}
+                  isGameOver={true}
+                />
               </div>
-              <div className="h-12 w-full bg-[#12110f] rounded border border-[#282622] relative overflow-hidden">
-                <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/60" />
-                <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                  <polyline
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    points={points}
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Independently scrollable stats */}
-          <div className="w-full max-w-md h-full overflow-y-auto custom-scrollbar flex flex-col pr-2 pb-4 shrink-0">
-            {renderStatsPanel(false)}
-          </div>
-        </div>
-
-        {/* Mobile View: Switch between Stats tab and Board tab with responsive scroll */}
-        <div className="lg:hidden flex-1 min-h-0 w-full overflow-visible flex flex-col relative">
-          {mobileTab === 'stats' ? (
-            <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar p-2.5 flex flex-col gap-2">
-              {renderStatsPanel(true)}
-            </div>
-          ) : (
-            <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-start p-2 pb-20 overflow-visible gap-2">
-              <div className="w-[min(100vw,calc(100dvh-175px))] aspect-square overflow-hidden border-0 sm:border border-[#35322b] bg-[#1a1816]">
+              <div className="flex-1 h-full rounded-xl overflow-hidden border border-[#35322b] shadow-xl bg-[#1a1816] relative">
                 <ChessBoard
-                  chess={summaryChess}
+                  chess={previewChess}
                   orientation={isUserWhite ? 'w' : 'b'}
                   boardTheme={boardTheme}
                   pieceTheme={pieceTheme}
@@ -1097,30 +1369,81 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                   }
                   disabled={true}
                 />
+                {previewFen && (
+                  <button
+                    onClick={() => setPreviewFen(null)}
+                    className="absolute top-2 right-2 bg-black/80 hover:bg-black text-white text-[10px] font-bold px-2 py-1 rounded-lg border border-white/20 shadow-lg cursor-pointer backdrop-blur-sm flex items-center gap-1 z-20"
+                  >
+                    <span>Reset Preview</span>
+                    <RotateCcw className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Player Card (User) */}
+            {renderPlayerCard(isUserWhite ? whitePlayer : blackPlayer, false, isUserWhite ? 'w' : 'b')}
+          </div>
+
+          {/* Right Column: Independently scrollable stats */}
+          <div className="w-full max-w-md h-full overflow-y-auto custom-scrollbar flex flex-col pr-2 pb-4 shrink-0">
+            {renderStatsPanel(false)}
+          </div>
+        </div>
+
+        {/* Mobile View: Switch between Stats tab and Board tab with responsive scroll */}
+        <div className="lg:hidden flex-1 min-h-0 w-full overflow-visible flex flex-col relative">
+          {mobileTab === 'stats' ? (
+            <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar p-2.5 flex flex-col gap-2">
+              {renderStatsPanel(true)}
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 w-full flex flex-col items-center justify-start p-2 pb-20 overflow-visible gap-2 max-w-md mx-auto">
+              {/* Top Player Card (Opponent) */}
+              {renderPlayerCard(isUserWhite ? blackPlayer : whitePlayer, true, isUserWhite ? 'b' : 'w')}
+
+              {/* Board Row with Left EvalBar */}
+              <div className="w-full flex items-center gap-1.5 aspect-square relative">
+                <div className="w-5 h-full shrink-0">
+                  <EvalBar
+                    score={activeEvalScore}
+                    orientation={isUserWhite ? 'w' : 'b'}
+                    isGameOver={true}
+                  />
+                </div>
+                <div className="flex-1 h-full rounded-xl overflow-hidden border border-[#35322b] shadow-xl bg-[#1a1816] relative">
+                  <ChessBoard
+                    chess={previewChess}
+                    orientation={isUserWhite ? 'w' : 'b'}
+                    boardTheme={boardTheme}
+                    pieceTheme={pieceTheme}
+                    activeClassification={
+                      keyMove
+                        ? { square: keyMove.to, classification: keyMove.classification || 'brilliant' }
+                        : null
+                    }
+                    lastMove={keyMove ? { from: keyMove.from, to: keyMove.to } : null}
+                    customArrows={
+                      keyMove
+                        ? [{ from: keyMove.from, to: keyMove.to, color: '#f59e0b' }]
+                        : []
+                    }
+                    disabled={true}
+                  />
+                  {previewFen && (
+                    <button
+                      onClick={() => setPreviewFen(null)}
+                      className="absolute top-2 right-2 bg-black/80 hover:bg-black text-white text-[10px] font-bold px-2 py-1 rounded-lg border border-white/20 shadow-lg cursor-pointer backdrop-blur-sm flex items-center gap-1 z-20"
+                    >
+                      <span>Reset</span>
+                      <RotateCcw className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Mobile Evaluation Flow */}
-              <div className="w-full max-w-[min(100vw,calc(100dvh-175px))] bg-[#1b1917] p-2 rounded-lg border border-[#2d2a26] flex flex-col gap-1 shadow-md">
-                <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
-                  <span>Advantage Over Time</span>
-                  <span className="font-mono text-[11px] text-emerald-400 font-black">
-                    {moves.length} Moves
-                  </span>
-                </div>
-                <div className="h-10 w-full bg-[#12110f] rounded border border-[#282622] relative overflow-hidden">
-                  <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/60" />
-                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <polyline
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      points={points}
-                    />
-                  </svg>
-                </div>
-              </div>
+              {/* Bottom Player Card (User) */}
+              {renderPlayerCard(isUserWhite ? whitePlayer : blackPlayer, false, isUserWhite ? 'w' : 'b')}
             </div>
           )}
 

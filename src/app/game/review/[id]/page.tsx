@@ -268,7 +268,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         return;
       }
 
-const CURRENT_REVIEW_VERSION = 'v6.1';
+const CURRENT_REVIEW_VERSION = 'v6.2';
 
 const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
   if (!rep) return true;
