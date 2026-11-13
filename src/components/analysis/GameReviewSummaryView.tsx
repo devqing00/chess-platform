@@ -49,7 +49,6 @@ import {
   ChevronUp,
   Zap,
   Check,
-  Star,
   BookOpen,
 } from 'lucide-react';
 import { matchEcoOpening } from '@/lib/ecoOpenings';
@@ -222,17 +221,6 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
   const [previewFen, setPreviewFen] = useState<string | null>(null);
   const [showAllClassifications, setShowAllClassifications] = useState(false);
   const [isAdvancedStatsOpen, setIsAdvancedStatsOpen] = useState(false);
-  const [hoveredMovePip, setHoveredMovePip] = useState<{
-    index: number;
-    moveNumber: number;
-    san: string;
-    isWhite: boolean;
-    classification: MoveClassification;
-    colorHex: string;
-    score: number;
-    x: number;
-    y: number;
-  } | null>(null);
 
   const previewChess = React.useMemo(() => {
     if (previewFen) {
@@ -254,31 +242,6 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
       ? evalTimeline[evalTimeline.length - 1].score
       : 0;
   }, [previewFen, evalTimeline, moves]);
-
-  const timelinePips = React.useMemo(() => {
-    if (!moves || moves.length === 0) return [];
-    return moves.map((m, idx) => {
-      const x = (idx / Math.max(1, moves.length - 1)) * 100;
-      const score = m.evalAfter ?? (evalTimeline?.[idx]?.score ?? 0);
-      const winProb = 1 / (1 + Math.pow(10, -score / 400));
-      const y = Math.min(88, Math.max(12, 100 - winProb * 100));
-      const isWhite = idx % 2 === 0;
-      const classification = (m.classification || 'good') as MoveClassification;
-      const cfg = CLASSIFICATION_CONFIG[classification];
-      return {
-        index: idx,
-        moveNumber: Math.floor(idx / 2) + 1,
-        san: m.san,
-        isWhite,
-        classification,
-        colorHex: cfg?.hex || '#10b981',
-        score,
-        fenAfter: m.fenAfter,
-        x,
-        y,
-      };
-    });
-  }, [moves, evalTimeline]);
 
   // Multi-Mistake Interactive Practice Queue (Spaced Repetition across blunders, misses & mistakes)
   const userMistakesPuzzles = React.useMemo(() => {
@@ -678,25 +641,25 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
           </button>
         )}
 
-        {/* Evaluation Timeline Ribbon with Move Event Pips (Image 4 style) */}
-        <div className="w-full bg-[#171613] p-2.5 rounded-xl border border-[#2b2722] flex flex-col gap-1.5 shadow-inner relative">
+        {/* Evaluation Timeline Ribbon (Clean Chess.com Style) */}
+        <div className="w-full bg-[#181614] p-2.5 rounded-xl border border-[#2b2722] flex flex-col gap-1 shadow-inner relative">
           <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="uppercase tracking-wider font-black text-zinc-300">Advantage & Moves</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="uppercase tracking-wider font-black text-zinc-300">Advantage Over Time</span>
             </div>
             <span className="font-mono text-[10px] text-zinc-500 font-bold">
               {moves.length} moves
             </span>
           </div>
 
-          {/* SVG Timeline with Advantage Curve & Interactive Move Pips */}
-          <div className="h-14 sm:h-16 w-full bg-[#12110f] rounded-lg border border-[#24211d] relative overflow-hidden flex items-center">
+          {/* Clean SVG Timeline Curve */}
+          <div className="h-10 sm:h-11 w-full bg-[#11100e] rounded-lg border border-[#24211d] relative overflow-hidden flex items-center">
             {/* Center 0.0 midline */}
             <div className="absolute inset-x-0 top-1/2 h-[1px] bg-zinc-700/40 pointer-events-none" />
 
-            {/* SVG Advantage Line & Move Pips */}
-            <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+            {/* SVG Advantage Line */}
+            <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
               <polyline
                 fill="none"
                 stroke="#ffffff"
@@ -704,54 +667,9 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={points}
-                className="opacity-70"
+                className="opacity-80"
               />
-
-              {/* Move Event Pips */}
-              {timelinePips.map((pip) => (
-                <circle
-                  key={pip.index}
-                  cx={`${pip.x}%`}
-                  cy={`${pip.y}%`}
-                  r="2.8"
-                  fill={pip.colorHex}
-                  stroke="#12110f"
-                  strokeWidth="0.8"
-                  className="cursor-pointer hover:scale-150 transition-transform duration-100"
-                  onMouseEnter={() => setHoveredMovePip(pip)}
-                  onMouseLeave={() => setHoveredMovePip(null)}
-                  onClick={() => {
-                    soundService.playMove();
-                    if (pip.fenAfter) {
-                      setPreviewFen(pip.fenAfter);
-                    }
-                  }}
-                />
-              ))}
             </svg>
-
-            {/* Tooltip on Hovering a Move Pip */}
-            {hoveredMovePip && (
-              <div
-                className="absolute top-1 z-30 pointer-events-none transform -translate-x-1/2 bg-[#1e1c18] border border-[#3d382f] rounded-md px-2 py-0.5 text-[9px] shadow-xl flex items-center gap-1.5 whitespace-nowrap"
-                style={{
-                  left: `${Math.min(85, Math.max(15, hoveredMovePip.x))}%`,
-                }}
-              >
-                <span className="font-mono text-zinc-400 font-bold">
-                  {hoveredMovePip.moveNumber}.{hoveredMovePip.isWhite ? '' : '..'}{hoveredMovePip.san}
-                </span>
-                <span
-                  className="font-bold uppercase text-[8px] px-1 rounded"
-                  style={{
-                    backgroundColor: `${hoveredMovePip.colorHex}25`,
-                    color: hoveredMovePip.colorHex,
-                  }}
-                >
-                  {hoveredMovePip.classification}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -814,29 +732,10 @@ export const GameReviewSummaryView: React.FC<GameReviewSummaryViewProps> = ({
             Accuracy
           </span>
           <div className="bg-white text-zinc-950 font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono tabular-nums">
-            {whiteAccuracy}
+            {Number(whiteAccuracy).toFixed(1)}
           </div>
           <div className="bg-[#312e2b] text-white font-black text-lg py-1.5 px-2 rounded-lg text-center shadow-sm font-mono tabular-nums border border-[#44403a]">
-            {blackAccuracy}
-          </div>
-        </div>
-
-        {/* Skills Row */}
-        <div className="grid grid-cols-[70px_1fr_1fr] sm:grid-cols-[85px_1fr_1fr] items-center gap-2">
-          <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
-            Skills
-          </span>
-          <div className="flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg bg-[#25221d] border border-white/5 text-zinc-300 text-xs font-bold">
-            <Star className="w-3.5 h-3.5 text-blue-400 fill-blue-400/30" />
-            <span className="font-mono font-black text-blue-300">
-              +{Math.max(1, Math.round((whiteAccuracy / 100) * 12))}
-            </span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg bg-[#25221d] border border-white/5 text-zinc-300 text-xs font-bold">
-            <Star className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/30" />
-            <span className="font-mono font-black text-cyan-300">
-              +{Math.max(1, Math.round((blackAccuracy / 100) * 12))}
-            </span>
+            {Number(blackAccuracy).toFixed(1)}
           </div>
         </div>
 

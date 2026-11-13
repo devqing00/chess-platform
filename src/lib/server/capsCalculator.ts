@@ -554,10 +554,11 @@ export function classifyMoveEngine(params: {
   }
 
   let isGreatMove = false;
-  if (isStrictBest && effectiveL <= 0.02 && eSecond !== undefined && !isObviousRecapture && eBefore < 0.97) {
+  // Great move: must be strict best move in a contested position (eBefore < 0.85) where it's the only move that keeps the win/draw
+  if (isStrictBest && effectiveL <= 0.02 && eSecond !== undefined && !isObviousRecapture && eBefore < 0.85 && eBefore > 0.15) {
     const gap = eBefore - eSecond;
-    const bandCross = (eBefore >= 0.80 && eSecond < 0.65) || (eBefore >= 0.45 && eSecond < 0.30);
-    if (gap >= tier.greatGap || bandCross) {
+    const bandCross = (eBefore >= 0.70 && eSecond < 0.55) || (eBefore >= 0.45 && eSecond < 0.30);
+    if (gap >= 0.12 || bandCross) {
       isGreatMove = true;
     }
   }
@@ -574,8 +575,8 @@ export function classifyMoveEngine(params: {
     };
   }
 
-  // 4. Best Move (Strict engine top choice or negligible difference <= 0.002)
-  if (isStrictBest || effectiveL <= 0.002) {
+  // 4. Best Move (Strict engine top choice)
+  if (isStrictBest) {
     return {
       classification: 'best',
       winProbLoss: 0,
@@ -634,7 +635,7 @@ export function classifyMoveEngine(params: {
   const isTacticalMiss =
     hadMate ||
     (hadSignificantWin && lostWin && effectiveL >= 0.10) ||
-    (opponentJustErred && (bestIsTactical || cpLoss >= 100) && (winProbLoss >= 2.5 || cpLoss >= 120));
+    (opponentJustErred && eBefore >= 0.50 && (bestIsTactical || cpLoss >= 100) && (winProbLoss >= 2.5 || cpLoss >= 120));
 
   if (isTacticalMiss) {
     return {
@@ -659,7 +660,9 @@ export function classifyMoveEngine(params: {
   }
 
   // 9. Mistake (Chess.com band: 0.10 < L <= 0.20 or cpLoss <= 280)
-  if (effectiveL <= 0.20 && cpLoss <= 280) {
+  // Hopelessly lost positions (eBefore <= 0.20) are treated as Mistakes rather than compounding into multiple Blunders
+  const wasAlreadyHopelesslyLost = eBefore <= 0.20;
+  if (wasAlreadyHopelesslyLost || (effectiveL <= 0.20 && cpLoss <= 280)) {
     return {
       classification: 'mistake',
       winProbLoss: effectiveLoss,
@@ -764,16 +767,10 @@ export function reclassifyReportWithEngine(
 
     let finalClassification = res.classification;
     const nextMoveDeliversMate = Boolean(report.moves[idx + 1]?.san?.includes('#'));
-    if (m.san?.includes('#')) {
-      finalClassification = 'great';
-    } else if (res.classification === 'blunder' || nextMoveDeliversMate) {
+    if (res.classification === 'blunder' || nextMoveDeliversMate) {
       finalClassification = 'blunder';
-    } else if (m.classification) {
-      if (['great', 'book'].includes(m.classification)) {
-        finalClassification = m.classification;
-      } else {
-        finalClassification = res.classification;
-      }
+    } else {
+      finalClassification = res.classification;
     }
 
     if (isWhite) {

@@ -1433,7 +1433,7 @@ export class ChessEvaluator {
     }
     if (isCheckmateMove) {
       return {
-        classification: 'great',
+        classification: 'best',
         comment: `Checkmate! A decisive finishing blow.`,
         wpLoss: 0,
         motif: { type: 'checkmate', description: 'Delivered an unstoppable checkmate!' },
@@ -1553,8 +1553,8 @@ export class ChessEvaluator {
       };
     }
 
-    // 5. Great Move (Only winning move or clutch defense)
-    if (isBestMove && secondBestScoreDiff >= 100 && wpAfter >= 40.0 && plyIndex > 4) {
+    // 5. Great Move (Only winning move or clutch defense in contested position)
+    if (isBestMove && secondBestScoreDiff >= 160 && wpBefore < 85.0 && wpBefore > 15.0 && wpAfter >= 40.0 && plyIndex > 4) {
       const desc = motif ? `${motif.description} ` : '';
       return {
         classification: 'great',
@@ -1564,8 +1564,8 @@ export class ChessEvaluator {
       };
     }
 
-    // 6. Best Move
-    if (isBestMove || (cpLoss <= 10 && wpLoss <= 0.6)) {
+    // 6. Best Move (Strict engine top choice)
+    if (isBestMove) {
       let bestComment = `Best move! ${moveSan} coordinates your pieces and maintains optimal control of the board.`;
       if (motif) {
         bestComment = `Best move! ${motif.description}`;

@@ -236,9 +236,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Evaluate all positions concurrently through multi-worker Stockfish pool
-    const plyBudget = Math.min(80, Math.max(35, timeBudgetMs || 50));
-    const timeoutPerPly = Math.max(3500, plyBudget * 4);
+    // Fast, responsive parallel evaluation: 25ms budget per ply with 800ms ceiling
+    const plyBudget = Math.min(30, Math.max(15, timeBudgetMs ? Math.min(timeBudgetMs, 30) : 25));
+    const timeoutPerPly = Math.min(800, plyBudget * 4);
 
     await Promise.all(
       preparedPlies.map(async (p) => {

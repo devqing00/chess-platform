@@ -268,7 +268,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         return;
       }
 
-const CURRENT_REVIEW_VERSION = 'v6.2';
+const CURRENT_REVIEW_VERSION = 'v6.3';
 
 const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
   if (!rep) return true;
@@ -354,7 +354,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
             }
           }, 250);
 
-          const timeoutMs = Math.max(45000, (session.moves?.length || 30) * 800);
+          const timeoutMs = Math.min(12000, Math.max(5000, (session.moves?.length || 30) * 80));
           const controller = new AbortController();
           const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
 
