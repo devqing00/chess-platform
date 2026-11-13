@@ -268,7 +268,7 @@ export default function GameReviewPage({ params }: ReviewPageProps) {
         return;
       }
 
-const CURRENT_REVIEW_VERSION = 'v6.0';
+const CURRENT_REVIEW_VERSION = 'v6.1';
 
 const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount: number): boolean => {
   if (!rep) return true;
@@ -354,7 +354,7 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
             }
           }, 250);
 
-          const timeoutMs = Math.max(25000, (session.moves?.length || 30) * 400);
+          const timeoutMs = Math.max(45000, (session.moves?.length || 30) * 800);
           const controller = new AbortController();
           const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -411,7 +411,12 @@ const isCorruptedReport = (rep: GameReviewReport | null | undefined, movesCount:
         let movesToUse = session.moves;
         const hasEvaluations =
           session.moves.length > 0 &&
-          session.moves.every((m) => m.evalAfter !== undefined && m.classification !== undefined);
+          session.moves.every(
+            (m) =>
+              m.evalAfter !== undefined &&
+              m.classification !== undefined &&
+              (m.evalAfter !== 0 || m.evalBefore !== 0 || m.winProbLoss !== undefined || m.bestMoveSan !== undefined)
+          );
         if (!hasEvaluations && session.moves.length > 0) {
           movesToUse = ChessEvaluator.analyzeGameHistory(session.moves);
           session.moves = movesToUse;

@@ -688,11 +688,28 @@ class StockfishProcessPool {
   private dispatchNext() {
     if (this.queue.length === 0) return;
 
-    // If workers are dead or failed, attempt to revive them
-    const allWorkersDead = this.workers.length > 0 && this.workers.every((w) => !w.isAlive());
-    if (allWorkersDead) {
+    // Check if any worker is alive or able to boot
+    const hasLiveWorker = this.workers.some((w) => w.isAlive());
+    const anyCanBoot = this.workers.some((w) => !w.hasFailed);
+
+    if (!hasLiveWorker && anyCanBoot) {
       for (const w of this.workers) {
-        w.initProcess();
+        if (!w.hasFailed && !w.isAlive()) {
+          w.initProcess();
+        }
+      }
+      return;
+    }
+
+    if (!hasLiveWorker && !anyCanBoot) {
+      // No workers could be spawned or all failed (e.g. serverless environment):
+      // Immediately drain queue with high-speed tactical evaluation in 0ms!
+      while (this.queue.length > 0) {
+        const task = this.queue.shift();
+        if (task) {
+          if (task.timer) clearTimeout(task.timer);
+          task.resolve(buildFallbackEvaluation(task.fen, task.depth));
+        }
       }
       return;
     }

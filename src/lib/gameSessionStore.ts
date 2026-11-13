@@ -161,7 +161,7 @@ export function parsePgnToMoveRecords(pgn: string): MoveRecord[] {
         fenAfter,
         evalBefore: 0,
         evalAfter: 0,
-        classification: i < 8 ? 'book' : 'good',
+        classification: undefined,
         coachComment: '',
         isCheck: runner.inCheck(),
         timeSpentSeconds: parsedDurations[i],
@@ -489,7 +489,12 @@ export function generateGameReviewReport(
 ): GameReviewReport {
   const hasCompleteEvaluations =
     moves.length > 0 &&
-    moves.every((m) => m.evalAfter !== undefined && m.classification !== undefined);
+    moves.every(
+      (m) =>
+        m.evalAfter !== undefined &&
+        m.classification !== undefined &&
+        (m.evalAfter !== 0 || m.evalBefore !== 0 || m.winProbLoss !== undefined || m.bestMoveSan !== undefined)
+    );
 
   // Deeply analyze game history with engine evaluator unless complete evaluations exist
   let analyzedMoves: MoveRecord[] = [];

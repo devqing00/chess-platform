@@ -39,6 +39,7 @@ import { extractMoveTimesFromPgn } from '@/lib/pgnTimeParser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 function createEmptyTallies(): ClassificationTallies {
   return {

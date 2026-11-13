@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-globals */
 // Check.mate Progressive Web App Service Worker
-// Version: checkmate-pwa-v2.0.0
+// Version: checkmate-pwa-v2.1.0
 
-const CACHE_NAME = 'checkmate-pwa-v2';
+const CACHE_NAME = 'checkmate-pwa-v2.1';
 const OFFLINE_URL = '/offline';
 
 // Pre-cached critical application shell & offline assets
@@ -131,21 +131,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 5. Handle Next.js code chunks (JS/CSS) -> Network First with Offline Fallback
-  // Crucial: Network First ensures browser always runs the JS bundle matching the server rendered HTML!
-  if (url.includes('/_next/')) {
+  // 5. Handle Next.js static asset chunks (JS/CSS in /_next/static/) -> Stale-While-Revalidate
+  // Strictly target static chunks only; never intercept dynamic RSC data (?_rsc=) or server actions!
+  if (url.includes('/_next/static/')) {
     event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => caches.match(request))
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse || new Response('', { status: 404, statusText: 'Not Found' }));
+
+        return cachedResponse || fetchPromise;
+      })
     );
     return;
   }
@@ -174,7 +178,7 @@ self.addEventListener('fetch', (event) => {
             }
             return networkResponse;
           })
-          .catch(() => cachedResponse);
+          .catch(() => cachedResponse || new Response('', { status: 404, statusText: 'Not Found' }));
 
         return cachedResponse || fetchPromise;
       })
@@ -182,10 +186,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 7. Default fallback to standard fetch
-  event.respondWith(
-    fetch(request).catch(() => caches.match(request))
-  );
+  // 7. For all other dynamic requests (RSC data, review API, engine, game sessions):
+  // DO NOT call event.respondWith! Let the browser handle standard network fetch natively.
 });
 
 // Communication listener
